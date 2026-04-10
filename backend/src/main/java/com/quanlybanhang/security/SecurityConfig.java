@@ -1,6 +1,8 @@
 package com.quanlybanhang.security;
 
+import java.util.ArrayList;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpHeaders;
 import org.springframework.context.annotation.Configuration;
@@ -53,9 +55,24 @@ public class SecurityConfig {
   }
 
   @Bean
-  public CorsConfigurationSource corsConfigurationSource() {
+  public CorsConfigurationSource corsConfigurationSource(
+      @Value("${app.cors.allow-all-http-origins:false}") boolean allowAllHttpOrigins) {
     CorsConfiguration c = new CorsConfiguration();
-    c.setAllowedOrigins(List.of("http://localhost:5173"));
+    /*
+     * Trình duyệt luôn gửi Origin và áp CORS; Postman/Kotlin/curl thì không → Postman "chạy" nhưng
+     * frontend vẫn có thể bị chặn nếu Origin (localhost:5174, IP LAN, file://…) không khớp.
+     * Chỉ bật app.cors.allow-all-http-origins=true trên máy dev khi cần (không dùng production).
+     */
+    List<String> patterns = new ArrayList<>();
+    if (allowAllHttpOrigins) {
+      patterns.add("http://*:*");
+    } else {
+      patterns.add("http://localhost:*");
+      patterns.add("http://127.0.0.1:*");
+      patterns.add("http://192.168.*:*");
+      patterns.add("http://10.*:*");
+    }
+    c.setAllowedOriginPatterns(patterns);
     c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     c.setAllowedHeaders(List.of("*"));
     c.setAllowCredentials(true);

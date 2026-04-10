@@ -100,7 +100,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
   private static AccountFlags resolveAccountFlags(String status) {
     if (status == null || status.isBlank()) {
-      return new AccountFlags(false, false);
+      return new AccountFlags(true, true);
     }
     String s = status.trim();
     if (s.equalsIgnoreCase("LOCKED") || s.equalsIgnoreCase(DomainConstants.STATUS_LOCKED)) {

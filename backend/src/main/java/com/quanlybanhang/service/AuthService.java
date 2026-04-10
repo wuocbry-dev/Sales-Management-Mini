@@ -166,6 +166,10 @@ public class AuthService {
 
   private void assertAccountAllowedForLogin(AppUser user) {
     String st = user.getStatus() == null ? "" : user.getStatus().trim();
+    // Tránh 403 oan khi cột status rỗng / dữ liệu cũ; chỉ chặn LOCKED và INACTIVE rõ ràng.
+    if (st.isEmpty()) {
+      return;
+    }
     if (st.equalsIgnoreCase("LOCKED") || st.equalsIgnoreCase(DomainConstants.STATUS_LOCKED)) {
       throw new AuthApiException(
           HttpStatus.FORBIDDEN, AuthErrorCodes.ACCOUNT_LOCKED, "Tài khoản đã bị khóa.");
