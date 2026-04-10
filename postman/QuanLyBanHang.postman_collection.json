@@ -1,0 +1,479 @@
+{
+  "info": {
+    "name": "Quản lý bán hàng API",
+    "description": "1) Gọi **00 - Auth → POST login** (username/password trong biến `loginUsername` / `loginPassword`). Script tự ghi `accessToken` vào biến collection.\n2) Các request còn lại dùng **Authorization: Bearer {{accessToken}}** (kế thừa từ collection).\n3) Chỉ **GET /health** và **POST /auth/login** không cần token.\n4) Chỉnh `baseUrl`, `storeId`, `variantId`, `orderId`, `orderItemId`, … theo DB thật.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api" },
+    { "key": "accessToken", "value": "" },
+    { "key": "loginUsername", "value": "admin" },
+    { "key": "loginPassword", "value": "your-password" },
+    { "key": "storeId", "value": "1" },
+    { "key": "toStoreId", "value": "2" },
+    { "key": "variantId", "value": "1" },
+    { "key": "supplierId", "value": "1" },
+    { "key": "customerId", "value": "1" },
+    { "key": "orderId", "value": "1" },
+    { "key": "orderItemId", "value": "1" },
+    { "key": "receiptId", "value": "1" },
+    { "key": "returnId", "value": "1" },
+    { "key": "transferId", "value": "1" },
+    { "key": "stocktakeId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "00 - Auth",
+      "item": [
+        {
+          "name": "POST login (lưu token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var j = pm.response.json();",
+                  "  if (j.accessToken) pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{loginUsername}}\",\n  \"password\": \"{{loginPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Trả về `accessToken`, `tokenType`, `expiresInSeconds`, `userId`, `username`, `roles`. Token được lưu vào biến collection `accessToken`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Health",
+      "item": [
+        {
+          "name": "GET health",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Master data",
+      "item": [
+        {
+          "name": "GET stores (page)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/stores?page=0&size=20"
+          }
+        },
+        {
+          "name": "POST store",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeCode\": \"CH001\",\n  \"storeName\": \"Cửa hàng mẫu\",\n  \"phone\": \"0900000001\",\n  \"email\": \"store@example.com\",\n  \"address\": \"123 Đường ABC\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{baseUrl}}/stores"
+          }
+        },
+        {
+          "name": "PUT store",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeCode\": \"CH001\",\n  \"storeName\": \"Cửa hàng đổi tên\",\n  \"phone\": \"0900000001\",\n  \"email\": \"store@example.com\",\n  \"address\": \"123 Đường ABC\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{baseUrl}}/stores/1"
+          }
+        },
+        {
+          "name": "POST brand",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brandCode\": \"BR01\",\n  \"brandName\": \"Thương hiệu mẫu\",\n  \"description\": \"Ghi chú\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{baseUrl}}/brands"
+          }
+        },
+        {
+          "name": "POST category",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parentId\": null,\n  \"categoryCode\": \"DM01\",\n  \"categoryName\": \"Danh mục mẫu\",\n  \"description\": null,\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{baseUrl}}/categories"
+          }
+        },
+        {
+          "name": "POST unit",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unitCode\": \"CAI\",\n  \"unitName\": \"Cái\",\n  \"description\": null\n}"
+            },
+            "url": "{{baseUrl}}/units"
+          }
+        },
+        {
+          "name": "POST supplier",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplierCode\": \"NCC01\",\n  \"supplierName\": \"Nhà cung cấp mẫu\",\n  \"contactPerson\": \"Nguyễn A\",\n  \"phone\": \"0911111111\",\n  \"email\": \"ncc@example.com\",\n  \"address\": \"Hà Nội\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{baseUrl}}/suppliers"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Products",
+      "item": [
+        {
+          "name": "GET products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/products?page=0&size=20"
+          }
+        },
+        {
+          "name": "GET products (filter)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/products?page=0&size=20&status=active&categoryId=1&brandId=1&q=tên",
+            "description": "Query tùy chọn: `status`, `categoryId`, `brandId`, `q` (tìm theo tên/mã)."
+          }
+        },
+        {
+          "name": "POST product + variants",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": 1,\n  \"brandId\": 1,\n  \"unitId\": 1,\n  \"productCode\": \"SP001\",\n  \"productName\": \"Sản phẩm mẫu\",\n  \"productType\": \"simple\",\n  \"hasVariant\": true,\n  \"trackInventory\": true,\n  \"description\": \"Mô tả\",\n  \"status\": \"active\",\n  \"variants\": [\n    {\n      \"sku\": \"SP001-DO-M\",\n      \"barcode\": \"8930000000001\",\n      \"variantName\": \"Đỏ / M\",\n      \"attributesJson\": \"{\\\"color\\\":\\\"red\\\",\\\"size\\\":\\\"M\\\"}\",\n      \"costPrice\": 100000.0000,\n      \"sellingPrice\": 150000.0000,\n      \"reorderLevel\": 5.0000,\n      \"status\": \"active\"\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/products"
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Customers",
+      "item": [
+        {
+          "name": "GET customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/customers?page=0&size=20"
+          }
+        },
+        {
+          "name": "POST customer",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerCode\": \"KH001\",\n  \"fullName\": \"Khách lẻ mẫu\",\n  \"phone\": \"0922222222\",\n  \"email\": \"khach@example.com\",\n  \"gender\": \"other\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"address\": \"TP.HCM\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{baseUrl}}/customers"
+          }
+        },
+        {
+          "name": "PUT customer",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerCode\": \"KH001\",\n  \"fullName\": \"Khách đổi tên\",\n  \"phone\": \"0922222222\",\n  \"email\": \"khach@example.com\",\n  \"gender\": \"other\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"address\": \"TP.HCM\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{baseUrl}}/customers/{{customerId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Inventory",
+      "item": [
+        {
+          "name": "GET inventories by store",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/inventories?storeId={{storeId}}&page=0&size=20"
+          }
+        },
+        {
+          "name": "GET inventory transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/inventory-transactions?storeId={{storeId}}&page=0&size=20",
+            "description": "Bắt buộc `storeId`. Thêm tùy chọn: `transactionType`, `variantId`, `fromCreatedAt`, `toCreatedAt` (ISO date-time)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Goods receipts",
+      "item": [
+        {
+          "name": "GET goods-receipts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/goods-receipts?page=0&size=20",
+            "description": "Filter tùy chọn: `storeId`, `status`, `fromReceiptDate`, `toReceiptDate` (ISO date-time)."
+          }
+        },
+        {
+          "name": "POST goods-receipt (draft)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeId\": {{storeId}},\n  \"supplierId\": {{supplierId}},\n  \"receiptDate\": \"2026-04-10T10:00:00\",\n  \"headerDiscountAmount\": 0,\n  \"note\": \"Nhập hàng test Postman\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 10.0000,\n      \"unitCost\": 80000.0000,\n      \"discountAmount\": 0\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/goods-receipts",
+            "description": "Người tạo lấy từ JWT (không dùng X-User-Id)."
+          }
+        },
+        {
+          "name": "POST goods-receipt confirm",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/goods-receipts/{{receiptId}}/confirm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Sales orders",
+      "item": [
+        {
+          "name": "GET sales-orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/sales-orders?page=0&size=20"
+          }
+        },
+        {
+          "name": "POST sales-order (draft)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeId\": {{storeId}},\n  \"customerId\": {{customerId}},\n  \"orderDate\": \"2026-04-10T14:30:00\",\n  \"headerDiscountAmount\": 0,\n  \"note\": \"Bán lẻ test\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 1.0000,\n      \"unitPrice\": 150000.0000,\n      \"discountAmount\": 0\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/sales-orders"
+          }
+        },
+        {
+          "name": "POST sales-order confirm",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payments\": [\n    {\n      \"paymentType\": \"in\",\n      \"paymentMethod\": \"cash\",\n      \"amount\": 150000.0000,\n      \"referenceNo\": null,\n      \"note\": null\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/sales-orders/{{orderId}}/confirm"
+          }
+        },
+        {
+          "name": "POST sales-order confirm (đơn 0đ)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"payments\": []\n}"
+            },
+            "url": "{{baseUrl}}/sales-orders/{{orderId}}/confirm"
+          }
+        },
+        {
+          "name": "POST sales-order cancel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/sales-orders/{{orderId}}/cancel"
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Sales returns",
+      "item": [
+        {
+          "name": "GET sales-returns",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/sales-returns?page=0&size=20",
+            "description": "Filter tùy chọn: `storeId`, `orderId`, `status`."
+          }
+        },
+        {
+          "name": "GET sales-return by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/sales-returns/{{returnId}}"
+          }
+        },
+        {
+          "name": "POST sales-return (draft)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": {{orderId}},\n  \"storeId\": {{storeId}},\n  \"customerId\": {{customerId}},\n  \"returnDate\": \"2026-04-10T16:00:00\",\n  \"note\": \"Trả hàng mẫu\",\n  \"lines\": [\n    {\n      \"orderItemId\": {{orderItemId}},\n      \"variantId\": {{variantId}},\n      \"quantity\": 1.0000,\n      \"unitPrice\": 150000.0000,\n      \"reason\": \"Lỗi sản phẩm\"\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/sales-returns"
+          }
+        },
+        {
+          "name": "POST sales-return confirm",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/sales-returns/{{returnId}}/confirm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Stock transfers",
+      "item": [
+        {
+          "name": "GET stock-transfers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/stock-transfers?page=0&size=20",
+            "description": "Filter: `fromStoreId`, `toStoreId`, `status`."
+          }
+        },
+        {
+          "name": "GET stock-transfer by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/stock-transfers/{{transferId}}"
+          }
+        },
+        {
+          "name": "POST stock-transfer (draft)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fromStoreId\": {{storeId}},\n  \"toStoreId\": {{toStoreId}},\n  \"transferDate\": \"2026-04-10T11:00:00\",\n  \"note\": \"Chuyển kho test\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 2.0000\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/stock-transfers"
+          }
+        },
+        {
+          "name": "POST stock-transfer confirm",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/stock-transfers/{{transferId}}/confirm"
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Stocktakes",
+      "item": [
+        {
+          "name": "GET stocktakes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/stocktakes?page=0&size=20",
+            "description": "Filter: `storeId`, `status`."
+          }
+        },
+        {
+          "name": "GET stocktake by id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/stocktakes/{{stocktakeId}}"
+          }
+        },
+        {
+          "name": "POST stocktake (draft)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeId\": {{storeId}},\n  \"stocktakeDate\": \"2026-04-10T09:00:00\",\n  \"note\": \"Kiểm kê mẫu\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"actualQty\": 100.0000,\n      \"note\": \"Đếm thực tế\"\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/stocktakes"
+          }
+        },
+        {
+          "name": "POST stocktake confirm",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/stocktakes/{{stocktakeId}}/confirm"
+          }
+        }
+      ]
+    }
+  ]
+}

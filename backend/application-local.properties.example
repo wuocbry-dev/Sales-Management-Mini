@@ -1,0 +1,4 @@
+# Sao chép thành application-local.properties và điền thông tin DB của bạn (file đó đã được .gitignore).
+spring.datasource.url=jdbc:mysql://127.0.0.1:3306/ten_database?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh&useUnicode=true&characterEncoding=utf8
+spring.datasource.username=root
+spring.datasource.password=

@@ -1,0 +1,9 @@
+package com.quanlybanhang.repository;
+
+import com.quanlybanhang.model.Unit;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface UnitRepository extends JpaRepository<Unit, Long> {
+
+  boolean existsByUnitCode(String unitCode);
+}
