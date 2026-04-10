@@ -45,13 +45,20 @@ public class GlobalExceptionHandler {
         .body(ApiErrorResponse.validation(fields, msg.isEmpty() ? "Validation failed" : msg));
   }
 
+  /** Lỗi auth: mã {@link AuthErrorCodes} + HTTP status (401/403/409…). */
+  @ExceptionHandler(AuthApiException.class)
+  public ResponseEntity<ApiErrorResponse> authApi(AuthApiException ex) {
+    return ResponseEntity.status(ex.getHttpStatus())
+        .body(ApiErrorResponse.of(ex.getHttpStatus(), ex.getErrorCode(), ex.getMessage()));
+  }
+
   @ExceptionHandler(BadCredentialsException.class)
   public ResponseEntity<ApiErrorResponse> badCredentials(BadCredentialsException ex) {
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
         .body(
             ApiErrorResponse.of(
                 401,
-                "BAD_CREDENTIALS",
+                AuthErrorCodes.INVALID_CREDENTIALS,
                 ex.getMessage() != null ? ex.getMessage() : "Sai tên đăng nhập hoặc mật khẩu"));
   }
 
@@ -61,7 +68,7 @@ public class GlobalExceptionHandler {
         .body(
             ApiErrorResponse.of(
                 403,
-                "FORBIDDEN",
+                AuthErrorCodes.FORBIDDEN,
                 ex.getMessage() != null ? ex.getMessage() : "Không có quyền thực hiện."));
   }
 

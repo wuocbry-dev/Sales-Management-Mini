@@ -2,14 +2,21 @@ package com.quanlybanhang.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
+/** Người dùng — bảng `users` (tên class giữ `AppUser` theo code hiện có). */
 @Entity
 @Table(name = "users")
 @Getter
@@ -21,8 +28,9 @@ public class AppUser {
   @Column(name = "user_id")
   private Long id;
 
-  @Column(name = "default_store_id")
-  private Long defaultStoreId;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "default_store_id")
+  private Store defaultStore;
 
   @Column(nullable = false, length = 50, unique = true)
   private String username;
@@ -47,4 +55,12 @@ public class AppUser {
 
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
+
+  @OneToMany
+  @JoinColumn(name = "user_id")
+  private List<UserRoleAssignment> roleAssignments = new ArrayList<>();
+
+  @OneToMany
+  @JoinColumn(name = "user_id")
+  private List<UserStore> assignedStores = new ArrayList<>();
 }

@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,6 +26,7 @@ public class ProductController {
   private final ProductService productService;
 
   @GetMapping
+  @PreAuthorize("hasRole('ADMIN') or hasAuthority('PRODUCT_VIEW')")
   public Page<ProductResponse> list(
       Pageable pageable,
       @RequestParam(required = false) String status,
@@ -35,12 +37,14 @@ public class ProductController {
   }
 
   @GetMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN') or hasAuthority('PRODUCT_VIEW')")
   public ProductResponse get(@PathVariable Long id) {
     return productService.getProduct(id);
   }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
+  @PreAuthorize("hasRole('ADMIN') or hasAuthority('PRODUCT_CREATE')")
   public ProductResponse create(@Valid @RequestBody ProductCreateRequest req) {
     return productService.createProduct(req);
   }

@@ -8,6 +8,9 @@ public final class DomainConstants {
   public static final String STATUS_ACTIVE = "active";
   public static final String STATUS_INACTIVE = "inactive";
 
+  /** Khớp ENUM MySQL `users.status` (ACTIVE / INACTIVE / LOCKED). */
+  public static final String STATUS_LOCKED = "locked";
+
   public static final String RECEIPT_DRAFT = "draft";
   public static final String RECEIPT_COMPLETED = "completed";
   public static final String RECEIPT_CANCELLED = "cancelled";

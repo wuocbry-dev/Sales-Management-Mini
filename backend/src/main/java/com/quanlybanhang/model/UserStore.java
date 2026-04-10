@@ -11,13 +11,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Bảng `user_roles` — entity trung gian User–Role (UserRole). */
+/** Bảng gán user–store (`user_stores`). */
 @Entity
-@Table(name = "user_roles")
+@Table(name = "user_stores")
 @Getter
 @Setter
 @NoArgsConstructor
-public class UserRoleAssignment {
+public class UserStore {
 
   @Embeddable
   @Getter
@@ -27,12 +27,12 @@ public class UserRoleAssignment {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "role_id", nullable = false)
-    private Long roleId;
+    @Column(name = "store_id", nullable = false)
+    private Long storeId;
 
-    public Pk(Long userId, Long roleId) {
+    public Pk(Long userId, Long storeId) {
       this.userId = userId;
-      this.roleId = roleId;
+      this.storeId = storeId;
     }
 
     @Override
@@ -44,14 +44,17 @@ public class UserRoleAssignment {
         return false;
       }
       Pk pk = (Pk) o;
-      return Objects.equals(userId, pk.userId) && Objects.equals(roleId, pk.roleId);
+      return Objects.equals(userId, pk.userId) && Objects.equals(storeId, pk.storeId);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(userId, roleId);
+      return Objects.hash(userId, storeId);
     }
   }
 
   @EmbeddedId private Pk id;
+
+  @Column(name = "is_primary", nullable = false)
+  private boolean isPrimary;
 }

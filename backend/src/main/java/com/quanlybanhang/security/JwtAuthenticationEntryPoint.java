@@ -2,6 +2,7 @@ package com.quanlybanhang.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.quanlybanhang.exception.ApiErrorResponse;
+import com.quanlybanhang.exception.AuthErrorCodes;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -29,6 +30,10 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
     objectMapper.writeValue(
         response.getOutputStream(),
         ApiErrorResponse.of(
-            401, "UNAUTHORIZED", authException.getMessage() != null ? authException.getMessage() : "Unauthorized"));
+            401,
+            AuthErrorCodes.UNAUTHORIZED,
+            authException.getMessage() != null
+                ? authException.getMessage()
+                : "Cần Bearer token hợp lệ."));
   }
 }

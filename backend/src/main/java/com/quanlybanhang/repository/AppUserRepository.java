@@ -1,10 +1,4 @@
 package com.quanlybanhang.repository;
 
-import com.quanlybanhang.model.AppUser;
-import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
-
-public interface AppUserRepository extends JpaRepository<AppUser, Long> {
-
-  Optional<AppUser> findByUsername(String username);
-}
+/** Giữ tên bean cũ; toàn bộ method nằm ở {@link UserRepository}. */
+public interface AppUserRepository extends UserRepository {}

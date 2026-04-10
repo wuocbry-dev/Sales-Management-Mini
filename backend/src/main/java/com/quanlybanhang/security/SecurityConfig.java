@@ -6,6 +6,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -19,8 +20,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
+  /** Mã hóa / so khớp {@code users.password_hash} (BCrypt). */
   @Bean
   public PasswordEncoder passwordEncoder() {
     return new BCryptPasswordEncoder();
@@ -28,7 +31,9 @@ public class SecurityConfig {
 
   @Bean
   public SecurityFilterChain securityFilterChain(
-      HttpSecurity http, JwtAuthFilter jwtAuthFilter, JwtAuthenticationEntryPoint entryPoint)
+      HttpSecurity http,
+      JwtAuthenticationFilter jwtAuthenticationFilter,
+      JwtAuthenticationEntryPoint entryPoint)
       throws Exception {
     http.cors(Customizer.withDefaults())
         .csrf(csrf -> csrf.disable())
@@ -38,11 +43,12 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers(HttpMethod.OPTIONS, "/**")
                     .permitAll()
-                    .requestMatchers("/api/auth/login", "/api/health")
+                    .requestMatchers("/api/auth/login", "/api/auth/register", "/api/health")
                     .permitAll()
                     .requestMatchers("/api/**")
                     .authenticated())
-        .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(
+            jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
     return http.build();
   }
 

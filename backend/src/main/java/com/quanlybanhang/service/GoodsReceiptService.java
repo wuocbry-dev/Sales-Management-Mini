@@ -18,6 +18,7 @@ import com.quanlybanhang.repository.ProductVariantRepository;
 import com.quanlybanhang.repository.StoreRepository;
 import com.quanlybanhang.repository.SupplierRepository;
 import com.quanlybanhang.repository.spec.GoodsReceiptSpecifications;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -44,6 +45,7 @@ public class GoodsReceiptService {
   private final ProductVariantRepository variantRepository;
   private final StoreRepository storeRepository;
   private final SupplierRepository supplierRepository;
+  private final StoreAccessService storeAccessService;
 
   private LocalDateTime now() {
     return LocalDateTime.now(ZONE);
@@ -88,7 +90,10 @@ public class GoodsReceiptService {
   }
 
   @Transactional
-  public GoodsReceiptResponse createDraft(GoodsReceiptCreateRequest req, long userId) {
+  public GoodsReceiptResponse createDraft(
+      GoodsReceiptCreateRequest req, JwtAuthenticatedPrincipal principal) {
+    storeAccessService.assertCanAccessStore(req.storeId(), principal);
+    long userId = principal.userId();
     if (!storeRepository.existsById(req.storeId())) {
       throw new BusinessException("Cửa hàng không tồn tại: " + req.storeId());
     }
@@ -133,11 +138,13 @@ public class GoodsReceiptService {
   }
 
   @Transactional
-  public GoodsReceiptResponse confirm(Long id, long userId) {
+  public GoodsReceiptResponse confirm(Long id, JwtAuthenticatedPrincipal principal) {
     GoodsReceipt gr =
         goodsReceiptRepository
             .findWithItemsById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Phiếu nhập không tồn tại: " + id));
+    storeAccessService.assertCanAccessStore(gr.getStoreId(), principal);
+    long userId = principal.userId();
     if (!DomainConstants.RECEIPT_DRAFT.equals(gr.getStatus())) {
       throw new BusinessException("Chỉ phiếu trạng thái draft mới xác nhận nhập kho.");
     }

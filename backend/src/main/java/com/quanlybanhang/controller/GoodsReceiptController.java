@@ -2,13 +2,15 @@ package com.quanlybanhang.controller;
 
 import com.quanlybanhang.dto.GoodsReceiptDtos.GoodsReceiptCreateRequest;
 import com.quanlybanhang.dto.GoodsReceiptDtos.GoodsReceiptResponse;
-import com.quanlybanhang.security.CurrentUserResolver;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import com.quanlybanhang.service.GoodsReceiptService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import java.time.LocalDateTime;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +30,7 @@ public class GoodsReceiptController {
   private final GoodsReceiptService goodsReceiptService;
 
   @GetMapping
+  @PreAuthorize("hasRole('ADMIN') or hasAuthority('GOODS_RECEIPT_VIEW')")
   public Page<GoodsReceiptResponse> list(
       Pageable pageable,
       @RequestParam(required = false) Long storeId,
@@ -41,18 +44,24 @@ public class GoodsReceiptController {
   }
 
   @GetMapping("/{id}")
+  @PreAuthorize("hasRole('ADMIN') or hasAuthority('GOODS_RECEIPT_VIEW')")
   public GoodsReceiptResponse get(@PathVariable Long id) {
     return goodsReceiptService.get(id);
   }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public GoodsReceiptResponse create(@Valid @RequestBody GoodsReceiptCreateRequest req) {
-    return goodsReceiptService.createDraft(req, CurrentUserResolver.requireUserId());
+  @PreAuthorize("hasRole('ADMIN') or hasAuthority('GOODS_RECEIPT_CREATE')")
+  public GoodsReceiptResponse create(
+      @Valid @RequestBody GoodsReceiptCreateRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return goodsReceiptService.createDraft(req, principal);
   }
 
   @PostMapping("/{id}/confirm")
-  public GoodsReceiptResponse confirm(@PathVariable Long id) {
-    return goodsReceiptService.confirm(id, CurrentUserResolver.requireUserId());
+  @PreAuthorize("hasRole('ADMIN') or hasAuthority('GOODS_RECEIPT_CONFIRM')")
+  public GoodsReceiptResponse confirm(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return goodsReceiptService.confirm(id, principal);
   }
 }

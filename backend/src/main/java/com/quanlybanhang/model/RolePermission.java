@@ -11,28 +11,28 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** Bảng `user_roles` — entity trung gian User–Role (UserRole). */
+/** Bảng gán role–permission (`role_permissions`). */
 @Entity
-@Table(name = "user_roles")
+@Table(name = "role_permissions")
 @Getter
 @Setter
 @NoArgsConstructor
-public class UserRoleAssignment {
+public class RolePermission {
 
   @Embeddable
   @Getter
   @Setter
   @NoArgsConstructor
   public static class Pk implements Serializable {
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
-
     @Column(name = "role_id", nullable = false)
     private Long roleId;
 
-    public Pk(Long userId, Long roleId) {
-      this.userId = userId;
+    @Column(name = "permission_id", nullable = false)
+    private Long permissionId;
+
+    public Pk(Long roleId, Long permissionId) {
       this.roleId = roleId;
+      this.permissionId = permissionId;
     }
 
     @Override
@@ -44,12 +44,12 @@ public class UserRoleAssignment {
         return false;
       }
       Pk pk = (Pk) o;
-      return Objects.equals(userId, pk.userId) && Objects.equals(roleId, pk.roleId);
+      return Objects.equals(roleId, pk.roleId) && Objects.equals(permissionId, pk.permissionId);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(userId, roleId);
+      return Objects.hash(roleId, permissionId);
     }
   }
 

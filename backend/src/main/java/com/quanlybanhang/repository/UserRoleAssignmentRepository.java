@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface UserRoleAssignmentRepository extends JpaRepository<UserRoleAssignment, Pk> {
 
   List<UserRoleAssignment> findById_UserId(Long userId);
+
+  void deleteById_UserId(Long userId);
 }

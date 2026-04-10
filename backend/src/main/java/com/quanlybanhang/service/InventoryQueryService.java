@@ -6,6 +6,7 @@ import com.quanlybanhang.repository.InventoryRepository;
 import com.quanlybanhang.repository.InventoryTransactionRepository;
 import com.quanlybanhang.model.InventoryTransaction;
 import com.quanlybanhang.repository.spec.InventoryTransactionSpecifications;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -19,8 +20,11 @@ public class InventoryQueryService {
 
   private final InventoryRepository inventoryRepository;
   private final InventoryTransactionRepository inventoryTransactionRepository;
+  private final StoreAccessService storeAccessService;
 
-  public Page<InventoryResponse> listByStore(Long storeId, Pageable pageable) {
+  public Page<InventoryResponse> listByStore(
+      Long storeId, Pageable pageable, JwtAuthenticatedPrincipal principal) {
+    storeAccessService.assertCanAccessStore(storeId, principal);
     return inventoryRepository
         .findByStoreId(storeId, pageable)
         .map(
@@ -40,7 +44,9 @@ public class InventoryQueryService {
       Long variantId,
       LocalDateTime fromCreatedAt,
       LocalDateTime toCreatedAt,
-      Pageable pageable) {
+      Pageable pageable,
+      JwtAuthenticatedPrincipal principal) {
+    storeAccessService.assertCanAccessStore(storeId, principal);
     Specification<InventoryTransaction> spec =
         InventoryTransactionSpecifications.filter(
             storeId, transactionType, variantId, fromCreatedAt, toCreatedAt);

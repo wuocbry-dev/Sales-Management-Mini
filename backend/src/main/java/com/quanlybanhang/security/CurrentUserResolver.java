@@ -4,7 +4,7 @@ import com.quanlybanhang.exception.BusinessException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-/** Lấy user_id từ JWT (principal là chuỗi số). */
+/** Lấy {@code user_id} từ JWT trong {@link SecurityContextHolder}. */
 public final class CurrentUserResolver {
 
   private CurrentUserResolver() {}
@@ -15,6 +15,9 @@ public final class CurrentUserResolver {
       throw new BusinessException("Chưa đăng nhập.");
     }
     Object p = auth.getPrincipal();
+    if (p instanceof JwtAuthenticatedPrincipal j) {
+      return j.userId();
+    }
     if (p instanceof String s) {
       if ("anonymousUser".equals(s)) {
         throw new BusinessException("Chưa đăng nhập.");
