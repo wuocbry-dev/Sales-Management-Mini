@@ -79,7 +79,8 @@ public class AuthService {
     if (req.phone() != null && !req.phone().isBlank()) {
       user.setPhone(req.phone().trim());
     }
-    user.setStatus(DomainConstants.STATUS_ACTIVE);
+    // Khớp ENUM MySQL users.status (ACTIVE/INACTIVE/LOCKED) và UserService.create — không dùng "active".
+    user.setStatus("ACTIVE");
     user.setDefaultStore(null);
     user.setCreatedAt(t);
     user.setUpdatedAt(t);

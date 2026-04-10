@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Quản lý bán hàng API",
-    "description": "1) Gọi **00 - Auth → POST login** (username/password trong biến `loginUsername` / `loginPassword`). Script tự ghi `accessToken` vào biến collection.\n2) Các request còn lại dùng **Authorization: Bearer {{accessToken}}** (kế thừa từ collection).\n3) Chỉ **GET /health** và **POST /auth/login** không cần token.\n4) Chỉnh `baseUrl`, `storeId`, `variantId`, `orderId`, `orderItemId`, … theo DB thật.",
+    "description": "**Mục đích:** gọi thử toàn bộ REST backend (Spring) — đăng ký/đăng nhập, master data, bán hàng, kho, người dùng (ADMIN).\n\n**Cách dùng nhanh:**\n1. Sửa biến collection `loginUsername` / `loginPassword`.\n2. **00 - Auth → POST login** (hoặc POST register): script Tests tự lưu `accessToken`.\n3. Các folder khác kế thừa **Bearer {{accessToken}}**.\n4. **Không cần token:** `GET /health`, `POST /auth/register`, `POST /auth/login`.\n5. **Tồn kho / giao dịch kho:** user thường chỉ xem được `storeId` được gán trong JWT; ADMIN xem mọi cửa hàng.\n6. Chỉnh `baseUrl`, `storeId`, `variantId`, `userId`, … theo dữ liệu MySQL của bạn.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -22,7 +22,12 @@
     { "key": "storeId", "value": "1" },
     { "key": "toStoreId", "value": "2" },
     { "key": "variantId", "value": "1" },
+    { "key": "productId", "value": "1" },
     { "key": "supplierId", "value": "1" },
+    { "key": "brandId", "value": "1" },
+    { "key": "categoryId", "value": "1" },
+    { "key": "unitId", "value": "1" },
+    { "key": "userId", "value": "2" },
     { "key": "customerId", "value": "1" },
     { "key": "orderId", "value": "1" },
     { "key": "orderItemId", "value": "1" },
@@ -34,9 +39,38 @@
   "item": [
     {
       "name": "00 - Auth",
+      "description": "Đăng ký tài khoản mới, đăng nhập lấy JWT, xem profile user hiện tại (`/me`).",
       "item": [
         {
-          "name": "POST login (lưu token)",
+          "name": "POST register — tạo user mới (user đầu = ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  var j = pm.response.json();",
+                  "  if (j.accessToken) pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"demo_user\",\n  \"email\": \"demo@example.com\",\n  \"password\": \"secret12\",\n  \"fullName\": \"Người dùng demo\",\n  \"phone\": null\n}"
+            },
+            "url": "{{baseUrl}}/auth/register",
+            "description": "**Dùng để:** đăng ký. User đầu tiên trong DB nhận role ADMIN; các user sau nhận role mặc định (thường CASHIER). Trả về `accessToken`, `user`, `roles`, `permissions` — giống login. Script lưu token vào `accessToken`."
+          }
+        },
+        {
+          "name": "POST login — đăng nhập (lưu JWT)",
           "event": [
             {
               "listen": "test",
@@ -60,38 +94,60 @@
               "raw": "{\n  \"username\": \"{{loginUsername}}\",\n  \"password\": \"{{loginPassword}}\"\n}"
             },
             "url": "{{baseUrl}}/auth/login",
-            "description": "Trả về `accessToken`, `tokenType`, `expiresInSeconds`, `userId`, `username`, `roles`. Token được lưu vào biến collection `accessToken`."
+            "description": "**Dùng để:** đăng nhập bằng username hoặc email + mật khẩu. Trả về `accessToken`, `tokenType`, `expiresInSeconds`, `user` (id, username, email…), `roles`, `permissions`. Lỗi: `INVALID_CREDENTIALS`, `ACCOUNT_LOCKED`, `ACCOUNT_INACTIVE` (xem Docx/AUTH_API_TEST.md)."
+          }
+        },
+        {
+          "name": "GET me — thông tin user đang đăng nhập (JWT)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me",
+            "description": "**Dùng để:** kiểm tra token còn hợp lệ và xem `roles`, `permissions`, `storeIds` được gán. Cần header Bearer (kế thừa collection). Không token → 401 `UNAUTHORIZED`."
           }
         }
       ]
     },
     {
       "name": "01 - Health",
+      "description": "Kiểm tra service còn sống (không cần JWT).",
       "item": [
         {
-          "name": "GET health",
+          "name": "GET health — kiểm tra server hoạt động",
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/health"
+            "url": "{{baseUrl}}/health",
+            "description": "**Dùng để:** ping API / load balancer; không xác thực."
           }
         }
       ]
     },
     {
       "name": "02 - Master data",
+      "description": "Cửa hàng, thương hiệu, danh mục, đơn vị, nhà cung cấp — dữ liệu nền cho sản phẩm và nghiệp vụ.",
       "item": [
         {
-          "name": "GET stores (page)",
+          "name": "GET stores — danh sách cửa hàng (phân trang)",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/stores?page=0&size=20"
+            "url": "{{baseUrl}}/stores?page=0&size=20",
+            "description": "**Dùng để:** lấy danh sách cửa hàng; cần quyền phù hợp (thường ADMIN hoặc STORE_*)."
           }
         },
         {
-          "name": "POST store",
+          "name": "GET store by id — chi tiết một cửa hàng",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/stores/{{storeId}}",
+            "description": "**Dùng để:** xem một cửa hàng theo `storeId`."
+          }
+        },
+        {
+          "name": "POST store — tạo cửa hàng mới",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -99,11 +155,12 @@
               "mode": "raw",
               "raw": "{\n  \"storeCode\": \"CH001\",\n  \"storeName\": \"Cửa hàng mẫu\",\n  \"phone\": \"0900000001\",\n  \"email\": \"store@example.com\",\n  \"address\": \"123 Đường ABC\",\n  \"status\": \"active\"\n}"
             },
-            "url": "{{baseUrl}}/stores"
+            "url": "{{baseUrl}}/stores",
+            "description": "**Dùng để:** tạo cửa hàng. `status` trong app thường là `active`/`inactive` (chuỗi, khớp JPA)."
           }
         },
         {
-          "name": "PUT store",
+          "name": "PUT store — cập nhật cửa hàng",
           "request": {
             "method": "PUT",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -111,11 +168,30 @@
               "mode": "raw",
               "raw": "{\n  \"storeCode\": \"CH001\",\n  \"storeName\": \"Cửa hàng đổi tên\",\n  \"phone\": \"0900000001\",\n  \"email\": \"store@example.com\",\n  \"address\": \"123 Đường ABC\",\n  \"status\": \"active\"\n}"
             },
-            "url": "{{baseUrl}}/stores/1"
+            "url": "{{baseUrl}}/stores/{{storeId}}",
+            "description": "**Dùng để:** sửa thông tin cửa hàng. Đổi biến `storeId` cho đúng bản ghi."
           }
         },
         {
-          "name": "POST brand",
+          "name": "GET brands — danh sách thương hiệu",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/brands?page=0&size=20",
+            "description": "**Dùng để:** xem thương hiệu (phân trang)."
+          }
+        },
+        {
+          "name": "GET brand by id — chi tiết thương hiệu",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/brands/{{brandId}}",
+            "description": "**Dùng để:** lấy một thương hiệu theo id."
+          }
+        },
+        {
+          "name": "POST brand — tạo thương hiệu",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -123,11 +199,43 @@
               "mode": "raw",
               "raw": "{\n  \"brandCode\": \"BR01\",\n  \"brandName\": \"Thương hiệu mẫu\",\n  \"description\": \"Ghi chú\",\n  \"status\": \"active\"\n}"
             },
-            "url": "{{baseUrl}}/brands"
+            "url": "{{baseUrl}}/brands",
+            "description": "**Dùng để:** thêm thương hiệu cho sản phẩm."
           }
         },
         {
-          "name": "POST category",
+          "name": "PUT brand — sửa thương hiệu",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brandCode\": \"BR01\",\n  \"brandName\": \"Tên mới\",\n  \"description\": \"Ghi chú\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{baseUrl}}/brands/{{brandId}}",
+            "description": "**Dùng để:** cập nhật thương hiệu theo `brandId`."
+          }
+        },
+        {
+          "name": "GET categories — danh sách danh mục",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/categories?page=0&size=20",
+            "description": "**Dùng để:** xem cây/danh sách danh mục sản phẩm."
+          }
+        },
+        {
+          "name": "GET category by id — chi tiết danh mục",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/categories/{{categoryId}}",
+            "description": "**Dùng để:** lấy một danh mục theo id."
+          }
+        },
+        {
+          "name": "POST category — tạo danh mục",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -135,11 +243,43 @@
               "mode": "raw",
               "raw": "{\n  \"parentId\": null,\n  \"categoryCode\": \"DM01\",\n  \"categoryName\": \"Danh mục mẫu\",\n  \"description\": null,\n  \"status\": \"active\"\n}"
             },
-            "url": "{{baseUrl}}/categories"
+            "url": "{{baseUrl}}/categories",
+            "description": "**Dùng để:** tạo danh mục; `parentId` null = cấp gốc."
           }
         },
         {
-          "name": "POST unit",
+          "name": "PUT category — sửa danh mục",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parentId\": null,\n  \"categoryCode\": \"DM01\",\n  \"categoryName\": \"Tên danh mục mới\",\n  \"description\": null,\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{baseUrl}}/categories/{{categoryId}}",
+            "description": "**Dùng để:** cập nhật danh mục."
+          }
+        },
+        {
+          "name": "GET units — danh sách đơn vị tính",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/units?page=0&size=20",
+            "description": "**Dùng để:** xem đơn vị (cái, kg, …)."
+          }
+        },
+        {
+          "name": "GET unit by id — chi tiết đơn vị",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/units/{{unitId}}",
+            "description": "**Dùng để:** lấy một đơn vị theo id."
+          }
+        },
+        {
+          "name": "POST unit — tạo đơn vị tính",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -147,11 +287,43 @@
               "mode": "raw",
               "raw": "{\n  \"unitCode\": \"CAI\",\n  \"unitName\": \"Cái\",\n  \"description\": null\n}"
             },
-            "url": "{{baseUrl}}/units"
+            "url": "{{baseUrl}}/units",
+            "description": "**Dùng để:** thêm đơn vị gán cho sản phẩm."
           }
         },
         {
-          "name": "POST supplier",
+          "name": "PUT unit — sửa đơn vị",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unitCode\": \"CAI\",\n  \"unitName\": \"Cái (đổi tên)\",\n  \"description\": null\n}"
+            },
+            "url": "{{baseUrl}}/units/{{unitId}}",
+            "description": "**Dùng để:** cập nhật đơn vị."
+          }
+        },
+        {
+          "name": "GET suppliers — danh sách NCC",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/suppliers?page=0&size=20",
+            "description": "**Dùng để:** xem nhà cung cấp (phiếu nhập cần `supplierId`)."
+          }
+        },
+        {
+          "name": "GET supplier by id — chi tiết NCC",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/suppliers/{{supplierId}}",
+            "description": "**Dùng để:** lấy một nhà cung cấp."
+          }
+        },
+        {
+          "name": "POST supplier — tạo nhà cung cấp",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -159,33 +331,58 @@
               "mode": "raw",
               "raw": "{\n  \"supplierCode\": \"NCC01\",\n  \"supplierName\": \"Nhà cung cấp mẫu\",\n  \"contactPerson\": \"Nguyễn A\",\n  \"phone\": \"0911111111\",\n  \"email\": \"ncc@example.com\",\n  \"address\": \"Hà Nội\",\n  \"status\": \"active\"\n}"
             },
-            "url": "{{baseUrl}}/suppliers"
+            "url": "{{baseUrl}}/suppliers",
+            "description": "**Dùng để:** thêm NCC cho phiếu nhập kho."
+          }
+        },
+        {
+          "name": "PUT supplier — sửa nhà cung cấp",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplierCode\": \"NCC01\",\n  \"supplierName\": \"Tên NCC mới\",\n  \"contactPerson\": \"Nguyễn A\",\n  \"phone\": \"0911111111\",\n  \"email\": \"ncc@example.com\",\n  \"address\": \"Hà Nội\",\n  \"status\": \"active\"\n}"
+            },
+            "url": "{{baseUrl}}/suppliers/{{supplierId}}",
+            "description": "**Dùng để:** cập nhật NCC."
           }
         }
       ]
     },
     {
       "name": "03 - Products",
+      "description": "Sản phẩm + biến thể (SKU). Cần quyền PRODUCT_* hoặc ADMIN.",
       "item": [
         {
-          "name": "GET products",
+          "name": "GET products — danh sách (phân trang)",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/products?page=0&size=20"
+            "url": "{{baseUrl}}/products?page=0&size=20",
+            "description": "**Dùng để:** liệt kê sản phẩm; có thể thêm filter ở request bên dưới."
           }
         },
         {
-          "name": "GET products (filter)",
+          "name": "GET products — lọc theo danh mục / thương hiệu / từ khóa",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/products?page=0&size=20&status=active&categoryId=1&brandId=1&q=tên",
-            "description": "Query tùy chọn: `status`, `categoryId`, `brandId`, `q` (tìm theo tên/mã)."
+            "description": "**Dùng để:** tìm nhanh theo `status`, `categoryId`, `brandId`, `q` (tên hoặc mã SP)."
           }
         },
         {
-          "name": "POST product + variants",
+          "name": "GET product by id — chi tiết SP + variants",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "**Dùng để:** xem một sản phẩm (kèm biến thể). Chỉnh biến `productId`."
+          }
+        },
+        {
+          "name": "POST product + variants — tạo SP và các SKU",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -193,24 +390,36 @@
               "mode": "raw",
               "raw": "{\n  \"categoryId\": 1,\n  \"brandId\": 1,\n  \"unitId\": 1,\n  \"productCode\": \"SP001\",\n  \"productName\": \"Sản phẩm mẫu\",\n  \"productType\": \"simple\",\n  \"hasVariant\": true,\n  \"trackInventory\": true,\n  \"description\": \"Mô tả\",\n  \"status\": \"active\",\n  \"variants\": [\n    {\n      \"sku\": \"SP001-DO-M\",\n      \"barcode\": \"8930000000001\",\n      \"variantName\": \"Đỏ / M\",\n      \"attributesJson\": \"{\\\"color\\\":\\\"red\\\",\\\"size\\\":\\\"M\\\"}\",\n      \"costPrice\": 100000.0000,\n      \"sellingPrice\": 150000.0000,\n      \"reorderLevel\": 5.0000,\n      \"status\": \"active\"\n    }\n  ]\n}"
             },
-            "url": "{{baseUrl}}/products"
+            "url": "{{baseUrl}}/products",
+            "description": "**Dùng để:** tạo mới sản phẩm; bắt buộc có ít nhất một `variants` (SKU). `variantId` sau này dùng cho tồn kho, bán hàng, phiếu nhập."
           }
         }
       ]
     },
     {
       "name": "04 - Customers",
+      "description": "Khách hàng — dùng khi tạo đơn bán (`customerId` tùy chọn).",
       "item": [
         {
-          "name": "GET customers",
+          "name": "GET customers — danh sách khách",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/customers?page=0&size=20"
+            "url": "{{baseUrl}}/customers?page=0&size=20",
+            "description": "**Dùng để:** tra cứu khách (phân trang)."
           }
         },
         {
-          "name": "POST customer",
+          "name": "GET customer by id — chi tiết một khách",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/customers/{{customerId}}",
+            "description": "**Dùng để:** xem thông tin một khách theo id."
+          }
+        },
+        {
+          "name": "POST customer — tạo khách hàng",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -218,11 +427,12 @@
               "mode": "raw",
               "raw": "{\n  \"customerCode\": \"KH001\",\n  \"fullName\": \"Khách lẻ mẫu\",\n  \"phone\": \"0922222222\",\n  \"email\": \"khach@example.com\",\n  \"gender\": \"other\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"address\": \"TP.HCM\",\n  \"status\": \"active\"\n}"
             },
-            "url": "{{baseUrl}}/customers"
+            "url": "{{baseUrl}}/customers",
+            "description": "**Dùng để:** thêm khách mới; lấy `customerId` gắn vào đơn bán."
           }
         },
         {
-          "name": "PUT customer",
+          "name": "PUT customer — cập nhật khách",
           "request": {
             "method": "PUT",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -230,47 +440,60 @@
               "mode": "raw",
               "raw": "{\n  \"customerCode\": \"KH001\",\n  \"fullName\": \"Khách đổi tên\",\n  \"phone\": \"0922222222\",\n  \"email\": \"khach@example.com\",\n  \"gender\": \"other\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"address\": \"TP.HCM\",\n  \"status\": \"active\"\n}"
             },
-            "url": "{{baseUrl}}/customers/{{customerId}}"
+            "url": "{{baseUrl}}/customers/{{customerId}}",
+            "description": "**Dùng để:** sửa thông tin khách."
           }
         }
       ]
     },
     {
       "name": "05 - Inventory",
+      "description": "Tồn kho theo cửa hàng + lịch sử giao dịch tồn. User thường chỉ được `storeId` nằm trong JWT; ADMIN xem mọi cửa — sai store → 403.",
       "item": [
         {
-          "name": "GET inventories by store",
+          "name": "GET inventories — tồn kho theo cửa hàng",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/inventories?storeId={{storeId}}&page=0&size=20"
+            "url": "{{baseUrl}}/inventories?storeId={{storeId}}&page=0&size=20",
+            "description": "**Dùng để:** xem `quantityOnHand` / `reservedQty` theo từng variant tại một cửa hàng. Cần `INVENTORY_VIEW` hoặc ADMIN."
           }
         },
         {
-          "name": "GET inventory transactions",
+          "name": "GET inventory-transactions — biến động tồn theo cửa",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/inventory-transactions?storeId={{storeId}}&page=0&size=20",
-            "description": "Bắt buộc `storeId`. Thêm tùy chọn: `transactionType`, `variantId`, `fromCreatedAt`, `toCreatedAt` (ISO date-time)."
+            "description": "**Dùng để:** xem log nhập/xuất/điều chỉnh. Bắt buộc `storeId`. Tùy chọn: `transactionType`, `variantId`, `fromCreatedAt`, `toCreatedAt` (ISO-8601)."
           }
         }
       ]
     },
     {
       "name": "06 - Goods receipts",
+      "description": "Phiếu nhập kho: tạo draft → confirm để cộng tồn + ghi inventory transaction. `created_by` / `approved_by` lấy từ JWT.",
       "item": [
         {
-          "name": "GET goods-receipts",
+          "name": "GET goods-receipts — danh sách phiếu nhập",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/goods-receipts?page=0&size=20",
-            "description": "Filter tùy chọn: `storeId`, `status`, `fromReceiptDate`, `toReceiptDate` (ISO date-time)."
+            "description": "**Dùng để:** tra cứu phiếu nhập. Filter: `storeId`, `status`, `fromReceiptDate`, `toReceiptDate` (ISO date-time)."
           }
         },
         {
-          "name": "POST goods-receipt (draft)",
+          "name": "GET goods-receipt by id — chi tiết phiếu + dòng hàng",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/goods-receipts/{{receiptId}}",
+            "description": "**Dùng để:** xem một phiếu nhập đầy đủ dòng chi tiết."
+          }
+        },
+        {
+          "name": "POST goods-receipt — tạo phiếu nhập (draft)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -279,32 +502,44 @@
               "raw": "{\n  \"storeId\": {{storeId}},\n  \"supplierId\": {{supplierId}},\n  \"receiptDate\": \"2026-04-10T10:00:00\",\n  \"headerDiscountAmount\": 0,\n  \"note\": \"Nhập hàng test Postman\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 10.0000,\n      \"unitCost\": 80000.0000,\n      \"discountAmount\": 0\n    }\n  ]\n}"
             },
             "url": "{{baseUrl}}/goods-receipts",
-            "description": "Người tạo lấy từ JWT (không dùng X-User-Id)."
+            "description": "**Dùng để:** lập phiếu nhập chưa nhập kho. User phải được phép thao tác trên `storeId` (JWT storeIds hoặc ADMIN). `created_by` = user đăng nhập."
           }
         },
         {
-          "name": "POST goods-receipt confirm",
+          "name": "POST goods-receipt confirm — xác nhận nhập kho",
           "request": {
             "method": "POST",
             "header": [],
-            "url": "{{baseUrl}}/goods-receipts/{{receiptId}}/confirm"
+            "url": "{{baseUrl}}/goods-receipts/{{receiptId}}/confirm",
+            "description": "**Dùng để:** chốt phiếu draft → cộng tồn + ghi `inventory_transactions`. Kiểm tra quyền trên cửa hàng của phiếu. `approved_by` = user đăng nhập."
           }
         }
       ]
     },
     {
       "name": "07 - Sales orders",
+      "description": "Đơn bán: draft → confirm (thanh toán) hoặc cancel.",
       "item": [
         {
-          "name": "GET sales-orders",
+          "name": "GET sales-orders — danh sách đơn",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/sales-orders?page=0&size=20"
+            "url": "{{baseUrl}}/sales-orders?page=0&size=20",
+            "description": "**Dùng để:** xem các đơn bán (phân trang, có filter trên backend nếu có)."
           }
         },
         {
-          "name": "POST sales-order (draft)",
+          "name": "GET sales-order by id — chi tiết đơn + dòng hàng",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/sales-orders/{{orderId}}",
+            "description": "**Dùng để:** xem một đơn; lấy `orderItemId` cho trả hàng."
+          }
+        },
+        {
+          "name": "POST sales-order — tạo đơn (draft)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -312,11 +547,12 @@
               "mode": "raw",
               "raw": "{\n  \"storeId\": {{storeId}},\n  \"customerId\": {{customerId}},\n  \"orderDate\": \"2026-04-10T14:30:00\",\n  \"headerDiscountAmount\": 0,\n  \"note\": \"Bán lẻ test\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 1.0000,\n      \"unitPrice\": 150000.0000,\n      \"discountAmount\": 0\n    }\n  ]\n}"
             },
-            "url": "{{baseUrl}}/sales-orders"
+            "url": "{{baseUrl}}/sales-orders",
+            "description": "**Dùng để:** tạo đơn chưa thanh toán; lưu `orderId` để confirm/cancel."
           }
         },
         {
-          "name": "POST sales-order confirm",
+          "name": "POST sales-order confirm — thanh toán + trừ tồn",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -324,11 +560,12 @@
               "mode": "raw",
               "raw": "{\n  \"payments\": [\n    {\n      \"paymentType\": \"in\",\n      \"paymentMethod\": \"cash\",\n      \"amount\": 150000.0000,\n      \"referenceNo\": null,\n      \"note\": null\n    }\n  ]\n}"
             },
-            "url": "{{baseUrl}}/sales-orders/{{orderId}}/confirm"
+            "url": "{{baseUrl}}/sales-orders/{{orderId}}/confirm",
+            "description": "**Dùng để:** xác nhận đơn draft: ghi thanh toán, trừ kho, tạo giao dịch tồn. `paymentType`/`paymentMethod` theo backend (ví dụ `in`, `cash`)."
           }
         },
         {
-          "name": "POST sales-order confirm (đơn 0đ)",
+          "name": "POST sales-order confirm — đơn 0đ (không dòng thanh toán)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -336,41 +573,45 @@
               "mode": "raw",
               "raw": "{\n  \"payments\": []\n}"
             },
-            "url": "{{baseUrl}}/sales-orders/{{orderId}}/confirm"
+            "url": "{{baseUrl}}/sales-orders/{{orderId}}/confirm",
+            "description": "**Dùng để:** confirm khi tổng tiền = 0 (không thu tiền)."
           }
         },
         {
-          "name": "POST sales-order cancel",
+          "name": "POST sales-order cancel — hủy đơn draft",
           "request": {
             "method": "POST",
             "header": [],
-            "url": "{{baseUrl}}/sales-orders/{{orderId}}/cancel"
+            "url": "{{baseUrl}}/sales-orders/{{orderId}}/cancel",
+            "description": "**Dùng để:** hủy đơn ở trạng thái draft (không áp dụng đơn đã hoàn tất)."
           }
         }
       ]
     },
     {
       "name": "08 - Sales returns",
+      "description": "Trả hàng bán: liên kết đơn gốc, hoàn tiền / nhập lại kho khi confirm.",
       "item": [
         {
-          "name": "GET sales-returns",
+          "name": "GET sales-returns — danh sách phiếu trả",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/sales-returns?page=0&size=20",
-            "description": "Filter tùy chọn: `storeId`, `orderId`, `status`."
+            "description": "**Dùng để:** tra cứu trả hàng. Filter: `storeId`, `orderId`, `status`."
           }
         },
         {
-          "name": "GET sales-return by id",
+          "name": "GET sales-return by id — chi tiết phiếu trả",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/sales-returns/{{returnId}}"
+            "url": "{{baseUrl}}/sales-returns/{{returnId}}",
+            "description": "**Dùng để:** xem chi tiết một phiếu trả."
           }
         },
         {
-          "name": "POST sales-return (draft)",
+          "name": "POST sales-return — tạo phiếu trả (draft)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -378,41 +619,45 @@
               "mode": "raw",
               "raw": "{\n  \"orderId\": {{orderId}},\n  \"storeId\": {{storeId}},\n  \"customerId\": {{customerId}},\n  \"returnDate\": \"2026-04-10T16:00:00\",\n  \"note\": \"Trả hàng mẫu\",\n  \"lines\": [\n    {\n      \"orderItemId\": {{orderItemId}},\n      \"variantId\": {{variantId}},\n      \"quantity\": 1.0000,\n      \"unitPrice\": 150000.0000,\n      \"reason\": \"Lỗi sản phẩm\"\n    }\n  ]\n}"
             },
-            "url": "{{baseUrl}}/sales-returns"
+            "url": "{{baseUrl}}/sales-returns",
+            "description": "**Dùng để:** lập phiếu trả từ đơn đã bán; cần `orderItemId` khớp dòng đơn gốc."
           }
         },
         {
-          "name": "POST sales-return confirm",
+          "name": "POST sales-return confirm — hoàn tất trả (kho + tiền)",
           "request": {
             "method": "POST",
             "header": [],
-            "url": "{{baseUrl}}/sales-returns/{{returnId}}/confirm"
+            "url": "{{baseUrl}}/sales-returns/{{returnId}}/confirm",
+            "description": "**Dùng để:** chốt phiếu draft → cập nhật tồn / hoàn tiền theo nghiệp vụ backend."
           }
         }
       ]
     },
     {
       "name": "09 - Stock transfers",
+      "description": "Chuyển kho giữa hai cửa hàng: draft → confirm.",
       "item": [
         {
-          "name": "GET stock-transfers",
+          "name": "GET stock-transfers — danh sách phiếu chuyển",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/stock-transfers?page=0&size=20",
-            "description": "Filter: `fromStoreId`, `toStoreId`, `status`."
+            "description": "**Dùng để:** tra cứu chuyển kho. Filter: `fromStoreId`, `toStoreId`, `status`."
           }
         },
         {
-          "name": "GET stock-transfer by id",
+          "name": "GET stock-transfer by id — chi tiết phiếu chuyển",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/stock-transfers/{{transferId}}"
+            "url": "{{baseUrl}}/stock-transfers/{{transferId}}",
+            "description": "**Dùng để:** xem một phiếu chuyển và các dòng hàng."
           }
         },
         {
-          "name": "POST stock-transfer (draft)",
+          "name": "POST stock-transfer — tạo phiếu chuyển (draft)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -420,41 +665,45 @@
               "mode": "raw",
               "raw": "{\n  \"fromStoreId\": {{storeId}},\n  \"toStoreId\": {{toStoreId}},\n  \"transferDate\": \"2026-04-10T11:00:00\",\n  \"note\": \"Chuyển kho test\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 2.0000\n    }\n  ]\n}"
             },
-            "url": "{{baseUrl}}/stock-transfers"
+            "url": "{{baseUrl}}/stock-transfers",
+            "description": "**Dùng để:** lập phiếu chuyển từ `fromStoreId` sang `toStoreId`."
           }
         },
         {
-          "name": "POST stock-transfer confirm",
+          "name": "POST stock-transfer confirm — xác nhận chuyển (trừ/ cộng tồn)",
           "request": {
             "method": "POST",
             "header": [],
-            "url": "{{baseUrl}}/stock-transfers/{{transferId}}/confirm"
+            "url": "{{baseUrl}}/stock-transfers/{{transferId}}/confirm",
+            "description": "**Dùng để:** hoàn tất chuyển kho, cập nhật tồn hai bên."
           }
         }
       ]
     },
     {
       "name": "10 - Stocktakes",
+      "description": "Kiểm kê kho: nhập số thực tế → confirm điều chỉnh chênh lệch.",
       "item": [
         {
-          "name": "GET stocktakes",
+          "name": "GET stocktakes — danh sách phiếu kiểm kê",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/stocktakes?page=0&size=20",
-            "description": "Filter: `storeId`, `status`."
+            "description": "**Dùng để:** tra cứu kiểm kê. Filter: `storeId`, `status`."
           }
         },
         {
-          "name": "GET stocktake by id",
+          "name": "GET stocktake by id — chi tiết phiếu kiểm kê",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/stocktakes/{{stocktakeId}}"
+            "url": "{{baseUrl}}/stocktakes/{{stocktakeId}}",
+            "description": "**Dùng để:** xem chi tiết một phiếu kiểm kê."
           }
         },
         {
-          "name": "POST stocktake (draft)",
+          "name": "POST stocktake — tạo phiếu kiểm kê (draft)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -462,15 +711,106 @@
               "mode": "raw",
               "raw": "{\n  \"storeId\": {{storeId}},\n  \"stocktakeDate\": \"2026-04-10T09:00:00\",\n  \"note\": \"Kiểm kê mẫu\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"actualQty\": 100.0000,\n      \"note\": \"Đếm thực tế\"\n    }\n  ]\n}"
             },
-            "url": "{{baseUrl}}/stocktakes"
+            "url": "{{baseUrl}}/stocktakes",
+            "description": "**Dùng để:** tạo phiếu kiểm kê với số lượng thực tế (`actualQty`) từng variant."
           }
         },
         {
-          "name": "POST stocktake confirm",
+          "name": "POST stocktake confirm — chốt điều chỉnh tồn",
           "request": {
             "method": "POST",
             "header": [],
-            "url": "{{baseUrl}}/stocktakes/{{stocktakeId}}/confirm"
+            "url": "{{baseUrl}}/stocktakes/{{stocktakeId}}/confirm",
+            "description": "**Dùng để:** áp chênh lệch kiểm kê vào tồn kho."
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Users (ADMIN)",
+      "description": "Quản trị người dùng: chỉ role **ADMIN**. Các request khác trả 403 nếu không phải admin.",
+      "item": [
+        {
+          "name": "GET users — danh sách user (phân trang)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users?page=0&size=20",
+            "description": "**Dùng để:** xem toàn bộ user hệ thống (cần ADMIN)."
+          }
+        },
+        {
+          "name": "GET user by id — chi tiết user + role + cửa hàng gán",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/{{userId}}",
+            "description": "**Dùng để:** xem chi tiết một user (roles, stores, default store)."
+          }
+        },
+        {
+          "name": "POST user — tạo user + gán role/cửa hàng",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"staff01\",\n  \"email\": \"staff01@example.com\",\n  \"password\": \"secret12\",\n  \"fullName\": \"Nhân viên 01\",\n  \"phone\": null,\n  \"defaultStoreId\": {{storeId}},\n  \"roleIds\": [2],\n  \"storeIds\": [{{storeId}}],\n  \"primaryStoreId\": {{storeId}}\n}"
+            },
+            "url": "{{baseUrl}}/users",
+            "description": "**Dùng để:** tạo user mới. `roleIds`: id trong bảng `roles` (ví dụ 1=ADMIN, 2=CASHIER — kiểm tra DB). `storeIds`/`primaryStoreId` gán cửa hàng."
+          }
+        },
+        {
+          "name": "PUT user — cập nhật email/họ tên/SĐT/cửa mặc định",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"staff01@example.com\",\n  \"fullName\": \"Nhân viên đổi tên\",\n  \"phone\": \"0900000000\",\n  \"defaultStoreId\": {{storeId}}\n}"
+            },
+            "url": "{{baseUrl}}/users/{{userId}}",
+            "description": "**Dùng để:** sửa thông tin cơ bản (không đổi username/password tại đây)."
+          }
+        },
+        {
+          "name": "PUT user status — khóa / inactive (ACTIVE|INACTIVE|LOCKED)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"LOCKED\"\n}"
+            },
+            "url": "{{baseUrl}}/users/{{userId}}/status",
+            "description": "**Dùng để:** đổi trạng thái tài khoản. Giá trị: `ACTIVE`, `INACTIVE`, `LOCKED` (backend kiểm tra regex)."
+          }
+        },
+        {
+          "name": "PUT user roles — gán lại danh sách role",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleIds\": [2, 3]\n}"
+            },
+            "url": "{{baseUrl}}/users/{{userId}}/roles",
+            "description": "**Dùng để:** thay toàn bộ role của user bằng danh sách `roleIds` mới."
+          }
+        },
+        {
+          "name": "PUT user stores — gán cửa hàng + cửa chính",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeIds\": [{{storeId}}],\n  \"primaryStoreId\": {{storeId}}\n}"
+            },
+            "url": "{{baseUrl}}/users/{{userId}}/stores",
+            "description": "**Dùng để:** cập nhật cửa hàng user được phép thao tác (ảnh hưởng claim `storeIds` trong JWT sau khi đăng nhập lại)."
           }
         }
       ]

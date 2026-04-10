@@ -10,8 +10,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "product_variants")
@@ -36,7 +34,6 @@ public class ProductVariant {
   @Column(name = "variant_name", length = 255)
   private String variantName;
 
-  @JdbcTypeCode(SqlTypes.JSON)
   @Column(name = "attributes_json", columnDefinition = "json")
   private String attributesJson;
 
