@@ -11,6 +11,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    open: "/retailops-stitch/pages/login.html",
     proxy: {
       "/api": {
         target: "http://localhost:8080",

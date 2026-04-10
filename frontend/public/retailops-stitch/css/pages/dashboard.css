@@ -1,0 +1,8 @@
+/* Chỉ scrollbar sidebar — không trùng selector với file khác */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}

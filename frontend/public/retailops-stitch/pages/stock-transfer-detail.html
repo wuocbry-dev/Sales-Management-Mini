@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="vi" class="light">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Chi tiết chuyển kho - Kho ERP</title>
+<link rel="stylesheet" href="../css/shared.css"/>
+<link rel="stylesheet" href="../css/pages/stock-transfer-detail.css"/>
+<script src="../js/tailwind-config-default.js"></script>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+</head>
+<body class="bg-gray-50 dark:bg-[#0c0f14] text-slate-900 dark:text-[#e6e9ef] antialiased">
+<!-- SideNavBar (Shared Component) -->
+<aside class="fixed left-0 top-0 h-full flex flex-col py-4 z-50 bg-white dark:bg-[#141922] h-screen w-64 border-r border-gray-200 dark:border-[#2a3140] font-sans text-sm font-medium">
+<div class="px-6 mb-8">
+<h1 class="text-lg font-black text-teal-700 dark:text-teal-400">Quản lý Kho</h1>
+<p class="text-xs text-gray-500">Hệ thống B2B SaaS</p>
+</div>
+<nav class="flex-1 space-y-1">
+<div class="flex items-center space-x-3 p-3 rounded-lg mx-2 my-1 text-gray-600 dark:text-[#e6e9ef] hover:bg-gray-50 dark:hover:bg-[#2a3140] hover:pl-2 transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Tổng quan</span>
+</div>
+<div class="flex items-center space-x-3 p-3 rounded-lg mx-2 my-1 text-gray-600 dark:text-[#e6e9ef] hover:bg-gray-50 dark:hover:bg-[#2a3140] hover:pl-2 transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span>Nhập kho</span>
+</div>
+<div class="flex items-center space-x-3 p-3 rounded-lg mx-2 my-1 text-gray-600 dark:text-[#e6e9ef] hover:bg-gray-50 dark:hover:bg-[#2a3140] hover:pl-2 transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="outbound">outbound</span>
+<span>Xuất kho</span>
+</div>
+<!-- Active Tab: Chuyển kho -->
+<div class="flex items-center space-x-3 p-3 rounded-lg mx-2 my-1 bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 border-r-4 border-teal-700 hover:pl-2 transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="swap_horiz">swap_horiz</span>
+<span>Chuyển kho</span>
+</div>
+<div class="flex items-center space-x-3 p-3 rounded-lg mx-2 my-1 text-gray-600 dark:text-[#e6e9ef] hover:bg-gray-50 dark:hover:bg-[#2a3140] hover:pl-2 transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="inventory">inventory</span>
+<span>Kiểm kho</span>
+</div>
+<div class="flex items-center space-x-3 p-3 rounded-lg mx-2 my-1 text-gray-600 dark:text-[#e6e9ef] hover:bg-gray-50 dark:hover:bg-[#2a3140] hover:pl-2 transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span>Báo cáo</span>
+</div>
+</nav>
+<div class="mt-auto px-2">
+<div class="flex items-center space-x-3 p-3 rounded-lg mx-2 my-1 text-gray-600 dark:text-[#e6e9ef] hover:bg-gray-50 dark:hover:bg-[#2a3140] hover:pl-2 transition-all duration-200 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span>Đăng xuất</span>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="ml-64 min-h-screen">
+<!-- TopAppBar (Shared Component) -->
+<header class="flex justify-between items-center px-6 h-16 w-full sticky top-0 z-40 bg-white dark:bg-[#141922] border-b border-gray-200 dark:border-[#2a3140] shadow-sm font-sans text-sm antialiased">
+<div class="flex items-center space-x-4 flex-1">
+<div class="relative w-64">
+<span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+<span class="material-symbols-outlined text-sm" data-icon="search">search</span>
+</span>
+<input class="block w-full pl-10 pr-3 py-1.5 border border-gray-200 dark:border-[#2a3140] rounded-lg bg-gray-50 dark:bg-[#0c0f14] focus:ring-teal-500 focus:border-teal-500 text-xs" placeholder="Tìm kiếm mã lệnh, sản phẩm..." type="text"/>
+</div>
+</div>
+<div class="flex items-center space-x-5">
+<div class="flex items-center space-x-4">
+<span class="material-symbols-outlined text-gray-500 cursor-pointer hover:text-teal-600 transition-colors" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined text-gray-500 cursor-pointer hover:text-teal-600 transition-colors" data-icon="help">help</span>
+<span class="material-symbols-outlined text-gray-500 cursor-pointer hover:text-teal-600 transition-colors" data-icon="settings">settings</span>
+</div>
+<div class="h-8 w-px bg-gray-200 dark:bg-[#2a3140]"></div>
+<div class="flex items-center space-x-3 cursor-pointer active:opacity-80">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-bold text-slate-800 dark:text-gray-100">Nguyễn Văn A</p>
+<p class="text-[10px] text-gray-500">Quản lý kho tổng</p>
+</div>
+<img alt="Avatar người dùng" class="h-8 w-8 rounded-full border border-gray-200" data-alt="professional portrait of a middle-aged man in a business casual setting with neutral soft lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwYbsenqFwJVCxRXUO6K3_CpKgGymnDz9xb3aCTHD5wuE0STIBAZpDjN63l87lyHcBsdnlOIjV9oJ6v8jhPbZSw710uCzz42YOw9-LBIKFyypDtMjUab_JiDvrIIYXEnr3Mg7UIl7PGFUXiFYEkud-eEqOG1MR1vSU2V2sMkzyGbOrHJ7IouPCw-zoWnY4_A8BurUEYIy1ALaeIOoMTcoNKSnK9BI4hhO26VW02lrHpZ3THi7QikCqdXW0pXuyDeTJBehToz4rqjnQ"/>
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<div class="p-8 max-w-7xl mx-auto space-y-6">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div class="space-y-1">
+<div class="flex items-center space-x-2 text-sm text-gray-500">
+<span class="hover:text-teal-600 cursor-pointer">Chuyển kho</span>
+<span class="material-symbols-outlined text-xs" data-icon="chevron_right">chevron_right</span>
+<span>Chi tiết chuyển kho</span>
+</div>
+<div class="flex items-center space-x-4">
+<h2 class="text-2xl font-bold text-slate-800 dark:text-gray-100">Lệnh chuyển kho #CK00123</h2>
+<span class="px-3 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800 flex items-center">
+<span class="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></span>
+                            Đang vận chuyển
+                        </span>
+</div>
+</div>
+<div class="flex items-center space-x-3">
+<button class="px-4 py-2 bg-white dark:bg-[#141922] border border-gray-200 dark:border-[#2a3140] rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center">
+<span class="material-symbols-outlined mr-2 text-lg" data-icon="print">print</span>
+                        In phiếu
+                    </button>
+<button class="px-4 py-2 bg-white dark:bg-[#141922] border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors flex items-center">
+<span class="material-symbols-outlined mr-2 text-lg" data-icon="cancel">cancel</span>
+                        Hủy lệnh
+                    </button>
+<button class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 shadow-sm shadow-teal-200 transition-colors flex items-center">
+<span class="material-symbols-outlined mr-2 text-lg" data-icon="task_alt">task_alt</span>
+                        Cập nhật trạng thái
+                    </button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Timeline Column (Left) -->
+<div class="col-span-12 lg:col-span-3 space-y-6">
+<div class="bg-white dark:bg-[#141922] rounded-xl p-6 shadow-sm border border-gray-100 dark:border-[#2a3140] h-full">
+<h3 class="text-sm font-bold uppercase tracking-wider text-gray-400 mb-6">Tiến độ vận chuyển</h3>
+<div class="relative">
+<!-- Timeline Line -->
+<div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-100 dark:bg-[#2a3140]"></div>
+<!-- Steps -->
+<div class="space-y-8 relative">
+<!-- Step 1: Hoàn tất -->
+<div class="flex items-start space-x-4">
+<div class="z-10 w-8 h-8 rounded-full bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center border-4 border-white dark:border-[#141922] text-teal-600">
+<span class="material-symbols-outlined text-sm" data-icon="check" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-semibold">Tạo nháp</p>
+<p class="text-xs text-gray-500">10:30 - 24/05/2024</p>
+<p class="text-[10px] font-medium text-teal-600 mt-1">Bởi: Admin_01</p>
+</div>
+</div>
+<!-- Step 2: Hoàn tất -->
+<div class="flex items-start space-x-4">
+<div class="z-10 w-8 h-8 rounded-full bg-teal-100 dark:bg-teal-900/40 flex items-center justify-center border-4 border-white dark:border-[#141922] text-teal-600">
+<span class="material-symbols-outlined text-sm" data-icon="check" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-semibold">Gửi hàng</p>
+<p class="text-xs text-gray-500">14:15 - 24/05/2024</p>
+<p class="text-[10px] font-medium text-teal-600 mt-1">Bởi: Kho_Tong_Xuat</p>
+</div>
+</div>
+<!-- Step 3: Đang thực hiện (Active) -->
+<div class="flex items-start space-x-4">
+<div class="z-10 w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center border-4 border-white dark:border-[#141922] text-white">
+<span class="material-symbols-outlined text-sm animate-pulse" data-icon="local_shipping">local_shipping</span>
+</div>
+<div class="flex-1 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800/50">
+<p class="text-sm font-bold text-blue-700 dark:text-blue-400">Đang vận chuyển</p>
+<p class="text-xs text-blue-600/70 dark:text-blue-300">Dự kiến đến: 26/05/2024</p>
+<p class="text-[10px] font-medium text-blue-700 mt-1">ĐVVC: GHTK - BK99122</p>
+</div>
+</div>
+<!-- Step 4: Chưa tới -->
+<div class="flex items-start space-x-4 opacity-50">
+<div class="z-10 w-8 h-8 rounded-full bg-gray-200 dark:bg-[#2a3140] flex items-center justify-center border-4 border-white dark:border-[#141922] text-gray-400">
+<span class="material-symbols-outlined text-sm" data-icon="inventory">inventory</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-semibold">Nhận hàng</p>
+<p class="text-xs text-gray-400">Chưa bắt đầu</p>
+</div>
+</div>
+<!-- Step 5: Chưa tới -->
+<div class="flex items-start space-x-4 opacity-50">
+<div class="z-10 w-8 h-8 rounded-full bg-gray-200 dark:bg-[#2a3140] flex items-center justify-center border-4 border-white dark:border-[#141922] text-gray-400">
+<span class="material-symbols-outlined text-sm" data-icon="done_all">done_all</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-semibold">Hoàn tất</p>
+<p class="text-xs text-gray-400">Chưa bắt đầu</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Main Content (Right) -->
+<div class="col-span-12 lg:col-span-9 space-y-6">
+<!-- Warehouse Comparison Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Source Warehouse -->
+<div class="bg-white dark:bg-[#141922] rounded-xl p-5 shadow-sm border border-gray-100 dark:border-[#2a3140] relative overflow-hidden">
+<div class="absolute top-0 right-0 p-3 opacity-10">
+<span class="material-symbols-outlined text-6xl" data-icon="warehouse">warehouse</span>
+</div>
+<div class="flex items-center space-x-3 mb-4">
+<div class="w-10 h-10 rounded-lg bg-orange-50 dark:bg-orange-900/20 text-orange-600 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="upload_file">upload_file</span>
+</div>
+<div>
+<p class="text-[10px] font-bold text-orange-600 uppercase tracking-wider">Kho nguồn</p>
+<h4 class="font-bold text-slate-800 dark:text-gray-100">Tổng kho Miền Bắc</h4>
+</div>
+</div>
+<div class="space-y-2 text-sm">
+<div class="flex items-start space-x-2">
+<span class="material-symbols-outlined text-gray-400 text-base" data-icon="location_on">location_on</span>
+<p class="text-gray-600 dark:text-gray-400">Số 12, Đường Giải Phóng, Quận Hai Bà Trưng, Hà Nội</p>
+</div>
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-gray-400 text-base" data-icon="call">call</span>
+<p class="text-gray-600 dark:text-gray-400">024.3388.9999 (Máy lẻ 101)</p>
+</div>
+</div>
+</div>
+<!-- Destination Warehouse -->
+<div class="bg-white dark:bg-[#141922] rounded-xl p-5 shadow-sm border border-gray-100 dark:border-[#2a3140] relative overflow-hidden">
+<div class="absolute top-0 right-0 p-3 opacity-10">
+<span class="material-symbols-outlined text-6xl" data-icon="storefront">storefront</span>
+</div>
+<div class="flex items-center space-x-3 mb-4">
+<div class="w-10 h-10 rounded-lg bg-teal-50 dark:bg-teal-900/20 text-teal-600 flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="download_for_offline">download_for_offline</span>
+</div>
+<div>
+<p class="text-[10px] font-bold text-teal-600 uppercase tracking-wider">Kho đích</p>
+<h4 class="font-bold text-slate-800 dark:text-gray-100">Chi nhánh Quận 1</h4>
+</div>
+</div>
+<div class="space-y-2 text-sm">
+<div class="flex items-start space-x-2">
+<span class="material-symbols-outlined text-gray-400 text-base" data-icon="location_on">location_on</span>
+<p class="text-gray-600 dark:text-gray-400">88 Lê Lợi, Phường Bến Thành, Quận 1, TP. HCM</p>
+</div>
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-gray-400 text-base" data-icon="person">person</span>
+<p class="text-gray-600 dark:text-gray-400">Liên hệ: Anh Minh (Quản lý) - 0901.234.567</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Line Items Table -->
+<div class="bg-white dark:bg-[#141922] rounded-xl shadow-sm border border-gray-100 dark:border-[#2a3140] overflow-hidden">
+<div class="px-6 py-4 border-b border-gray-100 dark:border-[#2a3140] flex justify-between items-center">
+<h3 class="font-bold text-slate-800 dark:text-gray-100">Danh mục hàng chuyển (4)</h3>
+<div class="text-sm font-medium text-teal-700 bg-teal-50 px-2 py-1 rounded">Tổng SL: 1,250</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-left">
+<thead class="bg-gray-50 dark:bg-[#1c232d] text-gray-500 font-medium">
+<tr>
+<th class="px-6 py-3">Sản phẩm</th>
+<th class="px-4 py-3">SKU</th>
+<th class="px-4 py-3 text-center">SL Chuyển</th>
+<th class="px-4 py-3">Đơn vị</th>
+<th class="px-4 py-3 text-right">Tồn nguồn</th>
+<th class="px-6 py-3 text-right">Tồn đích (Dự kiến)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-100 dark:divide-[#2a3140]">
+<!-- Row 1 -->
+<tr class="hover:bg-gray-50 dark:hover:bg-[#1c232d] transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center space-x-3">
+<img alt="Sản phẩm" class="w-10 h-10 rounded-md object-cover border border-gray-200" data-alt="close-up of a vibrant red sports running shoe on a minimalist white background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXQBO7eh-4eee1csELPe1bBz0JuqstNDFBAmjEdBnfZFOUrg5SnXiT0b3hK7PQorgUEGbkgeI7BCrHqyIkZxMukHxe9PRimdCDpDlom8W9tDcUiqtOAu21_ObhxGeoQ6uq0xnWUfC69T17MEF2qfMlSccSZORVnwEk3LqHWABqJzJq6c_9uOIOeJjJtDh2sFYOby9lYpIG3B9Xn9pcPNKmQvF0JcCPHSROccHz1EGPcaCmDLlWGACEgGC99PGSVuTE6wNl-o8_vMNf"/>
+<div>
+<p class="font-semibold text-slate-800 dark:text-gray-200">Giày Sneaker Air Max</p>
+<p class="text-xs text-gray-400">Màu: Đỏ | Size: 42</p>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 font-mono text-xs">SKU-2024-AM42</td>
+<td class="px-4 py-4 text-center font-bold">250</td>
+<td class="px-4 py-4">Đôi</td>
+<td class="px-4 py-4 text-right text-gray-500">1,400</td>
+<td class="px-6 py-4 text-right">
+<span class="font-bold text-teal-600">312</span>
+<span class="text-[10px] text-gray-400 block">+250 dự kiến</span>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-gray-50 dark:hover:bg-[#1c232d] transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center space-x-3">
+<img alt="Sản phẩm" class="w-10 h-10 rounded-md object-cover border border-gray-200" data-alt="modern luxury wrist watch with white face and silver band on a soft grey surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD2pmmJ6xmZteaZEEIwDw6je-fHUWsaaIeONbDpOCKrOra36XcVK0HSSjnUU4EAIWHdMpNje0yblI7fKg0TsvFS1hGWF5AHbDwFEdxz7OkaS7soZMfC6DNtHvq_4FFE1TxejsOXFbzoYEfGGWPcvdgDVbJ08yP-CpPGj0K24rARZAZ7X85j9LoLMImRVJtYWrthTW3G8BLnXk04QavyM1HjLDp5pPnU5B8_t61HpAvu18gcmZAInt6XpFMwkklVqAiAnBeM9AJyzYvk"/>
+<div>
+<p class="font-semibold text-slate-800 dark:text-gray-200">Đồng hồ Classic Series</p>
+<p class="text-xs text-gray-400">Phiên bản: Bạc cao cấp</p>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 font-mono text-xs">SKU-CW-009</td>
+<td class="px-4 py-4 text-center font-bold">100</td>
+<td class="px-4 py-4">Chiếc</td>
+<td class="px-4 py-4 text-right text-gray-500">450</td>
+<td class="px-6 py-4 text-right">
+<span class="font-bold text-teal-600">115</span>
+<span class="text-[10px] text-gray-400 block">+100 dự kiến</span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-gray-50 dark:hover:bg-[#1c232d] transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center space-x-3">
+<img alt="Sản phẩm" class="w-10 h-10 rounded-md object-cover border border-gray-200" data-alt="professional studio headphones in black with metallic accents against a solid mustard background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuHYEAl846SCQCYWWXtS0AcjEYnNDnxqm7uAGnjOSOit9CQW7i0utYugDkcUguS9bMLn2p6LORJMC7vLr6l1viRY99-Zg5M4P3WxnrjvyaRPbW6io7fG016dZxyYntDYiqXWBLi_uaun2EMVlA7btc0gkCTwRlaIJemLeywxqAWG067WUvYTIwhGf8OifCrEJxs5UA0hcBQd5fLJGBKS3aDV1ctkRHyNN3DMFwhH6w-_lT9yUvhk3TOAMrUVr0uZSctZQve0valOXT"/>
+<div>
+<p class="font-semibold text-slate-800 dark:text-gray-200">Tai nghe Studio Pro</p>
+<p class="text-xs text-gray-400">Kết nối: Bluetooth 5.0</p>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 font-mono text-xs">SKU-SP-BLU</td>
+<td class="px-4 py-4 text-center font-bold">500</td>
+<td class="px-4 py-4">Cái</td>
+<td class="px-4 py-4 text-right text-gray-500">2,100</td>
+<td class="px-6 py-4 text-right">
+<span class="font-bold text-teal-600">540</span>
+<span class="text-[10px] text-gray-400 block">+500 dự kiến</span>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-gray-50 dark:hover:bg-[#1c232d] transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center space-x-3">
+<img alt="Sản phẩm" class="w-10 h-10 rounded-md object-cover border border-gray-200" data-alt="minimalist white wired earphones coiled neatly on a light wood grain surface" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC7oD6kS7cBF8qwDg-k2-euE-z8sWobWnbDs-TZHrmwKunxnKHZmoahQDWVdy1mgExTQ--0im9bJ9t4A7HWWtDuzAEwamWTja_QnbQg2xtefBEbZJmPa2WHkbp7xgClBS-FmIp3_3AWvCF59Yug4o_EWGpFamKgA_9GaWdon0HM2y4sCzmmb8ck_guAHQ2HqxcTgznVraov8syf4hRTI7WnJM0Uf9PmS6thbtoSuowa5iAMCZQlQzT1nZX5xeKMK0-tM6la8L39U0Oc"/>
+<div>
+<p class="font-semibold text-slate-800 dark:text-gray-200">Cáp sạc USB-C Fast</p>
+<p class="text-xs text-gray-400">Độ dài: 1.5m</p>
+</div>
+</div>
+</td>
+<td class="px-4 py-4 font-mono text-xs">SKU-CAB-C15</td>
+<td class="px-4 py-4 text-center font-bold">400</td>
+<td class="px-4 py-4">Sợi</td>
+<td class="px-4 py-4 text-right text-gray-500">5,000</td>
+<td class="px-6 py-4 text-right">
+<span class="font-bold text-teal-600">485</span>
+<span class="text-[10px] text-gray-400 block">+400 dự kiến</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-6 bg-gray-50/50 dark:bg-[#1c232d]/50 flex flex-col md:flex-row gap-6">
+<div class="flex-1">
+<label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Ghi chú lệnh chuyển
+<div class="text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-[#141922] p-3 rounded-lg border border-gray-100 dark:border-[#2a3140]">
+                                    Hàng chuyển gấp phục vụ chương trình khuyến mãi hè tại Chi nhánh Quận 1. Yêu cầu vận chuyển bảo quản nhiệt độ thường, tránh va đập mạnh cho các SKU đồng hồ và tai nghe.
+                                </div>
+</label></div>
+<div class="w-full md:w-64 space-y-3">
+<div class="flex justify-between text-sm">
+<span class="text-gray-500">Tổng trọng lượng:</span>
+<span class="font-semibold">145.2 kg</span>
+</div>
+<div class="flex justify-between text-sm">
+<span class="text-gray-500">Số lượng thùng:</span>
+<span class="font-semibold">24 kiện</span>
+</div>
+<div class="h-px bg-gray-200 dark:bg-[#2a3140]"></div>
+<div class="flex justify-between text-base">
+<span class="font-bold">Tổng số lượng:</span>
+<span class="font-bold text-teal-700">1,250 SP</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<script src="../js/ro-nav.js" defer></script>
+</body></html>

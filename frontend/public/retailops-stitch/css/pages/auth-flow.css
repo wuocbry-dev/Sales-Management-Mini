@@ -1,0 +1,4 @@
+/* Nền trang quy trình xác thực — scoped để không ghi đè body global */
+body.page-auth-flow {
+  background-color: #f8fafc;
+}

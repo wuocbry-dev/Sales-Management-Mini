@@ -1,0 +1,19 @@
+html.page-pos-order body {
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar trong trang POS — scoped qua html để không ảnh hưởng màn khác */
+html.page-pos-order ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+html.page-pos-order ::-webkit-scrollbar-track {
+  background: transparent;
+}
+html.page-pos-order ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+html.page-pos-order ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

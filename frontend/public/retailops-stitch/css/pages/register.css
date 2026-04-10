@@ -1,0 +1,4 @@
+#register-submit:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}

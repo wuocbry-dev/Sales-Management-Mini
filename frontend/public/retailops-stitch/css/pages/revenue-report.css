@@ -1,0 +1,18 @@
+.page-revenue-report .material-symbols-outlined {
+  font-size: 20px;
+  vertical-align: middle;
+}
+
+.chart-grid {
+  background-image: radial-gradient(circle, #e2e8f0 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+}

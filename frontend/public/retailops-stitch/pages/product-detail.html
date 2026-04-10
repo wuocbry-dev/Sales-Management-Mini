@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="vi" class="light page-product-detail">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Chi tiết sản phẩm | RetailOps ERP</title>
+<link rel="stylesheet" href="../css/shared.css"/>
+<link rel="stylesheet" href="../css/pages/product-detail.css"/>
+<script src="../js/tailwind-config-default.js"></script>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+</head>
+<body class="bg-gray-100 text-slate-900 antialiased overflow-x-hidden">
+<!-- SideNavBar Shell -->
+<aside class="fixed left-0 top-0 h-full flex flex-col py-4 bg-gray-50 dark:bg-[#0c0f14] h-screen w-64 border-r border-gray-200 dark:border-[#2a3140] z-[60]">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-teal-700 rounded flex items-center justify-center text-white font-bold text-xl">R</div>
+<div>
+<h1 class="text-lg font-black text-teal-800 dark:text-teal-400 leading-none">Quản lý bán lẻ</h1>
+<p class="text-xs font-medium tracking-tight text-gray-500 uppercase">Hệ thống ERP</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<div class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#141922] hover:pl-2 transition-all duration-200 flex items-center gap-3 px-4 py-3 cursor-pointer text-sm font-medium tracking-tight">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Tổng quan</span>
+</div>
+<div class="bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 border-r-4 border-teal-700 hover:pl-2 transition-all duration-200 flex items-center gap-3 px-4 py-3 cursor-pointer text-sm font-medium tracking-tight">
+<span class="material-symbols-outlined" data-icon="inventory_2" style="font-variation-settings: 'FILL' 1;">inventory_2</span>
+<span>Sản phẩm</span>
+</div>
+<div class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#141922] hover:pl-2 transition-all duration-200 flex items-center gap-3 px-4 py-3 cursor-pointer text-sm font-medium tracking-tight">
+<span class="material-symbols-outlined" data-icon="warehouse">warehouse</span>
+<span>Kho hàng</span>
+</div>
+<div class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#141922] hover:pl-2 transition-all duration-200 flex items-center gap-3 px-4 py-3 cursor-pointer text-sm font-medium tracking-tight">
+<span class="material-symbols-outlined" data-icon="shopping_cart">shopping_cart</span>
+<span>Đơn hàng</span>
+</div>
+<div class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#141922] hover:pl-2 transition-all duration-200 flex items-center gap-3 px-4 py-3 cursor-pointer text-sm font-medium tracking-tight">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span>Báo cáo</span>
+</div>
+<div class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#141922] hover:pl-2 transition-all duration-200 flex items-center gap-3 px-4 py-3 cursor-pointer text-sm font-medium tracking-tight">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span>Nhân sự</span>
+</div>
+</nav>
+<div class="mt-auto border-t border-gray-200 pt-4">
+<div class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#141922] hover:pl-2 transition-all duration-200 flex items-center gap-3 px-4 py-3 cursor-pointer text-sm font-medium tracking-tight">
+<span class="material-symbols-outlined" data-icon="history">history</span>
+<span>Hoạt động gần đây</span>
+</div>
+<div class="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#141922] hover:pl-2 transition-all duration-200 flex items-center gap-3 px-4 py-3 cursor-pointer text-sm font-medium tracking-tight">
+<span class="material-symbols-outlined" data-icon="contact_support">contact_support</span>
+<span>Trợ giúp</span>
+</div>
+</div>
+</aside>
+<!-- TopNavBar Shell -->
+<header class="sticky top-0 z-50 flex items-center justify-between px-6 h-16 w-full bg-white dark:bg-[#141922] shadow-sm border-b border-gray-200 dark:border-[#2a3140] ml-64 w-[calc(100%-16rem)]">
+<div class="flex items-center flex-1">
+<div class="relative w-96">
+<span class="absolute inset-y-0 left-3 flex items-center text-gray-400">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</span>
+<input class="w-full bg-gray-50 dark:bg-[#0c0f14] border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-teal-700/20" placeholder="Tìm kiếm hệ thống..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4 text-gray-600 dark:text-gray-400">
+<span class="material-symbols-outlined cursor-pointer hover:text-teal-700" data-icon="notifications">notifications</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-teal-700" data-icon="settings">settings</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-teal-700" data-icon="help">help</span>
+</div>
+<div class="h-8 w-px bg-gray-200 mx-2"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-sm font-semibold text-gray-900 dark:text-white">Admin</p>
+<p class="text-xs text-gray-500">Ngôn ngữ</p>
+</div>
+<img alt="User Avatar" class="w-10 h-10 rounded-full bg-gray-200 object-cover" data-alt="professional male business profile avatar with clean office background soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDF0WPqfhyY7Zh0mBu9OGLoCLRXjDS4KgWUlr9og-4IYXeYHL3LrOYi5h64wEhSkjDkn4RK2TVnWQ5tsVPQ0fFS05acrtnS3tBt1eqh0zrsK6_nqKpLwDAi2FGj_6IzLkefCSkOkyhzNUuhwhREHB3IXDaThKceI8xvzemNC1me5s_-Z3iWaCdBFncpK-c3zhd0b-h4Whe0GhzD0XEmb7HYSqwgjJMaSR-Ccl9Fdfj_B1b_54u_vJDq70jcCe4Sc_ITX0My-05XuVEz"/>
+<button class="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">Đăng xuất</button>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-64 p-6 min-h-[calc(100vh-4rem)]">
+<!-- Breadcrumbs -->
+<nav class="flex items-center gap-2 text-xs text-gray-500 mb-6">
+<span class="hover:text-teal-700 cursor-pointer">Trang chủ</span>
+<span class="material-symbols-outlined text-sm" data-icon="chevron_right">chevron_right</span>
+<span class="hover:text-teal-700 cursor-pointer">Sản phẩm</span>
+<span class="material-symbols-outlined text-sm" data-icon="chevron_right">chevron_right</span>
+<span class="text-gray-900 font-medium">Chi tiết sản phẩm</span>
+</nav>
+<div class="flex gap-6">
+<!-- Left Column (Product Details & Variants) -->
+<div class="flex-1 space-y-6">
+<!-- Product Header Card -->
+<section class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+<div class="flex gap-8">
+<div class="w-48 h-48 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 flex-shrink-0">
+<img alt="Product Image" class="w-full h-full object-contain p-4" data-alt="Close-up studio shot of a clean pharmaceutical skin cleanser bottle on a minimalist white surface with soft blue shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNYa0v4bez3erfOS-2nIPqGd2LmQJoYPDRqpwKZgocPu3KXj37t_ACv4KiKbHstksyE_i6EaBHQB0x698-x9kBvv_H8bzxUs0IHPAExEKS3cuA_t5yYswFmbIXQeUOJraf8ZZfQbJCzkxSUluy7Vz9vWj2toG41Qnwz5sBs-IjIPhekimrt5Fk8H6pipg7diVwTYdqr3TZ5pWv2dCBUphsF0XUy8ayWZgKmoOc0QZPoHnnnXWbEco0Rqm_jIKWr5J-nBAAVnjmBoAd"/>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<span class="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold rounded uppercase tracking-wider">Còn bán</span>
+<span class="text-xs font-mono text-gray-500">SKU: CT-123-BASE</span>
+</div>
+<h2 class="text-2xl font-bold text-gray-900">Sữa rửa mặt Cetaphil Gentle Skin Cleanser</h2>
+</div>
+<div class="flex gap-2">
+<button class="flex items-center gap-2 border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">
+<span class="material-symbols-outlined" data-icon="edit">edit</span> Sửa
+                                    </button>
+<button class="flex items-center gap-2 bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-800">
+<span class="material-symbols-outlined" data-icon="print">print</span> In mã vạch
+                                    </button>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-y-4 gap-x-8 pt-4 border-t border-gray-100">
+<div>
+<p class="text-xs text-gray-500 uppercase tracking-tight mb-1">Loại</p>
+<p class="text-sm font-medium">Dược mỹ phẩm</p>
+</div>
+<div>
+<p class="text-xs text-gray-500 uppercase tracking-tight mb-1">Danh mục</p>
+<p class="text-sm font-medium">Chăm sóc da mặt</p>
+</div>
+<div>
+<p class="text-xs text-gray-500 uppercase tracking-tight mb-1">Thương hiệu</p>
+<p class="text-sm font-medium text-teal-700">Cetaphil</p>
+</div>
+<div>
+<p class="text-xs text-gray-500 uppercase tracking-tight mb-1">Đơn vị</p>
+<p class="text-sm font-medium">Chai</p>
+</div>
+<div>
+<p class="text-xs text-gray-500 uppercase tracking-tight mb-1">Theo dõi tồn</p>
+<div class="flex items-center gap-1.5 text-sm font-medium text-green-600">
+<span class="material-symbols-outlined text-sm" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span> Có
+                                    </div>
+</div>
+<div>
+<p class="text-xs text-gray-500 uppercase tracking-tight mb-1">Ngày tạo</p>
+<p class="text-sm font-medium">12/03/2024 14:30</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Tabs Navigation -->
+<div class="border-b border-gray-200">
+<div class="flex gap-8">
+<button class="pb-4 px-1 text-sm font-medium text-gray-500 hover:text-teal-700">Tổng quan</button>
+<button class="pb-4 px-1 text-sm font-bold text-teal-700 border-b-2 border-teal-700">Biến thể</button>
+<button class="pb-4 px-1 text-sm font-medium text-gray-500 hover:text-teal-700">Tồn kho theo cửa hàng</button>
+<button class="pb-4 px-1 text-sm font-medium text-gray-500 hover:text-teal-700">Lịch sử giao dịch</button>
+</div>
+</div>
+<!-- Variants Content -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+<div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+<div class="flex items-center gap-4">
+<div class="relative w-80">
+<span class="absolute inset-y-0 left-3 flex items-center text-gray-400">
+<span class="material-symbols-outlined text-sm" data-icon="search">search</span>
+</span>
+<input class="w-full bg-white border-gray-200 rounded-lg pl-10 pr-4 py-1.5 text-sm focus:ring-2 focus:ring-teal-700/20" placeholder="Tìm SKU, mã vạch, thuộc tính..." type="text"/>
+</div>
+<button class="text-teal-700 hover:bg-teal-50 px-3 py-1.5 rounded text-sm font-medium flex items-center gap-1 transition-colors">
+<span class="material-symbols-outlined" data-icon="filter_list">filter_list</span> Lọc
+                            </button>
+</div>
+<div class="flex gap-2">
+<button class="bg-white border border-gray-200 text-gray-700 px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-50">Sửa hàng loạt</button>
+<button class="bg-teal-700 text-white px-4 py-1.5 rounded-lg text-sm font-medium hover:bg-teal-800 flex items-center gap-2">
+<span class="material-symbols-outlined" data-icon="add">add</span> Thêm biến thể
+                            </button>
+</div>
+</div>
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-gray-50 text-[11px] uppercase tracking-wider text-gray-500 font-bold border-b border-gray-100">
+<th class="px-6 py-3 w-12"><input class="rounded text-teal-700 focus:ring-teal-700 border-gray-300" type="checkbox"/></th>
+<th class="px-4 py-3">SKU / Barcode</th>
+<th class="px-4 py-3">Thuộc tính</th>
+<th class="px-4 py-3 text-right">Giá nhập</th>
+<th class="px-4 py-3 text-right">Giá bán</th>
+<th class="px-4 py-3 text-center">Tồn tối thiểu</th>
+<th class="px-4 py-3">Trạng thái</th>
+<th class="px-6 py-3 text-right">Thao tác</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-50">
+<!-- Variant 1 -->
+<tr class="hover:bg-gray-50/50 transition-colors group">
+<td class="px-6 py-4"><input class="rounded text-teal-700 focus:ring-teal-700 border-gray-300" type="checkbox"/></td>
+<td class="px-4 py-4">
+<div class="text-sm font-mono font-medium text-teal-700">CT-123-500</div>
+<div class="text-[11px] text-gray-400 font-mono">8931234567890</div>
+</td>
+<td class="px-4 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">500ml</span>
+</td>
+<td class="px-4 py-4 text-right font-medium text-sm text-gray-600">285,000 đ</td>
+<td class="px-4 py-4 text-right font-bold text-sm text-gray-900">345,000 đ</td>
+<td class="px-4 py-4 text-center">
+<span class="text-sm font-medium bg-orange-50 text-orange-700 px-2 py-0.5 rounded">10</span>
+</td>
+<td class="px-4 py-4">
+<div class="relative inline-block w-10 h-5 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-teal-600 appearance-none cursor-pointer right-0" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-teal-600 cursor-pointer"></label>
+</div>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-3 text-gray-400">
+<button class="hover:text-teal-700"><span class="material-symbols-outlined" data-icon="edit">edit</span></button>
+<button class="hover:text-red-600"><span class="material-symbols-outlined" data-icon="delete">delete</span></button>
+</div>
+</td>
+</tr>
+<!-- Variant 2 -->
+<tr class="hover:bg-gray-50/50 transition-colors group">
+<td class="px-6 py-4"><input class="rounded text-teal-700 focus:ring-teal-700 border-gray-300" type="checkbox"/></td>
+<td class="px-4 py-4">
+<div class="text-sm font-mono font-medium text-teal-700">CT-123-250</div>
+<div class="text-[11px] text-gray-400 font-mono">8931234567883</div>
+</td>
+<td class="px-4 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">250ml</span>
+</td>
+<td class="px-4 py-4 text-right font-medium text-sm text-gray-600">165,000 đ</td>
+<td class="px-4 py-4 text-right font-bold text-sm text-gray-900">215,000 đ</td>
+<td class="px-4 py-4 text-center">
+<span class="text-sm font-medium bg-gray-100 text-gray-700 px-2 py-0.5 rounded">20</span>
+</td>
+<td class="px-4 py-4">
+<div class="relative inline-block w-10 h-5 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-teal-600 appearance-none cursor-pointer right-0" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-teal-600 cursor-pointer"></label>
+</div>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-3 text-gray-400">
+<button class="hover:text-teal-700"><span class="material-symbols-outlined" data-icon="edit">edit</span></button>
+<button class="hover:text-red-600"><span class="material-symbols-outlined" data-icon="delete">delete</span></button>
+</div>
+</td>
+</tr>
+<!-- Variant 3 -->
+<tr class="hover:bg-gray-50/50 transition-colors group">
+<td class="px-6 py-4"><input class="rounded text-teal-700 focus:ring-teal-700 border-gray-300" type="checkbox"/></td>
+<td class="px-4 py-4">
+<div class="text-sm font-mono font-medium text-teal-700">CT-123-TRAVEL</div>
+<div class="text-[11px] text-gray-400 font-mono">8931234567876</div>
+</td>
+<td class="px-4 py-4">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">59ml (Travel)</span>
+</td>
+<td class="px-4 py-4 text-right font-medium text-sm text-gray-600">65,000 đ</td>
+<td class="px-4 py-4 text-right font-bold text-sm text-gray-900">89,000 đ</td>
+<td class="px-4 py-4 text-center">
+<span class="text-sm font-medium bg-gray-100 text-gray-700 px-2 py-0.5 rounded">50</span>
+</td>
+<td class="px-4 py-4">
+<div class="relative inline-block w-10 h-5 align-middle select-none transition duration-200 ease-in">
+<input class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer left-0" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer"></label>
+</div>
+</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-3 text-gray-400">
+<button class="hover:text-teal-700"><span class="material-symbols-outlined" data-icon="edit">edit</span></button>
+<button class="hover:text-red-600"><span class="material-symbols-outlined" data-icon="delete">delete</span></button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="p-4 border-t border-gray-100 flex justify-between items-center bg-gray-50/30">
+<p class="text-xs text-gray-500 font-medium">Hiển thị 3 trên 3 biến thể</p>
+<div class="flex gap-1">
+<button class="p-1 border border-gray-200 rounded hover:bg-white disabled:opacity-50" disabled=""><span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span></button>
+<button class="px-3 py-1 bg-teal-700 text-white rounded text-xs font-bold">1</button>
+<button class="p-1 border border-gray-200 rounded hover:bg-white disabled:opacity-50" disabled=""><span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span></button>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Sidebar (Timeline) -->
+<aside class="w-80 space-y-6">
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+<h3 class="text-sm font-bold text-gray-900 uppercase tracking-wider mb-6 flex items-center justify-between">
+                        Hoạt động gần đây
+                        <span class="material-symbols-outlined text-gray-400 cursor-pointer hover:text-teal-700" data-icon="refresh">refresh</span>
+</h3>
+<div class="relative space-y-8 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-px before:bg-gray-100">
+<!-- Activity 1 -->
+<div class="relative pl-8">
+<div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-teal-50 border-2 border-teal-600 flex items-center justify-center z-10">
+<span class="material-symbols-outlined text-[10px] text-teal-700 font-bold" data-icon="person">person</span>
+</div>
+<p class="text-xs text-gray-500 mb-1">10:45 • 15/03/2024</p>
+<div class="bg-gray-50 rounded-lg p-3 text-sm border border-gray-100">
+<span class="font-bold text-gray-900">Nguyễn Văn A</span> đã cập nhật giá bán 500ml từ <span class="text-gray-500 line-through">335k</span> sang <span class="text-teal-700 font-bold">345k</span>.
+                            </div>
+</div>
+<!-- Activity 2 -->
+<div class="relative pl-8">
+<div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-orange-50 border-2 border-orange-500 flex items-center justify-center z-10">
+<span class="material-symbols-outlined text-[10px] text-orange-600 font-bold" data-icon="inventory">inventory</span>
+</div>
+<p class="text-xs text-gray-500 mb-1">Hôm qua • 16:20</p>
+<div class="bg-gray-50 rounded-lg p-3 text-sm border border-gray-100">
+<span class="font-bold text-gray-900">Trần Thị B</span> nhập kho <span class="font-bold">20 chai</span> 250ml tại <span class="text-teal-700">Kho Quận 1</span>.
+                            </div>
+</div>
+<!-- Activity 3 -->
+<div class="relative pl-8">
+<div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-blue-50 border-2 border-blue-600 flex items-center justify-center z-10">
+<span class="material-symbols-outlined text-[10px] text-blue-700 font-bold" data-icon="visibility">visibility</span>
+</div>
+<p class="text-xs text-gray-500 mb-1">Hôm qua • 09:15</p>
+<div class="bg-gray-50 rounded-lg p-3 text-sm border border-gray-100">
+<span class="font-bold text-gray-900">Hệ thống</span> tự động cập nhật trạng thái "Ngừng bán" cho biến thể 59ml do hết hàng.
+                            </div>
+</div>
+<!-- Activity 4 -->
+<div class="relative pl-8">
+<div class="absolute left-0 top-1 w-6 h-6 rounded-full bg-gray-200 border-2 border-gray-400 flex items-center justify-center z-10">
+<span class="material-symbols-outlined text-[10px] text-gray-600 font-bold" data-icon="settings">settings</span>
+</div>
+<p class="text-xs text-gray-500 mb-1">12/03/2024 • 14:30</p>
+<div class="bg-gray-50 rounded-lg p-3 text-sm border border-gray-100">
+<span class="font-bold text-gray-900">Admin</span> đã khởi tạo sản phẩm.
+                            </div>
+</div>
+</div>
+<button class="w-full mt-6 py-2 text-xs font-bold text-teal-700 hover:bg-teal-50 rounded-lg border border-teal-100 transition-colors">
+                        Xem toàn bộ lịch sử
+                    </button>
+</div>
+<!-- Summary Widget -->
+<div class="bg-teal-700 rounded-xl shadow-lg p-6 text-white overflow-hidden relative">
+<div class="absolute -right-4 -bottom-4 opacity-10">
+<span class="material-symbols-outlined text-8xl" data-icon="monitoring">monitoring</span>
+</div>
+<h4 class="text-xs font-bold uppercase tracking-widest mb-4 opacity-80">Hiệu suất tháng này</h4>
+<div class="space-y-4">
+<div>
+<p class="text-2xl font-black">1.248 <span class="text-sm font-normal opacity-80">Đơn vị</span></p>
+<p class="text-[11px] opacity-70">Tổng sản lượng bán ra</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-green-400" data-icon="trending_up">trending_up</span>
+<span class="text-xs font-bold text-green-400">+12%</span>
+<span class="text-[11px] opacity-70">so với tháng trước</span>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+<!-- Contextual FAB - Restricted visibility as per instructions (Hidden on Details) -->
+<!-- Suppressed FAB for Detail Screen focus -->
+<script src="../js/ro-nav.js" defer></script>
+</body></html>
