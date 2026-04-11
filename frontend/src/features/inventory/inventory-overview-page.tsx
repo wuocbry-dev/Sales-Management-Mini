@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   fetchInventoriesByStore,
   fetchInventoriesByWarehouse,
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { gateInventoryTransactionView } from "@/features/auth/gates";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 import { formatQty } from "@/lib/format-qty";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
@@ -42,9 +43,22 @@ const TXN_TYPES = [
 
 type TabId = "by_wh" | "by_store" | "availability" | "transactions";
 
-export function InventoryOverviewPage() {
+export type InventoryOverviewPageProps = {
+  /** Mở thẳng tab biến động (trang `/app/bien-dong-kho`). */
+  initialTab?: TabId;
+};
+
+export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
+  const { initialTab } = props;
   const me = useAuthStore((s) => s.me);
-  const [tab, setTab] = useState<TabId>("by_wh");
+  const canSeeTransactionsTab = Boolean(me && gateInventoryTransactionView(me));
+  const [tab, setTab] = useState<TabId>(initialTab ?? "by_wh");
+
+  useEffect(() => {
+    if (tab === "transactions" && !canSeeTransactionsTab) {
+      setTab("by_wh");
+    }
+  }, [tab, canSeeTransactionsTab]);
 
   const [storeId, setStoreId] = useState<number>(0);
   const [warehouseId, setWarehouseId] = useState<number>(0);
@@ -140,12 +154,19 @@ export function InventoryOverviewPage() {
     enabled: tab === "transactions" && warehouseId > 0,
   });
 
-  const tabs: { id: TabId; label: string; hint: string }[] = [
-    { id: "by_wh", label: "Tồn theo kho", hint: "Chi tiết từng dòng tồn trong một kho cụ thể." },
-    { id: "by_store", label: "Tồn gộp cửa hàng", hint: "Gộp mọi kho thuộc cửa hàng (theo cùng một mã biến thể có thể xuất hiện nhiều dòng)." },
-    { id: "availability", label: "Khả dụng theo kho", hint: "Xem số lượng cùng một biến thể tại từng kho trong cửa hàng." },
-    { id: "transactions", label: "Biến động tồn", hint: "Nhật ký xuất nhập tại một kho, có thể lọc theo loại, biến thể và thời gian." },
-  ];
+  const tabs: { id: TabId; label: string; hint: string }[] = useMemo(() => {
+    const all: { id: TabId; label: string; hint: string }[] = [
+      { id: "by_wh", label: "Tồn theo kho", hint: "Chi tiết từng dòng tồn trong một kho cụ thể." },
+      { id: "by_store", label: "Tồn gộp cửa hàng", hint: "Gộp mọi kho thuộc cửa hàng (theo cùng một mã biến thể có thể xuất hiện nhiều dòng)." },
+      { id: "availability", label: "Khả dụng theo kho", hint: "Xem số lượng cùng một biến thể tại từng kho trong cửa hàng." },
+      {
+        id: "transactions",
+        label: "Biến động tồn",
+        hint: "Nhật ký xuất nhập tại một kho, có thể lọc theo loại, biến thể và thời gian.",
+      },
+    ];
+    return canSeeTransactionsTab ? all : all.filter((t) => t.id !== "transactions");
+  }, [canSeeTransactionsTab]);
 
   if (storesQ.isPending) {
     return <PageSkeleton cards={2} />;
@@ -161,7 +182,9 @@ export function InventoryOverviewPage() {
         <CardHeader>
           <CardTitle className="text-lg">Tồn kho</CardTitle>
           <CardDescription>
-            Chọn chế độ xem phù hợp: tồn theo từng kho, tồn gộp theo cửa hàng, phân bổ theo kho cho một biến thể, hoặc nhật ký biến động.
+            {canSeeTransactionsTab
+              ? "Chọn chế độ xem phù hợp: tồn theo từng kho, tồn gộp theo cửa hàng, phân bổ theo kho cho một biến thể, hoặc nhật ký biến động."
+              : "Chọn chế độ xem phù hợp: tồn theo từng kho, tồn gộp theo cửa hàng, hoặc phân bổ theo kho cho một biến thể."}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2 border-b pb-4">

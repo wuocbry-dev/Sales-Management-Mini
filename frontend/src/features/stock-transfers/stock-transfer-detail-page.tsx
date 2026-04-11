@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { gateTransferReceive, gateTransferSend } from "@/features/auth/gates";
+import { canSeeTransferReceive, canSeeTransferSend } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
 import { stockTransferStatusLabel } from "@/lib/document-flow-labels";
@@ -17,8 +17,6 @@ import { formatQty } from "@/lib/format-qty";
 
 export function StockTransferDetailPage() {
   const me = useAuthStore((s) => s.me);
-  const canSend = Boolean(me && gateTransferSend(me));
-  const canReceive = Boolean(me && gateTransferReceive(me));
   const { id } = useParams();
   const tid = Number(id);
   const invalid = !Number.isFinite(tid) || tid <= 0;
@@ -29,6 +27,10 @@ export function StockTransferDetailPage() {
     queryFn: () => fetchStockTransferById(tid),
     enabled: !invalid,
   });
+
+  const st = q.data?.status;
+  const canSend = Boolean(me && canSeeTransferSend(me, st));
+  const canReceive = Boolean(me && canSeeTransferReceive(me, st));
 
   const sendM = useMutation({
     meta: { skipGlobalErrorToast: true },

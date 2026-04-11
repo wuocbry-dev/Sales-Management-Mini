@@ -1,13 +1,15 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { getFirstAccessibleAppPath } from "@/app/navigation";
+import { FORBIDDEN_ROUTE, getPostLoginRedirectPath } from "@/app/default-landing";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { ShieldOff } from "lucide-react";
 
 export function ForbiddenPage() {
   const me = useAuthStore((s) => s.me);
-  const next = me ? getFirstAccessibleAppPath(me) : null;
+  const next = me ? getPostLoginRedirectPath(me) : null;
+  const safeNext =
+    next && next !== FORBIDDEN_ROUTE && next !== "/app/khong-duoc-truy-cap" ? next : null;
 
   return (
     <Card className="mx-auto max-w-lg border-destructive/30">
@@ -21,14 +23,14 @@ export function ForbiddenPage() {
         </CardDescription>
       </CardHeader>
       <CardContent className="text-center text-sm text-muted-foreground">
-        {next
+        {safeNext
           ? "Bạn vẫn có thể dùng các mục khác trong menu mà bạn được phép."
           : "Hiện không có mục làm việc nào được gán cho tài khoản này. Vui lòng đăng xuất và liên hệ quản trị."}
       </CardContent>
       <CardFooter className="flex justify-center gap-2">
-        {next ? (
+        {safeNext ? (
           <Button asChild variant="default">
-            <Link to={next}>Về khu vực làm việc</Link>
+            <Link to={safeNext}>Về khu vực làm việc</Link>
           </Button>
         ) : (
           <Button asChild variant="default">

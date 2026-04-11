@@ -4,6 +4,8 @@ import {
   hasMasterRead,
   hasPermission,
   hasRole,
+  isBranchManagerRole,
+  isStoreManagerRole,
   isSystemManage,
 } from "@/features/auth/access";
 
@@ -23,6 +25,34 @@ export const gateProductView: AccessGate = (me) => isSystemManage(me) || hasPerm
 export const gateProductCreate: AccessGate = (me) => isSystemManage(me) || hasPermission(me, "PRODUCT_CREATE");
 
 export const gateInventoryView: AccessGate = (me) => isSystemManage(me) || hasPermission(me, "INVENTORY_VIEW");
+
+/** Trang lịch sử biến động — khớp quyền `INVENTORY_TRANSACTION_VIEW` trên API biến động. */
+export const gateInventoryTransactionView: AccessGate = (me) =>
+  isSystemManage(me) || hasPermission(me, "INVENTORY_TRANSACTION_VIEW");
+
+/**
+ * Trang danh mục nền (thương hiệu, nhóm hàng, …): quản lý chi nhánh không mở khu quản trị danh mục cấp cao
+ * (tra cứu trong form nghiệp vụ vẫn theo quyền API).
+ */
+export const gateMasterCatalogManagementPages: AccessGate = (me) => gateMasterCatalog(me) && !isBranchManagerRole(me);
+
+/** Cây cửa hàng / chi nhánh / kho trong điều hướng `/app/cua-hang/...` — không dành cho quản lý chi nhánh. */
+export const gateStoreTreePages: AccessGate = (me) => gateStoreDataRead(me) && !isBranchManagerRole(me);
+
+/** Hub chọn cửa hàng để vào chi nhánh — không dành cho quản lý chi nhánh. */
+export const gateBranchHubNavigationPage: AccessGate = (me) => gateBranchView(me) && !isBranchManagerRole(me);
+
+/** Hub chọn cửa hàng để vào kho — không dành cho quản lý chi nhánh. */
+export const gateWarehouseHubNavigationPage: AccessGate = (me) => gateInventoryView(me) && !isBranchManagerRole(me);
+
+/** Người dùng trong cửa hàng (theo mã cửa hàng trên URL). */
+export const gateStoreScopedUsersInStorePage: AccessGate = (me) =>
+  gateStoreScopedUserView(me) && gateStoreTreePages(me);
+
+/** Chi nhánh / kho trong cây `/app/cua-hang/...` — không dành cho quản lý chi nhánh. */
+export const gateBranchPagesWithinStore: AccessGate = (me) => gateBranchView(me) && gateStoreTreePages(me);
+
+export const gateWarehousePagesWithinStore: AccessGate = (me) => gateInventoryView(me) && gateStoreTreePages(me);
 
 export const gateGoodsReceiptView: AccessGate = (me) => isSystemManage(me) || hasPermission(me, "GOODS_RECEIPT_VIEW");
 
@@ -68,6 +98,9 @@ export const gateMasterCatalog: AccessGate = (me) => isSystemManage(me) || hasMa
 export const gateRbacArea: AccessGate = (me) =>
   isSystemManage(me) ||
   hasAnyPermission(me, ["RBAC_MANAGE", "ROLE_VIEW", "PERMISSION_VIEW", "PERMISSION_OVERRIDE_MANAGE"]);
+
+/** Trang Phân quyền — ROLE_UI_MATRIX: quản lý cửa hàng không vào khu vực RBAC (kể cả gán quyền thủ công). */
+export const gateRbacAreaRoute: AccessGate = (me) => gateRbacArea(me) && !isStoreManagerRole(me);
 
 /** Danh sách người dùng trong một cửa hàng — `GET /api/stores/{storeId}/users`. */
 export const gateStoreScopedUserView: AccessGate = (me) =>

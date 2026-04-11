@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { gateOrderCancel, gateOrderConfirm } from "@/features/auth/gates";
+import { canSeeSalesOrderCancel, canSeeSalesOrderConfirm } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
 import {
@@ -39,8 +39,6 @@ const PAYMENT_METHODS = [
 
 export function SalesOrderDetailPage() {
   const me = useAuthStore((s) => s.me);
-  const canConfirm = Boolean(me && gateOrderConfirm(me));
-  const canCancel = Boolean(me && gateOrderCancel(me));
   const { id } = useParams();
   const oid = Number(id);
   const invalid = !Number.isFinite(oid) || oid <= 0;
@@ -51,6 +49,10 @@ export function SalesOrderDetailPage() {
     queryFn: () => fetchSalesOrderById(oid),
     enabled: !invalid,
   });
+
+  const orderStatus = q.data?.status;
+  const canConfirm = Boolean(me && canSeeSalesOrderConfirm(me, orderStatus));
+  const canCancel = Boolean(me && canSeeSalesOrderCancel(me, orderStatus));
 
   const [payments, setPayments] = useState<PaymentLineRequestBody[]>([]);
 

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomerFormDialog } from "@/features/customers/customer-form-dialog";
-import { gateCustomerUpdate } from "@/features/auth/gates";
+import { canSeeCustomerUpdate } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { catalogStatusLabel } from "@/lib/catalog-status-labels";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
@@ -16,7 +16,7 @@ import { genderLabel } from "@/lib/gender-labels";
 
 export function CustomerDetailPage() {
   const me = useAuthStore((s) => s.me);
-  const canUpdate = Boolean(me && gateCustomerUpdate(me));
+  const canUpdate = Boolean(me && canSeeCustomerUpdate(me));
   const { id } = useParams();
   const cid = Number(id);
   const invalid = !Number.isFinite(cid) || cid <= 0;

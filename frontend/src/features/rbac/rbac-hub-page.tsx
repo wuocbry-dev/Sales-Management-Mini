@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  gateRbacArea,
+  gateRbacAreaRoute,
   gateRbacOverridesManage,
   gateRbacPermissionsView,
   gateRbacRolesView,
@@ -53,7 +53,7 @@ function overrideTypeLabel(t: string): string {
 
 export function RbacHubPage() {
   const me = useAuthStore((s) => s.me);
-  const canArea = Boolean(me && gateRbacArea(me));
+  const canArea = Boolean(me && gateRbacAreaRoute(me));
   const canRoles = Boolean(me && gateRbacRolesView(me));
   const canPerms = Boolean(me && gateRbacPermissionsView(me));
   const canOverrides = Boolean(me && gateRbacOverridesManage(me));

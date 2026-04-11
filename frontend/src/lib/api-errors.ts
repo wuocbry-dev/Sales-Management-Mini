@@ -26,9 +26,7 @@ export function formatApiError(err: unknown): string {
     if (data?.code) {
       const mapped = messageForApiCode(data.code);
       if (mapped) return mapped;
-      if (data.message && !/^Validation failed$/i.test(data.message)) {
-        return data.message;
-      }
+      return "Không thể thực hiện yêu cầu. Vui lòng thử lại hoặc kiểm tra quyền.";
     }
   }
   if (err instanceof Error && err.message) {

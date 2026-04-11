@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Navigate, Outlet } from "react-router-dom";
 import { getMe } from "@/api/auth-api";
+import { AUTH_ME_QUERY_KEY } from "@/app/auth-query-keys";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { AppLoadingShell } from "@/layouts/app-loading-shell";
 import { queryClient } from "@/lib/query-client";
@@ -14,7 +15,7 @@ export function ProtectedRoute() {
   const clearSession = useAuthStore((s) => s.clearSession);
 
   const q = useQuery({
-    queryKey: ["auth", "me"],
+    queryKey: AUTH_ME_QUERY_KEY,
     queryFn: async () => {
       const m = await getMe();
       const t = useAuthStore.getState().accessToken;
@@ -22,6 +23,7 @@ export function ProtectedRoute() {
       return m;
     },
     enabled: Boolean(accessToken),
+    initialData: persistedMe ?? undefined,
     retry: false,
     staleTime: 5 * 60 * 1000,
   });
@@ -36,7 +38,7 @@ export function ProtectedRoute() {
 
   if (q.isError) {
     clearSession();
-    void queryClient.removeQueries({ queryKey: ["auth"] });
+    void queryClient.removeQueries({ queryKey: AUTH_ME_QUERY_KEY });
     return <Navigate to="/login" replace />;
   }
 

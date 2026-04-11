@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { Link, useMatches } from "react-router-dom";
 import { ChevronRight, Home } from "lucide-react";
-import { getFirstAccessibleAppPath } from "@/app/navigation";
+import { FORBIDDEN_ROUTE, getPostLoginRedirectPath } from "@/app/default-landing";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { cn } from "@/lib/utils";
 import type { AppRouteHandle } from "@/routes/app-route-handles";
@@ -9,7 +9,9 @@ import type { AppRouteHandle } from "@/routes/app-route-handles";
 export function AppBreadcrumbs({ className }: { className?: string }) {
   const matches = useMatches();
   const me = useAuthStore((s) => s.me);
-  const home = me ? getFirstAccessibleAppPath(me) : null;
+  const home = me ? getPostLoginRedirectPath(me) : null;
+  const homeSafe =
+    home && home !== FORBIDDEN_ROUTE && home !== "/app/khong-duoc-truy-cap" ? home : null;
 
   const crumbs = matches
     .filter((m) => m.pathname.startsWith("/app"))
@@ -24,10 +26,10 @@ export function AppBreadcrumbs({ className }: { className?: string }) {
 
   return (
     <nav aria-label="Điều hướng dạng vết" className={cn("flex flex-wrap items-center gap-1 text-sm text-muted-foreground", className)}>
-      {home ? (
+      {homeSafe ? (
         <>
           <Link
-            to={home}
+            to={homeSafe}
             className="inline-flex items-center gap-1 font-medium text-foreground/80 transition-colors hover:text-primary"
           >
             <Home className="h-3.5 w-3.5" aria-hidden />

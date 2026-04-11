@@ -4,6 +4,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { AUTH_ME_QUERY_KEY } from "@/app/auth-query-keys";
+import { resolveDefaultLandingPath } from "@/app/default-landing";
 import { getMe, postRegister } from "@/api/auth-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
+import { queryClient } from "@/lib/query-client";
 
 const schema = z.object({
   username: z.string().min(1, "Vui lòng nhập tên đăng nhập").max(50, "Tối đa 50 ký tự"),
@@ -57,8 +60,9 @@ export function RegisterPage() {
     },
     onSuccess: ({ token, me }) => {
       setSession(token, me);
+      queryClient.setQueryData(AUTH_ME_QUERY_KEY, me);
       toast.success("Đăng ký thành công.");
-      navigate("/app/tong-quan", { replace: true });
+      navigate(resolveDefaultLandingPath(me), { replace: true });
     },
     onError: (err) => {
       toast.error(formatApiError(err));

@@ -2,7 +2,7 @@ import { NavLink, Outlet, useMatches } from "react-router-dom";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
 import { Button } from "@/components/ui/button";
-import { APP_NAV_ADMIN, APP_NAV_FOOTER, APP_NAV_MAIN, APP_NAV_MASTER, type AppNavItem } from "@/app/navigation";
+import { getSidebarSections, type AppNavItem } from "@/app/navigation";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { cn } from "@/lib/utils";
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
@@ -57,7 +57,7 @@ function NavSection({
         <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
       )}
       {visible.map((item) => (
-        <NavItemButton key={item.to} item={item} collapsed={collapsed} onNavigate={onPick} />
+        <NavItemButton key={item.key} item={item} collapsed={collapsed} onNavigate={onPick} />
       ))}
     </div>
   );
@@ -110,10 +110,16 @@ export function AppShellLayout() {
         </Button>
       </div>
       <nav className="flex flex-1 flex-col gap-6 overflow-y-auto p-3">
-        <NavSection title="Nghiệp vụ" items={APP_NAV_MAIN} me={me} collapsed={collapsed} onPick={() => setMobileOpen(false)} />
-        <NavSection title="Danh mục" items={APP_NAV_MASTER} me={me} collapsed={collapsed} onPick={() => setMobileOpen(false)} />
-        <NavSection title="Quản trị" items={APP_NAV_ADMIN} me={me} collapsed={collapsed} onPick={() => setMobileOpen(false)} />
-        <NavSection title="Khác" items={APP_NAV_FOOTER} me={me} collapsed={collapsed} onPick={() => setMobileOpen(false)} />
+        {getSidebarSections(me).map((section) => (
+          <NavSection
+            key={section.title}
+            title={section.title}
+            items={section.items}
+            me={me}
+            collapsed={collapsed}
+            onPick={() => setMobileOpen(false)}
+          />
+        ))}
       </nav>
     </aside>
   );

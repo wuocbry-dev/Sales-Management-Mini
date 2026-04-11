@@ -1,13 +1,15 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { getFirstAccessibleAppPath } from "@/app/navigation";
+import { FORBIDDEN_ROUTE, getPostLoginRedirectPath } from "@/app/default-landing";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { FileQuestion } from "lucide-react";
 
 export function NotFoundPage() {
   const me = useAuthStore((s) => s.me);
-  const next = me ? getFirstAccessibleAppPath(me) : null;
+  const next = me ? getPostLoginRedirectPath(me) : null;
+  const safeNext =
+    next && next !== FORBIDDEN_ROUTE && next !== "/app/khong-duoc-truy-cap" ? next : null;
 
   return (
     <Card className="mx-auto max-w-lg">
@@ -22,9 +24,9 @@ export function NotFoundPage() {
         Kiểm tra lại địa chỉ hoặc chọn mục từ menu bên trái.
       </CardContent>
       <CardFooter className="flex justify-center">
-        {next ? (
+        {safeNext ? (
           <Button asChild>
-            <Link to={next}>Về khu vực làm việc</Link>
+            <Link to={safeNext}>Về khu vực làm việc</Link>
           </Button>
         ) : (
           <Button asChild>

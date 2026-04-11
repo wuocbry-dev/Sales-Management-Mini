@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CustomerFormDialog } from "@/features/customers/customer-form-dialog";
-import { gateCustomerCreate } from "@/features/auth/gates";
+import { canSeeCustomerCreate } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { catalogStatusLabel } from "@/lib/catalog-status-labels";
 
@@ -18,7 +18,7 @@ const DEFAULT_SIZE = 10;
 
 export function CustomerListPage() {
   const me = useAuthStore((s) => s.me);
-  const canCreate = Boolean(me && gateCustomerCreate(me));
+  const canCreate = Boolean(me && canSeeCustomerCreate(me));
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get("trang") ?? "0") || 0);
   const size = Math.min(100, Math.max(1, Number(params.get("kichThuoc") ?? String(DEFAULT_SIZE)) || DEFAULT_SIZE));

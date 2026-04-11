@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UserStatusBadge } from "@/components/ui/status-badge";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { AUTH_ME_QUERY_KEY } from "@/app/auth-query-keys";
 import { queryClient } from "@/lib/query-client";
 import { describeSessionScope } from "@/lib/session-scope-label";
 import { cn } from "@/lib/utils";
@@ -68,7 +69,7 @@ export function AccountMenu({ className }: { className?: string }) {
           className="gap-2 text-destructive focus:text-destructive"
           onClick={() => {
             clearSession();
-            void queryClient.removeQueries({ queryKey: ["auth"] });
+            void queryClient.removeQueries({ queryKey: AUTH_ME_QUERY_KEY });
             navigate("/login", { replace: true });
           }}
         >

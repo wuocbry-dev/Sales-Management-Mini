@@ -1,5 +1,5 @@
 import { Navigate } from "react-router-dom";
-import { getFirstAccessibleAppPath } from "@/app/navigation";
+import { resolveDefaultLandingPath } from "@/app/default-landing";
 import { useAuthStore } from "@/features/auth/auth-store";
 
 export function AppIndexRedirect() {
@@ -7,9 +7,5 @@ export function AppIndexRedirect() {
   if (!me) {
     return null;
   }
-  const next = getFirstAccessibleAppPath(me);
-  if (!next) {
-    return <Navigate to="/app/khong-duoc-truy-cap" replace />;
-  }
-  return <Navigate to={next} replace />;
+  return <Navigate to={resolveDefaultLandingPath(me)} replace />;
 }

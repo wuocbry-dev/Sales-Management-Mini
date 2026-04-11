@@ -1,15 +1,24 @@
 export { useAuthStore } from "./auth-store";
 export {
   hasAnyPermission,
+  hasBranchScope,
   hasMasterRead,
   hasPermission,
   hasRole,
+  hasStoreScope,
+  isBranchManagerRole,
+  isFrontlineCashierNav,
+  isFrontlineWarehouseNav,
+  isStoreManagerRole,
+  isSystemLevelUser,
   isSystemManage,
 } from "./access";
 export type { AccessGate } from "./gates";
 export {
   allowAll,
   gateBranchCreate,
+  gateBranchHubNavigationPage,
+  gateBranchPagesWithinStore,
   gateBranchUpdate,
   gateBranchView,
   gateCustomerCreate,
@@ -19,8 +28,10 @@ export {
   gateGoodsReceiptConfirm,
   gateGoodsReceiptCreate,
   gateGoodsReceiptView,
+  gateInventoryTransactionView,
   gateInventoryView,
   gateMasterCatalog,
+  gateMasterCatalogManagementPages,
   gateOrderCancel,
   gateOrderConfirm,
   gateOrderCreate,
@@ -29,6 +40,7 @@ export {
   gateProductCreate,
   gateProductView,
   gateRbacArea,
+  gateRbacAreaRoute,
   gateRbacOverridesManage,
   gateRbacPermissionsView,
   gateRbacRolesView,
@@ -51,4 +63,6 @@ export {
   gateTransferReceive,
   gateTransferSend,
   gateTransferView,
+  gateWarehouseHubNavigationPage,
+  gateWarehousePagesWithinStore,
 } from "./gates";

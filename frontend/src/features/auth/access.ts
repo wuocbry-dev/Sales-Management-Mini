@@ -1,37 +1,52 @@
+import {
+  hasAnyPermission,
+  hasBranchScope,
+  hasMasterRead,
+  hasPermission,
+  hasRole,
+  hasStoreScope,
+  isSystemLevelUser,
+} from "@/lib/access-control";
 import type { MeResponse } from "@/types/auth";
 
-/** Khớp `@authz.systemManage` — SYSTEM_ADMIN hoặc ADMIN. */
-export function isSystemManage(me: MeResponse | null): boolean {
-  if (!me?.roles?.length) return false;
-  return me.roles.includes("SYSTEM_ADMIN") || me.roles.includes("ADMIN");
+export {
+  hasAnyPermission,
+  hasBranchScope,
+  hasMasterRead,
+  hasPermission,
+  hasRole,
+  hasStoreScope,
+  isSystemLevelUser,
+};
+
+/** @deprecated Dùng `isSystemLevelUser` — giữ để tương thích mã cũ. */
+export const isSystemManage = isSystemLevelUser;
+
+export function isBranchManagerRole(me: MeResponse | null): boolean {
+  return hasRole(me, "BRANCH_MANAGER");
 }
 
-export function hasPermission(me: MeResponse | null, code: string): boolean {
+export function isStoreManagerRole(me: MeResponse | null): boolean {
+  return hasRole(me, "STORE_MANAGER");
+}
+
+/**
+ * Thu ngân (POS): vai trò CASHIER, không gồm quản trị / quản lý cửa hàng / quản lý chi nhánh.
+ * Khớp ROLE_UI_MATRIX — giao diện bán hàng tập trung.
+ */
+export function isFrontlineCashierNav(me: MeResponse | null): boolean {
   if (!me) return false;
-  if (isSystemManage(me)) return true;
-  return me.permissions?.includes(code) ?? false;
+  if (isSystemLevelUser(me)) return false;
+  if (isStoreManagerRole(me) || isBranchManagerRole(me)) return false;
+  return hasRole(me, "CASHIER");
 }
 
-export function hasAnyPermission(me: MeResponse | null, codes: string[]): boolean {
+/**
+ * Nhân viên kho thuần — khớp ROLE_UI_MATRIX.
+ */
+export function isFrontlineWarehouseNav(me: MeResponse | null): boolean {
   if (!me) return false;
-  if (isSystemManage(me)) return true;
-  return codes.some((c) => me.permissions?.includes(c));
-}
-
-export function hasRole(me: MeResponse | null, role: string): boolean {
-  return me?.roles?.includes(role) ?? false;
-}
-
-/** Khớp `@authz.masterRead` — đọc danh mục dùng chung trên máy chủ. */
-export function hasMasterRead(me: MeResponse | null): boolean {
-  return hasAnyPermission(me, [
-    "PRODUCT_VIEW",
-    "INVENTORY_VIEW",
-    "INVENTORY_TRANSACTION_VIEW",
-    "GOODS_RECEIPT_VIEW",
-    "GOODS_RECEIPT_CREATE",
-    "ORDER_VIEW",
-    "ORDER_CREATE",
-    "STORE_VIEW",
-  ]);
+  if (isSystemLevelUser(me)) return false;
+  if (isStoreManagerRole(me) || isBranchManagerRole(me)) return false;
+  return hasRole(me, "WAREHOUSE_STAFF");
 }

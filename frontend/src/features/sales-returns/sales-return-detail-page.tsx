@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { gateReturnCreate } from "@/features/auth/gates";
+import { canSeeReturnConfirm } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
 import { salesReturnStatusLabel } from "@/lib/document-flow-labels";
@@ -18,7 +18,6 @@ import { formatVndFromDecimal } from "@/lib/format-vnd";
 
 export function SalesReturnDetailPage() {
   const me = useAuthStore((s) => s.me);
-  const canConfirm = Boolean(me && gateReturnCreate(me));
   const { id } = useParams();
   const rid = Number(id);
   const invalid = !Number.isFinite(rid) || rid <= 0;
@@ -29,6 +28,8 @@ export function SalesReturnDetailPage() {
     queryFn: () => fetchSalesReturnById(rid),
     enabled: !invalid,
   });
+
+  const canConfirm = Boolean(me && canSeeReturnConfirm(me, q.data?.status));
 
   const confirmM = useMutation({
     meta: { skipGlobalErrorToast: true },

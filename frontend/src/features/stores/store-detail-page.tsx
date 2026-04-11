@@ -7,7 +7,7 @@ import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { gateStoreScopedUserView, gateStoreUpdate } from "@/features/auth/gates";
+import { gateStoreScopedUsersInStorePage, gateStoreUpdate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { StoreFormDialog } from "@/features/stores/store-form-dialog";
 import { activeInactiveLabel } from "@/lib/entity-status-labels";
@@ -18,7 +18,7 @@ export function StoreDetailPage() {
   const id = Number(storeId);
   const me = useAuthStore((s) => s.me);
   const canEdit = Boolean(me && gateStoreUpdate(me));
-  const canSeeStoreUsers = Boolean(me && gateStoreScopedUserView(me));
+  const canSeeStoreUsers = Boolean(me && gateStoreScopedUsersInStorePage(me));
   const [editOpen, setEditOpen] = useState(false);
 
   const q = useQuery({

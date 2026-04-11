@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Navigate, useMatches } from "react-router-dom";
+import { Navigate, useLocation, useMatches } from "react-router-dom";
+import { FORBIDDEN_ROUTE, resolveDefaultLandingPath } from "@/app/default-landing";
 import { useAuthStore } from "@/features/auth/auth-store";
 import type { AppRouteHandle } from "@/routes/app-route-handles";
 
@@ -12,6 +13,7 @@ type Props = {
  */
 export function PermissionRoute({ children }: Props) {
   const me = useAuthStore((s) => s.me);
+  const location = useLocation();
   const matches = useMatches();
   const leaf = matches[matches.length - 1];
   const handle = (leaf?.handle ?? {}) as AppRouteHandle;
@@ -22,7 +24,11 @@ export function PermissionRoute({ children }: Props) {
   }
 
   if (gate && !gate(me)) {
-    return <Navigate to="/app/khong-duoc-truy-cap" replace />;
+    const fallback = resolveDefaultLandingPath(me);
+    if (fallback !== location.pathname) {
+      return <Navigate to={fallback} replace />;
+    }
+    return <Navigate to={FORBIDDEN_ROUTE} replace />;
   }
 
   return <>{children}</>;

@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { gateProductCreate } from "@/features/auth/gates";
+import { canSeeProductCreate } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { catalogStatusLabel } from "@/lib/catalog-status-labels";
 import { productTypeLabel } from "@/lib/product-type-labels";
@@ -31,7 +31,7 @@ function parseOptionalLong(raw: string | null): number | undefined {
 
 export function ProductListPage() {
   const me = useAuthStore((s) => s.me);
-  const canCreate = Boolean(me && gateProductCreate(me));
+  const canCreate = Boolean(me && canSeeProductCreate(me));
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get("trang") ?? "0") || 0);
   const size = Math.min(100, Math.max(1, Number(params.get("kichThuoc") ?? String(DEFAULT_SIZE)) || DEFAULT_SIZE));

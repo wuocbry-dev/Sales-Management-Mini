@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { gateStocktakeCreate } from "@/features/auth/gates";
+import { canSeeStocktakeConfirm } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
 import { stocktakeStatusLabel } from "@/lib/document-flow-labels";
@@ -17,7 +17,6 @@ import { formatQty } from "@/lib/format-qty";
 
 export function StocktakeDetailPage() {
   const me = useAuthStore((s) => s.me);
-  const canConfirm = Boolean(me && gateStocktakeCreate(me));
   const { id } = useParams();
   const kid = Number(id);
   const invalid = !Number.isFinite(kid) || kid <= 0;
@@ -28,6 +27,8 @@ export function StocktakeDetailPage() {
     queryFn: () => fetchStocktakeById(kid),
     enabled: !invalid,
   });
+
+  const canConfirm = Boolean(me && canSeeStocktakeConfirm(me, q.data?.status));
 
   const confirmM = useMutation({
     meta: { skipGlobalErrorToast: true },
