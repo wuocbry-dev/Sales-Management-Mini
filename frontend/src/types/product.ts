@@ -26,6 +26,14 @@ export type ProductCreateRequestBody = {
   variants: ProductVariantRequestBody[];
 };
 
+/** Khớp backend `ProductVariantOptionResponse`. */
+export type ProductVariantOptionResponse = {
+  variantId: number;
+  sku: string;
+  variantName: string | null;
+  productName: string;
+};
+
 export type ProductVariantResponse = {
   id: number;
   productId: number;

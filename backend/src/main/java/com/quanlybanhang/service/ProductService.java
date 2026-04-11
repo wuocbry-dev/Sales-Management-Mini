@@ -2,6 +2,7 @@ package com.quanlybanhang.service;
 
 import com.quanlybanhang.dto.ProductDtos.ProductCreateRequest;
 import com.quanlybanhang.dto.ProductDtos.ProductResponse;
+import com.quanlybanhang.dto.ProductDtos.ProductVariantOptionResponse;
 import com.quanlybanhang.dto.ProductDtos.ProductVariantRequest;
 import com.quanlybanhang.dto.ProductDtos.ProductVariantResponse;
 import com.quanlybanhang.exception.BusinessException;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -134,6 +136,26 @@ public class ProductService {
                             .toList()))
             .toList();
     return new PageImpl<>(content, pageable, page.getTotalElements());
+  }
+
+  public List<ProductVariantOptionResponse> searchVariantOptions(
+      long storeId, String q, JwtAuthenticatedPrincipal principal) {
+    storeAccessService.assertCanAccessStore(storeId, principal);
+    String term = q == null ? "" : q.trim();
+    if (term.isEmpty()) {
+      return List.of();
+    }
+    if (term.length() > 100) {
+      term = term.substring(0, 100);
+    }
+    return variantRepository
+        .searchOptionsByStore(storeId, term, PageRequest.of(0, 40))
+        .stream()
+        .map(
+            row ->
+                new ProductVariantOptionResponse(
+                    row.getId(), row.getSku(), row.getVariantName(), row.getProductName()))
+        .toList();
   }
 
   public ProductResponse getProduct(Long id, JwtAuthenticatedPrincipal principal) {

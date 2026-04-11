@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { isSystemManage } from "@/features/auth/access";
+import { GoodsReceiptVariantCombobox } from "@/features/goods-receipts/goods-receipt-variant-combobox";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
@@ -296,9 +297,19 @@ export function GoodsReceiptCreatePage() {
                         name={`lines.${i}.variantId`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Mã biến thể</FormLabel>
+                            <FormLabel>Biến thể (SKU / tên)</FormLabel>
                             <FormControl>
-                              <Input {...field} inputMode="numeric" className="font-mono" />
+                              <GoodsReceiptVariantCombobox
+                                key={`${row.id}-${storeIdWatch}`}
+                                id={field.name}
+                                name={field.name}
+                                storeId={storeIdWatch}
+                                value={field.value}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                ref={field.ref}
+                                disabled={!storeIdWatch}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

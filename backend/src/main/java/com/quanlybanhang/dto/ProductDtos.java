@@ -39,6 +39,10 @@ public final class ProductDtos {
       @NotBlank @Size(max = 8) String status,
       @NotEmpty @Valid List<ProductVariantRequest> variants) {}
 
+  /** Gợi ý biến thể khi tìm theo SKU / tên (phiếu nhập, v.v.). */
+  public record ProductVariantOptionResponse(
+      Long variantId, String sku, String variantName, String productName) {}
+
   public record ProductVariantResponse(
       Long id,
       Long productId,

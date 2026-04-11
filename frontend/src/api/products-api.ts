@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/axios-client";
 import type { PageQuery } from "@/lib/spring-pagination";
-import type { ProductCreateRequestBody, ProductResponse } from "@/types/product";
+import type { ProductCreateRequestBody, ProductResponse, ProductVariantOptionResponse } from "@/types/product";
 import type { SpringPage } from "@/types/spring-page";
 
 export type ProductListParams = PageQuery & {
@@ -24,6 +24,18 @@ export async function fetchProductsPage(params: ProductListParams): Promise<Spri
 
 export async function fetchProductById(id: number): Promise<ProductResponse> {
   const { data } = await apiClient.get<ProductResponse>(`/api/products/${id}`);
+  return data;
+}
+
+export async function fetchProductVariantSearch(params: {
+  storeId: number;
+  q: string;
+}): Promise<ProductVariantOptionResponse[]> {
+  const q = params.q.trim();
+  if (!q) return [];
+  const { data } = await apiClient.get<ProductVariantOptionResponse[]>("/api/products/variant-search", {
+    params: { storeId: params.storeId, q },
+  });
   return data;
 }
 

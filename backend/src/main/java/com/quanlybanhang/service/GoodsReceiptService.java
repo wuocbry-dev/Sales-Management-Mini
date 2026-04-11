@@ -15,6 +15,7 @@ import com.quanlybanhang.model.Warehouse;
 import com.quanlybanhang.repository.GoodsReceiptRepository;
 import com.quanlybanhang.repository.InventoryRepository;
 import com.quanlybanhang.repository.InventoryTransactionRepository;
+import com.quanlybanhang.repository.ProductRepository;
 import com.quanlybanhang.repository.ProductVariantRepository;
 import com.quanlybanhang.repository.StoreRepository;
 import com.quanlybanhang.repository.SupplierRepository;
@@ -44,6 +45,7 @@ public class GoodsReceiptService {
   private final InventoryRepository inventoryRepository;
   private final InventoryTransactionRepository inventoryTransactionRepository;
   private final ProductVariantRepository variantRepository;
+  private final ProductRepository productRepository;
   private final StoreRepository storeRepository;
   private final SupplierRepository supplierRepository;
   private final StoreAccessService storeAccessService;
@@ -54,6 +56,7 @@ public class GoodsReceiptService {
       InventoryRepository inventoryRepository,
       InventoryTransactionRepository inventoryTransactionRepository,
       ProductVariantRepository variantRepository,
+      ProductRepository productRepository,
       StoreRepository storeRepository,
       SupplierRepository supplierRepository,
       StoreAccessService storeAccessService,
@@ -62,6 +65,7 @@ public class GoodsReceiptService {
     this.inventoryRepository = inventoryRepository;
     this.inventoryTransactionRepository = inventoryTransactionRepository;
     this.variantRepository = variantRepository;
+    this.productRepository = productRepository;
     this.storeRepository = storeRepository;
     this.supplierRepository = supplierRepository;
     this.storeAccessService = storeAccessService;
@@ -145,6 +149,13 @@ public class GoodsReceiptService {
     for (GoodsReceiptLineRequest line : req.lines()) {
       if (!variantRepository.existsById(line.variantId())) {
         throw new BusinessException("Biến thể không tồn tại: " + line.variantId());
+      }
+      Long variantStoreId =
+          productRepository
+              .findStoreIdByVariantId(line.variantId())
+              .orElseThrow(() -> new BusinessException("Biến thể không tồn tại: " + line.variantId()));
+      if (!variantStoreId.equals(req.storeId())) {
+        throw new BusinessException("Biến thể không thuộc cửa hàng của phiếu.");
       }
     }
     LocalDateTime t = now();

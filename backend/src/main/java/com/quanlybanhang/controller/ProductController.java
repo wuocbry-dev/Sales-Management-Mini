@@ -2,6 +2,7 @@ package com.quanlybanhang.controller;
 
 import com.quanlybanhang.dto.ProductDtos.ProductCreateRequest;
 import com.quanlybanhang.dto.ProductDtos.ProductResponse;
+import com.quanlybanhang.dto.ProductDtos.ProductVariantOptionResponse;
 import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import com.quanlybanhang.service.ProductService;
 import jakarta.validation.Valid;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/products")
@@ -37,6 +39,16 @@ public class ProductController {
       @RequestParam(required = false) String q,
       @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
     return productService.listProducts(pageable, status, categoryId, brandId, q, principal);
+  }
+
+  @GetMapping("/variant-search")
+  @PreAuthorize(
+      "@authz.systemManage(authentication) or @authz.hasAnyAuthority(authentication, 'PRODUCT_VIEW', 'GOODS_RECEIPT_CREATE', 'GOODS_RECEIPT_CONFIRM')")
+  public List<ProductVariantOptionResponse> variantSearch(
+      @RequestParam long storeId,
+      @RequestParam(required = false) String q,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return productService.searchVariantOptions(storeId, q, principal);
   }
 
   @GetMapping("/{id}")

@@ -3,6 +3,7 @@ package com.quanlybanhang.repository;
 import com.quanlybanhang.model.ProductVariant;
 import java.util.Collection;
 import java.util.List;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,4 +23,14 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
       "select count(v) from ProductVariant v where v.productId in "
           + "(select p.id from Product p where p.storeId in :storeIds)")
   long countByProductStoreIdIn(@Param("storeIds") Collection<Long> storeIds);
+
+  @Query(
+      "select v.id as id, v.sku as sku, v.variantName as variantName, p.productName as productName "
+          + "from ProductVariant v join Product p on p.id = v.productId "
+          + "where p.storeId = :storeId and "
+          + "(lower(v.sku) like lower(concat('%', :q, '%')) "
+          + "or lower(coalesce(v.variantName, '')) like lower(concat('%', :q, '%'))) "
+          + "order by v.sku asc")
+  List<ProductVariantOptionProjection> searchOptionsByStore(
+      @Param("storeId") Long storeId, @Param("q") String q, Pageable pageable);
 }
