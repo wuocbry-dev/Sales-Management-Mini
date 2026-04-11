@@ -2,6 +2,7 @@ package com.quanlybanhang.controller;
 
 import com.quanlybanhang.dto.ProductDtos.ProductCreateRequest;
 import com.quanlybanhang.dto.ProductDtos.ProductResponse;
+import com.quanlybanhang.dto.ProductDtos.ProductUpdateRequest;
 import com.quanlybanhang.dto.ProductDtos.ProductVariantOptionResponse;
 import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import com.quanlybanhang.service.ProductService;
@@ -15,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -65,5 +67,14 @@ public class ProductController {
       @Valid @RequestBody ProductCreateRequest req,
       @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
     return productService.createProduct(req, principal);
+  }
+
+  @PutMapping("/{id}")
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")
+  public ProductResponse update(
+      @PathVariable Long id,
+      @Valid @RequestBody ProductUpdateRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return productService.updateProduct(id, req, principal);
   }
 }

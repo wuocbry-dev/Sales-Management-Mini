@@ -14,6 +14,34 @@ public final class ProductDtos {
 
   private ProductDtos() {}
 
+  /**
+   * Cập nhật sản phẩm: {@code id} null = thêm biến thể mới; có {@code id} = cập nhật. Biến thể có
+   * {@code id} nhưng không nằm trong payload sẽ bị xóa nếu chưa phát sinh tham chiếu kho/đơn.
+   */
+  public record ProductVariantUpsertRequest(
+      Long id,
+      @NotBlank @Size(max = 100) String sku,
+      @Size(max = 100) String barcode,
+      @Size(max = 255) String variantName,
+      String attributesJson,
+      @NotNull @DecimalMin(value = "0") BigDecimal costPrice,
+      @NotNull @DecimalMin(value = "0") BigDecimal sellingPrice,
+      @NotNull @DecimalMin(value = "0") BigDecimal reorderLevel,
+      @NotBlank @Size(max = 8) String status) {}
+
+  public record ProductUpdateRequest(
+      Long categoryId,
+      Long brandId,
+      Long unitId,
+      @NotBlank @Size(max = 50) String productCode,
+      @NotBlank @Size(max = 255) String productName,
+      @NotBlank @Size(max = 7) String productType,
+      @NotNull Boolean hasVariant,
+      @NotNull Boolean trackInventory,
+      String description,
+      @NotBlank @Size(max = 8) String status,
+      @NotEmpty @Valid List<ProductVariantUpsertRequest> variants) {}
+
   public record ProductVariantRequest(
       @NotBlank @Size(max = 100) String sku,
       @Size(max = 100) String barcode,

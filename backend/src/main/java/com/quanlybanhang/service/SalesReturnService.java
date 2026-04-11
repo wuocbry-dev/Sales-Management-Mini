@@ -222,6 +222,7 @@ public class SalesReturnService {
               .orElseGet(
                   () -> {
                     Inventory n = new Inventory();
+                    n.setStoreId(wh.getStoreId());
                     n.setWarehouseId(wh.getId());
                     n.setVariantId(line.getVariantId());
                     n.setQuantityOnHand(BigDecimal.ZERO);
@@ -229,6 +230,9 @@ public class SalesReturnService {
                     n.setUpdatedAt(t);
                     return n;
                   });
+      if (inv.getStoreId() == null) {
+        inv.setStoreId(wh.getStoreId());
+      }
       BigDecimal before = inv.getQuantityOnHand();
       BigDecimal qty = line.getQuantity();
       BigDecimal after = before.add(qty);

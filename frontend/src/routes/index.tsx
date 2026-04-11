@@ -23,6 +23,7 @@ import {
   gateMasterCatalogManagementPages,
   gateOrderCreate,
   gateOrderView,
+  gateProductCatalogMutate,
   gateProductCreate,
   gateProductView,
   gateRbacAreaRoute,
@@ -57,6 +58,7 @@ import { GoodsReceiptListPage } from "@/features/goods-receipts/goods-receipt-li
 import { InventoryOverviewPage } from "@/features/inventory/inventory-overview-page";
 import { ProductCreatePage } from "@/features/products/product-create-page";
 import { ProductDetailPage } from "@/features/products/product-detail-page";
+import { ProductEditPage } from "@/features/products/product-edit-page";
 import { ProductListPage } from "@/features/products/product-list-page";
 import { RbacHubPage } from "@/features/rbac/rbac-hub-page";
 import { ReportSummaryPage } from "@/features/reports/report-summary-page";
@@ -180,6 +182,12 @@ const appChildren: RouteObject[] = [
   guarded("nha-cung-cap", <SupplierListPage />, { title: "Nhà cung cấp", subtitle: "Đối tác cung ứng." }, gateMasterCatalogManagementPages),
   guarded("nha-cung-cap/:id", <SupplierDetailPage />, { title: "Chi tiết nhà cung cấp" }, gateMasterCatalogManagementPages),
   guarded("san-pham/moi", <ProductCreatePage />, { title: "Thêm sản phẩm" }, gateProductCreate),
+  guarded(
+    "san-pham/:id/sua",
+    <ProductEditPage />,
+    { title: "Sửa sản phẩm" },
+    gateProductCatalogMutate,
+  ),
   guarded("san-pham/:id", <ProductDetailPage />, { title: "Chi tiết sản phẩm" }, gateProductView),
   guarded("san-pham", <ProductListPage />, { title: "Sản phẩm", subtitle: "Danh mục hàng hóa theo phạm vi cửa hàng." }, gateProductView),
   guarded("khach-hang/:id", <CustomerDetailPage />, { title: "Chi tiết khách hàng" }, gateCustomerView),

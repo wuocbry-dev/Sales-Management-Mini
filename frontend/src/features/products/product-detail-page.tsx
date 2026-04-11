@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { fetchProductById } from "@/api/products-api";
+import { hasPermission } from "@/features/auth/access";
+import { useAuthStore } from "@/features/auth/auth-store";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +15,8 @@ import { formatQty } from "@/lib/format-qty";
 import { productTypeLabel } from "@/lib/product-type-labels";
 
 export function ProductDetailPage() {
+  const me = useAuthStore((s) => s.me);
+  const canEditProduct = Boolean(me && hasPermission(me, "PRODUCT_UPDATE"));
   const { id } = useParams();
   const pid = Number(id);
   const invalid = !Number.isFinite(pid) || pid <= 0;
@@ -49,6 +53,11 @@ export function ProductDetailPage() {
         <Button variant="outline" size="sm" asChild>
           <Link to="/app/san-pham">← Danh sách sản phẩm</Link>
         </Button>
+        {canEditProduct ? (
+          <Button size="sm" asChild>
+            <Link to={`/app/san-pham/${pid}/sua`}>Chỉnh sửa</Link>
+          </Button>
+        ) : null}
       </div>
 
       <Card>

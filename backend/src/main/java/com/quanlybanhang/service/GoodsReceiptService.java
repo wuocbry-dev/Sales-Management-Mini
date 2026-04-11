@@ -208,7 +208,7 @@ public class GoodsReceiptService {
     }
     LocalDateTime t = now();
     for (GoodsReceiptItem line : gr.getItems()) {
-      applyInventoryInbound(gr.getWarehouseId(), gr.getId(), line, userId, t);
+      applyInventoryInbound(gr.getStoreId(), gr.getWarehouseId(), gr.getId(), line, userId, t);
     }
     gr.setStatus(DomainConstants.RECEIPT_COMPLETED);
     gr.setApprovedBy(userId);
@@ -218,7 +218,12 @@ public class GoodsReceiptService {
   }
 
   private void applyInventoryInbound(
-      Long warehouseId, Long receiptId, GoodsReceiptItem line, long userId, LocalDateTime t) {
+      Long storeId,
+      Long warehouseId,
+      Long receiptId,
+      GoodsReceiptItem line,
+      long userId,
+      LocalDateTime t) {
     Long variantId = line.getVariantId();
     BigDecimal qty = line.getQuantity();
     Inventory inv =
@@ -227,6 +232,7 @@ public class GoodsReceiptService {
             .orElseGet(
                 () -> {
                   Inventory n = new Inventory();
+                  n.setStoreId(storeId);
                   n.setWarehouseId(warehouseId);
                   n.setVariantId(variantId);
                   n.setQuantityOnHand(BigDecimal.ZERO);
@@ -234,6 +240,9 @@ public class GoodsReceiptService {
                   n.setUpdatedAt(t);
                   return n;
                 });
+    if (inv.getStoreId() == null) {
+      inv.setStoreId(storeId);
+    }
     BigDecimal before = inv.getQuantityOnHand();
     BigDecimal after = before.add(qty);
     inv.setQuantityOnHand(after);

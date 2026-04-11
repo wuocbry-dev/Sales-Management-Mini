@@ -176,6 +176,7 @@ public class StocktakeService {
               .orElseGet(
                   () -> {
                     Inventory n = new Inventory();
+                    n.setStoreId(st.getStoreId());
                     n.setWarehouseId(st.getWarehouseId());
                     n.setVariantId(line.getVariantId());
                     n.setQuantityOnHand(BigDecimal.ZERO);
@@ -183,6 +184,9 @@ public class StocktakeService {
                     n.setUpdatedAt(t);
                     return n;
                   });
+      if (inv.getStoreId() == null) {
+        inv.setStoreId(st.getStoreId());
+      }
       BigDecimal before = inv.getQuantityOnHand();
       BigDecimal target = line.getActualQty();
       BigDecimal delta = target.subtract(before);

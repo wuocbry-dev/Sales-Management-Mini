@@ -223,6 +223,9 @@ public class SalesOrderService {
           inventoryRepository
               .findByWarehouseIdAndVariantId(fulfillWh.getId(), line.getVariantId())
               .orElseThrow();
+      if (inv.getStoreId() == null) {
+        inv.setStoreId(fulfillWh.getStoreId());
+      }
       BigDecimal before = inv.getQuantityOnHand();
       BigDecimal after = before.subtract(line.getQuantity());
       inv.setQuantityOnHand(after);

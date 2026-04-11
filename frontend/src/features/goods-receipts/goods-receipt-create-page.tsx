@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { isSystemManage } from "@/features/auth/access";
-import { GoodsReceiptVariantCombobox } from "@/features/goods-receipts/goods-receipt-variant-combobox";
+import { VariantSearchCombobox } from "@/components/catalog/variant-search-combobox";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
@@ -299,7 +299,7 @@ export function GoodsReceiptCreatePage() {
                           <FormItem>
                             <FormLabel>Biến thể (SKU / tên)</FormLabel>
                             <FormControl>
-                              <GoodsReceiptVariantCombobox
+                              <VariantSearchCombobox
                                 key={`${row.id}-${storeIdWatch}`}
                                 id={field.name}
                                 name={field.name}

@@ -26,6 +26,15 @@ export type ProductCreateRequestBody = {
   variants: ProductVariantRequestBody[];
 };
 
+/** Cập nhật sản phẩm — `id` null/undefined trên từng biến thể = thêm mới. */
+export type ProductVariantUpsertBody = ProductVariantRequestBody & {
+  id?: number | null;
+};
+
+export type ProductUpdateRequestBody = Omit<ProductCreateRequestBody, "storeId" | "variants"> & {
+  variants: ProductVariantUpsertBody[];
+};
+
 /** Khớp backend `ProductVariantOptionResponse`. */
 export type ProductVariantOptionResponse = {
   variantId: number;

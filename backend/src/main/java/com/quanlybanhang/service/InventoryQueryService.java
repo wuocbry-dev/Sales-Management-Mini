@@ -120,10 +120,11 @@ public class InventoryQueryService {
   }
 
   private InventoryResponse toInvResponse(Inventory i, Long storeId) {
+    Long sid = i.getStoreId() != null ? i.getStoreId() : storeId;
     return new InventoryResponse(
         i.getId(),
         i.getWarehouseId(),
-        storeId,
+        sid,
         i.getVariantId(),
         i.getQuantityOnHand(),
         i.getReservedQty(),

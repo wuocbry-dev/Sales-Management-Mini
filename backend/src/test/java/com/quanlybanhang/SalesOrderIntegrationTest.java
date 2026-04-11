@@ -138,6 +138,7 @@ class SalesOrderIntegrationTest {
     variantId = v.getId();
 
     Inventory inv = new Inventory();
+    inv.setStoreId(storeId);
     inv.setWarehouseId(centralWarehouseId);
     inv.setVariantId(variantId);
     inv.setQuantityOnHand(new BigDecimal("10.0000"));

@@ -13,6 +13,8 @@ public interface ProductRepository
 
   boolean existsByProductCodeAndStoreId(String productCode, Long storeId);
 
+  boolean existsByProductCodeAndStoreIdAndIdNot(String productCode, Long storeId, Long id);
+
   long countByStoreIdIn(Collection<Long> storeIds);
 
   @Query(

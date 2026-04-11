@@ -2,9 +2,11 @@ package com.quanlybanhang.service;
 
 import com.quanlybanhang.dto.ProductDtos.ProductCreateRequest;
 import com.quanlybanhang.dto.ProductDtos.ProductResponse;
+import com.quanlybanhang.dto.ProductDtos.ProductUpdateRequest;
 import com.quanlybanhang.dto.ProductDtos.ProductVariantOptionResponse;
 import com.quanlybanhang.dto.ProductDtos.ProductVariantRequest;
 import com.quanlybanhang.dto.ProductDtos.ProductVariantResponse;
+import com.quanlybanhang.dto.ProductDtos.ProductVariantUpsertRequest;
 import com.quanlybanhang.exception.BusinessException;
 import com.quanlybanhang.exception.ResourceNotFoundException;
 import com.quanlybanhang.model.Product;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -175,7 +178,7 @@ public class ProductService {
     if (productRepository.existsByProductCodeAndStoreId(req.productCode(), storeId)) {
       throw new BusinessException("Mã sản phẩm đã tồn tại trong cửa hàng: " + req.productCode());
     }
-    validateFks(req);
+    validateProductFks(req.categoryId(), req.brandId(), req.unitId());
     Set<String> skusInRequest = new HashSet<>();
     for (ProductVariantRequest v : req.variants()) {
       String sku = v.sku().trim();
@@ -223,15 +226,145 @@ public class ProductService {
     return toProductResponse(p, varResponses);
   }
 
-  private void validateFks(ProductCreateRequest req) {
-    if (req.categoryId() != null && !categoryRepository.existsById(req.categoryId())) {
-      throw new BusinessException("Danh mục không tồn tại: " + req.categoryId());
+  @Transactional
+  public ProductResponse updateProduct(
+      Long productId, ProductUpdateRequest req, JwtAuthenticatedPrincipal principal) {
+    Product p =
+        productRepository
+            .findById(productId)
+            .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại: " + productId));
+    storeAccessService.assertCanAccessStore(p.getStoreId(), principal);
+    validateProductFks(req.categoryId(), req.brandId(), req.unitId());
+
+    long storeId = p.getStoreId();
+    String newCode = req.productCode().trim();
+    if (!newCode.equals(p.getProductCode())
+        && productRepository.existsByProductCodeAndStoreIdAndIdNot(newCode, storeId, productId)) {
+      throw new BusinessException("Mã sản phẩm đã tồn tại trong cửa hàng: " + newCode);
     }
-    if (req.brandId() != null && !brandRepository.existsById(req.brandId())) {
-      throw new BusinessException("Thương hiệu không tồn tại: " + req.brandId());
+
+    Set<String> skusInRequest = new HashSet<>();
+    Set<Long> requestedVariantIds =
+        req.variants().stream()
+            .map(ProductVariantUpsertRequest::id)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
+
+    List<ProductVariant> current = variantRepository.findByProductId(productId);
+    Set<Long> existingIds = current.stream().map(ProductVariant::getId).collect(Collectors.toSet());
+    for (Long rid : requestedVariantIds) {
+      if (!existingIds.contains(rid)) {
+        throw new BusinessException("Biến thể không thuộc sản phẩm: " + rid);
+      }
     }
-    if (req.unitId() != null && !unitRepository.existsById(req.unitId())) {
-      throw new BusinessException("Đơn vị tính không tồn tại: " + req.unitId());
+
+    for (ProductVariantUpsertRequest v : req.variants()) {
+      String sku = v.sku().trim();
+      if (!skusInRequest.add(sku)) {
+        throw new BusinessException("Trùng SKU trong cùng yêu cầu: " + sku);
+      }
+      if (v.id() != null) {
+        if (variantRepository.existsBySkuInStoreExcludingVariant(sku, storeId, v.id())) {
+          throw new BusinessException("SKU đã tồn tại trong cửa hàng: " + sku);
+        }
+      }
+    }
+
+    Set<Long> orphanIds =
+        current.stream()
+            .map(ProductVariant::getId)
+            .filter(id -> !requestedVariantIds.contains(id))
+            .collect(Collectors.toSet());
+
+    for (Long oid : orphanIds) {
+      if (variantRepository.countReferencesByVariantId(oid) > 0) {
+        ProductVariant ov =
+            variantRepository
+                .findById(oid)
+                .orElseThrow(() -> new ResourceNotFoundException("Biến thể không tồn tại: " + oid));
+        throw new BusinessException(
+            "Không xóa được biến thể SKU "
+                + ov.getSku()
+                + ": đã có trên đơn hàng, phiếu kho hoặc tồn kho.");
+      }
+    }
+
+    for (Long oid : orphanIds) {
+      variantRepository.deleteById(oid);
+    }
+    variantRepository.flush();
+
+    for (ProductVariantUpsertRequest v : req.variants()) {
+      if (v.id() == null) {
+        String sku = v.sku().trim();
+        if (variantRepository.existsBySkuAndProductStoreId(sku, storeId)) {
+          throw new BusinessException("SKU đã tồn tại trong cửa hàng: " + sku);
+        }
+      }
+    }
+
+    LocalDateTime t = now();
+    p.setCategoryId(req.categoryId());
+    p.setBrandId(req.brandId());
+    p.setUnitId(req.unitId());
+    p.setProductCode(newCode);
+    p.setProductName(req.productName().trim());
+    p.setProductType(normalizeProductType(req.productType()));
+    p.setHasVariant(req.hasVariant());
+    p.setTrackInventory(req.trackInventory());
+    p.setDescription(req.description());
+    p.setStatus(normalizeActiveInactiveStatus(req.status()));
+    p.setUpdatedAt(t);
+    productRepository.save(p);
+
+    for (ProductVariantUpsertRequest vr : req.variants()) {
+      if (vr.id() == null) {
+        ProductVariant pv = new ProductVariant();
+        pv.setProductId(productId);
+        pv.setSku(vr.sku().trim());
+        pv.setBarcode(vr.barcode());
+        pv.setVariantName(vr.variantName());
+        pv.setAttributesJson(vr.attributesJson());
+        pv.setCostPrice(vr.costPrice());
+        pv.setSellingPrice(vr.sellingPrice());
+        pv.setReorderLevel(vr.reorderLevel());
+        pv.setStatus(normalizeActiveInactiveStatus(vr.status()));
+        pv.setCreatedAt(t);
+        pv.setUpdatedAt(t);
+        variantRepository.save(pv);
+      } else {
+        ProductVariant pv =
+            variantRepository
+                .findById(vr.id())
+                .orElseThrow(() -> new BusinessException("Biến thể không tồn tại: " + vr.id()));
+        if (!pv.getProductId().equals(productId)) {
+          throw new BusinessException("Biến thể không thuộc sản phẩm: " + vr.id());
+        }
+        pv.setSku(vr.sku().trim());
+        pv.setBarcode(vr.barcode());
+        pv.setVariantName(vr.variantName());
+        pv.setAttributesJson(vr.attributesJson());
+        pv.setCostPrice(vr.costPrice());
+        pv.setSellingPrice(vr.sellingPrice());
+        pv.setReorderLevel(vr.reorderLevel());
+        pv.setStatus(normalizeActiveInactiveStatus(vr.status()));
+        pv.setUpdatedAt(t);
+        variantRepository.save(pv);
+      }
+    }
+
+    return getProduct(productId, principal);
+  }
+
+  private void validateProductFks(Long categoryId, Long brandId, Long unitId) {
+    if (categoryId != null && !categoryRepository.existsById(categoryId)) {
+      throw new BusinessException("Danh mục không tồn tại: " + categoryId);
+    }
+    if (brandId != null && !brandRepository.existsById(brandId)) {
+      throw new BusinessException("Thương hiệu không tồn tại: " + brandId);
+    }
+    if (unitId != null && !unitRepository.existsById(unitId)) {
+      throw new BusinessException("Đơn vị tính không tồn tại: " + unitId);
     }
   }
 

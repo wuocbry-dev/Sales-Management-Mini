@@ -33,4 +33,23 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
           + "order by v.sku asc")
   List<ProductVariantOptionProjection> searchOptionsByStore(
       @Param("storeId") Long storeId, @Param("q") String q, Pageable pageable);
+
+  @Query(
+      "select case when count(v) > 0 then true else false end from ProductVariant v "
+          + "join Product p on p.id = v.productId where p.storeId = :storeId and v.sku = :sku "
+          + "and v.id <> :excludeId")
+  boolean existsBySkuInStoreExcludingVariant(
+      @Param("sku") String sku, @Param("storeId") Long storeId, @Param("excludeId") Long excludeId);
+
+  @Query(
+      value =
+          "SELECT COALESCE((SELECT COUNT(*) FROM sales_order_items WHERE variant_id = :vid), 0)"
+              + " + COALESCE((SELECT COUNT(*) FROM goods_receipt_items WHERE variant_id = :vid), 0)"
+              + " + COALESCE((SELECT COUNT(*) FROM sales_return_items WHERE variant_id = :vid), 0)"
+              + " + COALESCE((SELECT COUNT(*) FROM stock_transfer_items WHERE variant_id = :vid), 0)"
+              + " + COALESCE((SELECT COUNT(*) FROM stocktake_items WHERE variant_id = :vid), 0)"
+              + " + COALESCE((SELECT COUNT(*) FROM inventory_transactions WHERE variant_id = :vid), 0)"
+              + " + COALESCE((SELECT COUNT(*) FROM inventories WHERE variant_id = :vid), 0)",
+      nativeQuery = true)
+  long countReferencesByVariantId(@Param("vid") long vid);
 }

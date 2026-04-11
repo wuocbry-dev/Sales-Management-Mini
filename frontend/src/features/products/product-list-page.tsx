@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { hasPermission } from "@/features/auth/access";
 import { canSeeProductCreate } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { catalogStatusLabel } from "@/lib/catalog-status-labels";
@@ -32,6 +33,7 @@ function parseOptionalLong(raw: string | null): number | undefined {
 export function ProductListPage() {
   const me = useAuthStore((s) => s.me);
   const canCreate = Boolean(me && canSeeProductCreate(me));
+  const canEdit = Boolean(me && hasPermission(me, "PRODUCT_UPDATE"));
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get("trang") ?? "0") || 0);
   const size = Math.min(100, Math.max(1, Number(params.get("kichThuoc") ?? String(DEFAULT_SIZE)) || DEFAULT_SIZE));
@@ -211,7 +213,7 @@ export function ProductListPage() {
                   <TableHead>Loại</TableHead>
                   <TableHead>Cửa hàng</TableHead>
                   <TableHead>Trạng thái</TableHead>
-                  <TableHead className="w-[90px]" />
+                  <TableHead className="min-w-[140px] text-right" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -232,9 +234,16 @@ export function ProductListPage() {
                         <Badge variant="secondary">{catalogStatusLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link to={`/app/san-pham/${row.id}`}>Mở</Link>
-                        </Button>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/app/san-pham/${row.id}`}>Mở</Link>
+                          </Button>
+                          {canEdit ? (
+                            <Button variant="secondary" size="sm" asChild>
+                              <Link to={`/app/san-pham/${row.id}/sua`}>Sửa</Link>
+                            </Button>
+                          ) : null}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

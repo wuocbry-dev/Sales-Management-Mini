@@ -19,18 +19,21 @@ function optionLabel(row: ProductVariantOptionResponse): string {
   return `${row.sku} - ${name}`;
 }
 
-type GoodsReceiptVariantComboboxProps = {
+export type VariantSearchComboboxProps = {
   storeId: number;
   value: number;
   onChange: (variantId: number) => void;
-  onBlur: () => void;
-  name: string;
+  onBlur?: () => void;
+  name?: string;
   disabled?: boolean;
   id?: string;
 };
 
-export const GoodsReceiptVariantCombobox = forwardRef<HTMLInputElement, GoodsReceiptVariantComboboxProps>(
-  function GoodsReceiptVariantCombobox({ storeId, value, onChange, onBlur, name, disabled, id }, ref) {
+export const VariantSearchCombobox = forwardRef<HTMLInputElement, VariantSearchComboboxProps>(
+  function VariantSearchCombobox(
+    { storeId, value, onChange, onBlur = () => {}, name = "variantSearch", disabled, id },
+    ref,
+  ) {
     const listId = useId();
     const containerRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
@@ -94,9 +97,7 @@ export const GoodsReceiptVariantCombobox = forwardRef<HTMLInputElement, GoodsRec
           onFocus={() => {
             setOpen(true);
           }}
-          onBlur={() => {
-            onBlur();
-          }}
+          onBlur={onBlur}
         />
         {showList ? (
           <div

@@ -180,6 +180,10 @@ public class StockTransferService {
       }
       BigDecimal fromBefore = fromInv.getQuantityOnHand();
       BigDecimal fromAfter = fromBefore.subtract(qty);
+      if (fromInv.getStoreId() == null) {
+        fromInv.setStoreId(
+            warehouseRepository.findById(fromWh).orElseThrow().getStoreId());
+      }
       fromInv.setQuantityOnHand(fromAfter);
       fromInv.setUpdatedAt(t);
       inventoryRepository.save(fromInv);
@@ -214,6 +218,7 @@ public class StockTransferService {
     }
     LocalDateTime t = now();
     long toWh = st.getToWarehouseId();
+    long toStoreId = warehouseRepository.findById(toWh).orElseThrow().getStoreId();
     for (StockTransferItem line : st.getItems()) {
       ProductVariant v =
           variantRepository
@@ -226,6 +231,7 @@ public class StockTransferService {
               .orElseGet(
                   () -> {
                     Inventory n = new Inventory();
+                    n.setStoreId(toStoreId);
                     n.setWarehouseId(toWh);
                     n.setVariantId(line.getVariantId());
                     n.setQuantityOnHand(BigDecimal.ZERO);
@@ -233,6 +239,9 @@ public class StockTransferService {
                     n.setUpdatedAt(t);
                     return n;
                   });
+      if (toInv.getStoreId() == null) {
+        toInv.setStoreId(toStoreId);
+      }
       BigDecimal toBefore = toInv.getQuantityOnHand();
       BigDecimal toAfter = toBefore.add(qty);
       toInv.setQuantityOnHand(toAfter);

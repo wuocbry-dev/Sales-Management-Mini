@@ -8,6 +8,7 @@ import {
 } from "@/api/inventory-api";
 import { fetchStoresPage } from "@/api/stores-api";
 import { fetchWarehousesForStore } from "@/api/warehouses-api";
+import { VariantSearchCombobox } from "@/components/catalog/variant-search-combobox";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { PaginationBar } from "@/components/data-table/pagination-bar";
@@ -68,11 +69,11 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
   const [txnPage, setTxnPage] = useState(0);
 
   const [availStoreId, setAvailStoreId] = useState<number>(0);
-  const [availVariantId, setAvailVariantId] = useState<string>("");
+  const [availVariantPick, setAvailVariantPick] = useState(0);
   const [availSubmitted, setAvailSubmitted] = useState<{ storeId: number; variantId: number } | null>(null);
 
   const [txnType, setTxnType] = useState("");
-  const [txnVariantId, setTxnVariantId] = useState("");
+  const [txnVariantPick, setTxnVariantPick] = useState(0);
   const [txnFrom, setTxnFrom] = useState("");
   const [txnTo, setTxnTo] = useState("");
 
@@ -118,8 +119,17 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
     enabled: Boolean(availSubmitted),
   });
 
+  useEffect(() => {
+    setAvailVariantPick(0);
+    setAvailSubmitted(null);
+  }, [availStoreId]);
+
+  useEffect(() => {
+    setTxnVariantPick(0);
+  }, [storeId]);
+
   const txnParams = useMemo(() => {
-    const vid = txnVariantId.trim() === "" ? undefined : Number(txnVariantId);
+    const vid = txnVariantPick > 0 ? txnVariantPick : undefined;
     const fromIso =
       txnFrom.trim() === ""
         ? undefined
@@ -136,11 +146,11 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
           })();
     return {
       transactionType: txnType || undefined,
-      variantId: vid != null && Number.isFinite(vid) ? vid : undefined,
+      variantId: vid,
       fromCreatedAt: fromIso,
       toCreatedAt: toIso,
     };
-  }, [txnType, txnVariantId, txnFrom, txnTo]);
+  }, [txnType, txnVariantPick, txnFrom, txnTo]);
 
   const txnQ = useQuery({
     queryKey: ["inventory", "transactions", warehouseId, txnPage, DEFAULT_SIZE, txnParams],
@@ -158,7 +168,11 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
     const all: { id: TabId; label: string; hint: string }[] = [
       { id: "by_wh", label: "Tồn theo kho", hint: "Chi tiết từng dòng tồn trong một kho cụ thể." },
       { id: "by_store", label: "Tồn gộp cửa hàng", hint: "Gộp mọi kho thuộc cửa hàng (theo cùng một mã biến thể có thể xuất hiện nhiều dòng)." },
-      { id: "availability", label: "Khả dụng theo kho", hint: "Xem số lượng cùng một biến thể tại từng kho trong cửa hàng." },
+      {
+        id: "availability",
+        label: "Khả dụng theo kho",
+        hint: "Xem số lượng cùng một biến thể tại từng kho trong cửa hàng (tìm theo SKU hoặc tên biến thể).",
+      },
       {
         id: "transactions",
         label: "Biến động tồn",
@@ -393,7 +407,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Khả dụng theo từng kho</CardTitle>
-            <CardDescription>Chọn cửa hàng và mã biến thể để xem phân bổ số lượng.</CardDescription>
+            <CardDescription>Chọn cửa hàng và biến thể (SKU / tên) để xem phân bổ số lượng.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
@@ -430,22 +444,23 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                 )}
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="av-var">Mã biến thể (số)</Label>
-                <Input
+                <Label htmlFor="av-var">Biến thể (SKU / tên)</Label>
+                <VariantSearchCombobox
+                  key={`av-variant-${availStoreId}`}
                   id="av-var"
-                  inputMode="numeric"
-                  placeholder="Ví dụ: 12"
-                  value={availVariantId}
-                  onChange={(e) => setAvailVariantId(e.target.value)}
+                  name="availabilityVariant"
+                  storeId={availStoreId}
+                  value={availVariantPick}
+                  onChange={setAvailVariantPick}
+                  disabled={!availStoreId}
                 />
               </div>
             </div>
             <Button
               type="button"
               onClick={() => {
-                const vid = Number(availVariantId);
-                if (!availStoreId || !Number.isFinite(vid) || vid <= 0) return;
-                setAvailSubmitted({ storeId: availStoreId, variantId: vid });
+                if (!availStoreId || availVariantPick <= 0) return;
+                setAvailSubmitted({ storeId: availStoreId, variantId: availVariantPick });
               }}
             >
               Tra cứu
@@ -515,12 +530,14 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Mã biến thể</Label>
-                    <Input
-                      inputMode="numeric"
-                      placeholder="Tuỳ chọn"
-                      value={txnVariantId}
-                      onChange={(e) => setTxnVariantId(e.target.value)}
+                    <Label>Biến thể (tuỳ chọn)</Label>
+                    <VariantSearchCombobox
+                      key={`txn-variant-${storeId}`}
+                      name="txnVariantFilter"
+                      storeId={storeId}
+                      value={txnVariantPick}
+                      onChange={setTxnVariantPick}
+                      disabled={!storeId}
                     />
                   </div>
                   <div className="space-y-2">
