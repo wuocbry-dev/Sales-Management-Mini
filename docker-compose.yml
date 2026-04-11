@@ -1,0 +1,30 @@
+# MySQL chạy sẵn trên máy (Docker khác) — host/port/user/pass khớp application.properties.
+# Chỉ build & chạy backend + frontend; kết nối DB qua mạng tới MYSQL_HOST (mặc định 100.78.133.11:1776).
+#
+# Chạy: docker compose up --build
+# Web: http://localhost:8088  (API: http://localhost:8088/api/...)
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      # Chuỗi JDBC phải bọc ngoặc kép (YAML: ký tự &).
+      SPRING_DATASOURCE_URL: "jdbc:mysql://${MYSQL_HOST:-100.78.133.11}:${MYSQL_PORT:-1776}/${MYSQL_DATABASE:-sales_management_mini}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh&useUnicode=true&characterEncoding=utf8"
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-root}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD:-123456}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8088:80"
+    depends_on:
+      - backend
