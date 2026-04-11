@@ -2,6 +2,7 @@ package com.quanlybanhang.controller;
 
 import com.quanlybanhang.dto.ProductDtos.ProductCreateRequest;
 import com.quanlybanhang.dto.ProductDtos.ProductResponse;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import com.quanlybanhang.service.ProductService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,20 +34,24 @@ public class ProductController {
       @RequestParam(required = false) String status,
       @RequestParam(required = false) Long categoryId,
       @RequestParam(required = false) Long brandId,
-      @RequestParam(required = false) String q) {
-    return productService.listProducts(pageable, status, categoryId, brandId, q);
+      @RequestParam(required = false) String q,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return productService.listProducts(pageable, status, categoryId, brandId, q, principal);
   }
 
   @GetMapping("/{id}")
   @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_VIEW')")
-  public ProductResponse get(@PathVariable Long id) {
-    return productService.getProduct(id);
+  public ProductResponse get(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return productService.getProduct(id, principal);
   }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_CREATE')")
-  public ProductResponse create(@Valid @RequestBody ProductCreateRequest req) {
-    return productService.createProduct(req);
+  public ProductResponse create(
+      @Valid @RequestBody ProductCreateRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return productService.createProduct(req, principal);
   }
 }

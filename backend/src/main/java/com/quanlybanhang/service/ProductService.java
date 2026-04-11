@@ -12,13 +12,17 @@ import com.quanlybanhang.repository.BrandRepository;
 import com.quanlybanhang.repository.CategoryRepository;
 import com.quanlybanhang.repository.ProductRepository;
 import com.quanlybanhang.repository.ProductVariantRepository;
+import com.quanlybanhang.repository.StoreRepository;
 import com.quanlybanhang.repository.UnitRepository;
 import com.quanlybanhang.repository.spec.ProductSpecifications;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -39,6 +43,8 @@ public class ProductService {
   private final CategoryRepository categoryRepository;
   private final BrandRepository brandRepository;
   private final UnitRepository unitRepository;
+  private final StoreRepository storeRepository;
+  private final StoreAccessService storeAccessService;
 
   private LocalDateTime now() {
     return LocalDateTime.now(ZONE);
@@ -51,9 +57,37 @@ public class ProductService {
     return raw.trim().toUpperCase();
   }
 
+  private long resolveStoreIdForCreate(ProductCreateRequest req, JwtAuthenticatedPrincipal principal) {
+    List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
+    if (scope == null) {
+      if (req.storeId() == null) {
+        throw new BusinessException("Vui lòng chọn cửa hàng (storeId).");
+      }
+      if (!storeRepository.existsById(req.storeId())) {
+        throw new BusinessException("Cửa hàng không tồn tại: " + req.storeId());
+      }
+      return req.storeId();
+    }
+    if (req.storeId() != null) {
+      storeAccessService.assertCanAccessStore(req.storeId(), principal);
+      return req.storeId();
+    }
+    if (scope.size() == 1) {
+      return scope.getFirst();
+    }
+    throw new BusinessException("Vui lòng chọn cửa hàng (storeId).");
+  }
+
   public Page<ProductResponse> listProducts(
-      Pageable pageable, String status, Long categoryId, Long brandId, String q) {
-    Specification<Product> spec = ProductSpecifications.filter(status, categoryId, brandId, q);
+      Pageable pageable,
+      String status,
+      Long categoryId,
+      Long brandId,
+      String q,
+      JwtAuthenticatedPrincipal principal) {
+    List<Long> storeScope = storeAccessService.dataStoreScopeOrDeny(principal);
+    Specification<Product> spec =
+        ProductSpecifications.filter(status, categoryId, brandId, q, storeScope);
     Page<Product> page = productRepository.findAll(spec, pageable);
     List<Long> ids = page.getContent().stream().map(Product::getId).toList();
     if (ids.isEmpty()) {
@@ -67,32 +101,45 @@ public class ProductService {
             .map(
                 p ->
                     toProductResponse(
-                        p, byProduct.getOrDefault(p.getId(), List.of()).stream().map(this::toVariantResponse).toList()))
+                        p,
+                        byProduct.getOrDefault(p.getId(), List.of()).stream()
+                            .map(this::toVariantResponse)
+                            .toList()))
             .toList();
     return new PageImpl<>(content, pageable, page.getTotalElements());
   }
 
-  public ProductResponse getProduct(Long id) {
+  public ProductResponse getProduct(Long id, JwtAuthenticatedPrincipal principal) {
     Product p =
-        productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại: " + id));
+        productRepository
+            .findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại: " + id));
+    storeAccessService.assertCanAccessStore(p.getStoreId(), principal);
     List<ProductVariantResponse> vars =
         variantRepository.findByProductId(id).stream().map(this::toVariantResponse).toList();
     return toProductResponse(p, vars);
   }
 
   @Transactional
-  public ProductResponse createProduct(ProductCreateRequest req) {
-    if (productRepository.existsByProductCode(req.productCode())) {
-      throw new BusinessException("Mã sản phẩm đã tồn tại: " + req.productCode());
+  public ProductResponse createProduct(ProductCreateRequest req, JwtAuthenticatedPrincipal principal) {
+    long storeId = resolveStoreIdForCreate(req, principal);
+    if (productRepository.existsByProductCodeAndStoreId(req.productCode(), storeId)) {
+      throw new BusinessException("Mã sản phẩm đã tồn tại trong cửa hàng: " + req.productCode());
     }
     validateFks(req);
+    Set<String> skusInRequest = new HashSet<>();
     for (ProductVariantRequest v : req.variants()) {
-      if (variantRepository.existsBySku(v.sku())) {
-        throw new BusinessException("SKU đã tồn tại: " + v.sku());
+      String sku = v.sku().trim();
+      if (!skusInRequest.add(sku)) {
+        throw new BusinessException("Trùng SKU trong cùng yêu cầu: " + sku);
+      }
+      if (variantRepository.existsBySkuAndProductStoreId(sku, storeId)) {
+        throw new BusinessException("SKU đã tồn tại trong cửa hàng: " + sku);
       }
     }
     LocalDateTime t = now();
     Product p = new Product();
+    p.setStoreId(storeId);
     p.setCategoryId(req.categoryId());
     p.setBrandId(req.brandId());
     p.setUnitId(req.unitId());
@@ -142,6 +189,7 @@ public class ProductService {
   private ProductResponse toProductResponse(Product p, List<ProductVariantResponse> variants) {
     return new ProductResponse(
         p.getId(),
+        p.getStoreId(),
         p.getCategoryId(),
         p.getBrandId(),
         p.getUnitId(),

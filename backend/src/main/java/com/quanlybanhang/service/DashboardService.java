@@ -68,9 +68,19 @@ public class DashboardService {
       rev = BigDecimal.ZERO;
     }
 
+    long productCount;
+    long variantCount;
+    if (scope == null) {
+      productCount = productRepository.count();
+      variantCount = productVariantRepository.count();
+    } else {
+      productCount = productRepository.countByStoreIdIn(scope);
+      variantCount = productVariantRepository.countByProductStoreIdIn(scope);
+    }
+
     return new DashboardKpisResponse(
-        productRepository.count(),
-        productVariantRepository.count(),
+        productCount,
+        variantCount,
         storeCount,
         customerRepository.count(),
         orderCount,

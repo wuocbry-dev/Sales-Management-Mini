@@ -4,6 +4,8 @@ import com.quanlybanhang.model.ProductVariant;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, Long> {
 
@@ -11,5 +13,13 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
 
   List<ProductVariant> findByProductIdIn(Collection<Long> productIds);
 
-  boolean existsBySku(String sku);
+  @Query(
+      "select case when count(v) > 0 then true else false end from ProductVariant v where v.sku = :sku "
+          + "and v.productId in (select p.id from Product p where p.storeId = :storeId)")
+  boolean existsBySkuAndProductStoreId(@Param("sku") String sku, @Param("storeId") Long storeId);
+
+  @Query(
+      "select count(v) from ProductVariant v where v.productId in "
+          + "(select p.id from Product p where p.storeId in :storeIds)")
+  long countByProductStoreIdIn(@Param("storeIds") Collection<Long> storeIds);
 }

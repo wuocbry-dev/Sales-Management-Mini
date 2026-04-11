@@ -3,6 +3,7 @@ package com.quanlybanhang.repository.spec;
 import com.quanlybanhang.model.Product;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.data.jpa.domain.Specification;
@@ -12,9 +13,16 @@ public final class ProductSpecifications {
   private ProductSpecifications() {}
 
   public static Specification<Product> filter(
-      String status, Long categoryId, Long brandId, String q) {
+      String status,
+      Long categoryId,
+      Long brandId,
+      String q,
+      Collection<Long> storeIdsScope) {
     return (root, query, cb) -> {
       List<Predicate> p = new ArrayList<>();
+      if (storeIdsScope != null) {
+        p.add(root.get("storeId").in(storeIdsScope));
+      }
       if (status != null && !status.isBlank()) {
         p.add(cb.equal(root.get("status"), status.trim().toUpperCase(Locale.ROOT)));
       }

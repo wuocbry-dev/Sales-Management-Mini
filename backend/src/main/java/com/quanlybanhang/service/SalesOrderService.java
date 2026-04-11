@@ -23,6 +23,7 @@ import com.quanlybanhang.repository.CustomerRepository;
 import com.quanlybanhang.repository.InventoryRepository;
 import com.quanlybanhang.repository.InventoryTransactionRepository;
 import com.quanlybanhang.repository.PaymentRepository;
+import com.quanlybanhang.repository.ProductRepository;
 import com.quanlybanhang.repository.ProductVariantRepository;
 import com.quanlybanhang.repository.SalesOrderRepository;
 import com.quanlybanhang.repository.StoreRepository;
@@ -52,6 +53,7 @@ public class SalesOrderService {
   private final InventoryRepository inventoryRepository;
   private final InventoryTransactionRepository inventoryTransactionRepository;
   private final ProductVariantRepository variantRepository;
+  private final ProductRepository productRepository;
   private final StoreRepository storeRepository;
   private final CustomerRepository customerRepository;
   private final StoreAccessService storeAccessService;
@@ -92,6 +94,13 @@ public class SalesOrderService {
     for (SalesOrderLineRequest line : req.lines()) {
       if (!variantRepository.existsById(line.variantId())) {
         throw new BusinessException("Biến thể không tồn tại: " + line.variantId());
+      }
+      Long variantStoreId =
+          productRepository
+              .findStoreIdByVariantId(line.variantId())
+              .orElseThrow(() -> new BusinessException("Biến thể không tồn tại: " + line.variantId()));
+      if (!variantStoreId.equals(req.storeId())) {
+        throw new BusinessException("Biến thể không thuộc cửa hàng của đơn.");
       }
     }
     if (req.branchId() != null) {

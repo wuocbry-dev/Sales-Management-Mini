@@ -28,6 +28,8 @@ public final class ProductDtos {
       Long categoryId,
       Long brandId,
       Long unitId,
+      /** Cửa hàng sở hữu catalog; bắt buộc với quản trị đa cửa hàng, có thể bỏ qua nếu JWT chỉ một cửa hàng. */
+      Long storeId,
       @NotBlank @Size(max = 50) String productCode,
       @NotBlank @Size(max = 255) String productName,
       @NotBlank @Size(max = 7) String productType,
@@ -53,6 +55,7 @@ public final class ProductDtos {
 
   public record ProductResponse(
       Long id,
+      Long storeId,
       Long categoryId,
       Long brandId,
       Long unitId,

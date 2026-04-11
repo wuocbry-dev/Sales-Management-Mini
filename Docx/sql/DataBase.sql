@@ -11,6 +11,9 @@
 --    DELETE quyền thừa rồi gán lại role_permissions). Có thể tách PHẦN B ra file
 --    riêng nếu team muốn — hiện gộp một file để đồng bộ một nguồn.
 --
+--    Cột / FK bổ sung cho DB cũ (branches phone & email, products.store_id):
+--    Docx/sql/migrations/20260411_schema_mysql.sql (một file, idempotent).
+--
 -- Tên DB mặc định khớp backend: .../sales_management_mini — đổi ở CREATE DATABASE + USE.
 -- =============================================================================
 
@@ -289,7 +292,8 @@ CREATE TABLE products (
     category_id BIGINT UNSIGNED NULL,
     brand_id BIGINT UNSIGNED NULL,
     unit_id BIGINT UNSIGNED NULL,
-    product_code VARCHAR(50) NOT NULL UNIQUE,
+    store_id BIGINT UNSIGNED NOT NULL,
+    product_code VARCHAR(50) NOT NULL,
     product_name VARCHAR(255) NOT NULL,
     product_type ENUM('NORMAL', 'SERVICE') NOT NULL DEFAULT 'NORMAL',
     has_variant TINYINT(1) NOT NULL DEFAULT 0,
@@ -303,13 +307,17 @@ CREATE TABLE products (
     CONSTRAINT fk_products_brand
         FOREIGN KEY (brand_id) REFERENCES brands(brand_id),
     CONSTRAINT fk_products_unit
-        FOREIGN KEY (unit_id) REFERENCES units(unit_id)
+        FOREIGN KEY (unit_id) REFERENCES units(unit_id),
+    CONSTRAINT fk_products_store
+        FOREIGN KEY (store_id) REFERENCES stores(store_id),
+    UNIQUE KEY uk_products_store_code (store_id, product_code),
+    INDEX idx_products_store_id (store_id)
 );
 
 CREATE TABLE product_variants (
     variant_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     product_id BIGINT UNSIGNED NOT NULL,
-    sku VARCHAR(100) NOT NULL UNIQUE,
+    sku VARCHAR(100) NOT NULL,
     barcode VARCHAR(100) UNIQUE,
     variant_name VARCHAR(255),
     attributes_json JSON NULL,
@@ -320,7 +328,8 @@ CREATE TABLE product_variants (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_product_variants_product
-        FOREIGN KEY (product_id) REFERENCES products(product_id)
+        FOREIGN KEY (product_id) REFERENCES products(product_id),
+    INDEX idx_product_variants_sku (sku)
 );
 
 -- -----------------------------

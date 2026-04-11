@@ -31,6 +31,9 @@ public class Product {
   @Column(name = "unit_id")
   private Long unitId;
 
+  @Column(name = "store_id", nullable = false)
+  private Long storeId;
+
   @Column(name = "product_code", nullable = false, length = 50)
   private String productCode;
 

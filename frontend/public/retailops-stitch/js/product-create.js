@@ -32,6 +32,13 @@
     return isNaN(n) ? null : n;
   }
 
+  /** JWT lưu trong session: gán sản phẩm đúng cửa hàng (backend cũng kiểm tra). */
+  function resolveStoreId(session) {
+    if (!session || !session.storeIds || !session.storeIds.length) return null;
+    if (session.storeIds.length === 1) return session.storeIds[0];
+    return session.storeIds[0];
+  }
+
   function parseMoney(el) {
     var v = parseFloat(String(el.value || "").replace(/,/g, ""), 10);
     if (isNaN(v) || v < 0) return null;
@@ -203,10 +210,21 @@
         return;
       }
 
+      var storeId = resolveStoreId(sess);
+      if (storeId == null) {
+        showEl("form-error", true);
+        setText(
+          "form-error",
+          "Tài khoản chưa được gán cửa hàng — không thể xác định cửa hàng để tạo sản phẩm."
+        );
+        return;
+      }
+
       var body = {
         categoryId: optId(fd.get("categoryId")),
         brandId: optId(fd.get("brandId")),
         unitId: optId(fd.get("unitId")),
+        storeId: storeId,
         productCode: productCode,
         productName: productName,
         productType: productType,

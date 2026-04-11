@@ -111,6 +111,7 @@ class SalesOrderIntegrationTest {
     userStoreRepository.save(userStore);
 
     Product p = new Product();
+    p.setStoreId(storeId);
     p.setProductCode("P-IT-1");
     p.setProductName("Sản phẩm test");
     p.setProductType("variant");
@@ -316,6 +317,53 @@ class SalesOrderIntegrationTest {
                 .content(createOrderJson(storeId, 999_999L, BigDecimal.ONE, new BigDecimal("10"))))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("BUSINESS_RULE"));
+  }
+
+  @Test
+  void create_variantFromOtherStore_businessRule() throws Exception {
+    LocalDateTime t = LocalDateTime.now();
+    Store other = new Store();
+    other.setStoreCode("ST-IT-2");
+    other.setStoreName("Cửa hàng khác");
+    other.setStatus(DomainConstants.STATUS_ACTIVE);
+    other.setCreatedAt(t);
+    other.setUpdatedAt(t);
+    storeRepository.save(other);
+
+    Product pOther = new Product();
+    pOther.setStoreId(other.getId());
+    pOther.setProductCode("P-OTHER-STORE");
+    pOther.setProductName("Hàng cửa hàng khác");
+    pOther.setProductType("variant");
+    pOther.setHasVariant(true);
+    pOther.setTrackInventory(true);
+    pOther.setStatus(DomainConstants.STATUS_ACTIVE);
+    pOther.setCreatedAt(t);
+    pOther.setUpdatedAt(t);
+    productRepository.save(pOther);
+
+    ProductVariant vOther = new ProductVariant();
+    vOther.setProductId(pOther.getId());
+    vOther.setSku("SKU-OTHER-STORE");
+    vOther.setVariantName("Mặc định");
+    vOther.setCostPrice(new BigDecimal("1.0000"));
+    vOther.setSellingPrice(new BigDecimal("2.0000"));
+    vOther.setReorderLevel(BigDecimal.ZERO);
+    vOther.setStatus(DomainConstants.STATUS_ACTIVE);
+    vOther.setCreatedAt(t);
+    vOther.setUpdatedAt(t);
+    variantRepository.save(vOther);
+
+    mockMvc
+        .perform(
+            post("/api/sales-orders")
+                .header("Authorization", "Bearer " + token)
+                .contentType(APPLICATION_JSON)
+                .content(
+                    createOrderJson(storeId, vOther.getId(), BigDecimal.ONE, new BigDecimal("10"))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("BUSINESS_RULE"))
+        .andExpect(jsonPath("$.message").value(containsString("cửa hàng")));
   }
 
   @Test
