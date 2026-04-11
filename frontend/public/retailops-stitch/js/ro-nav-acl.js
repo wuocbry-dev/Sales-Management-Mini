@@ -12,6 +12,7 @@
   var RULES = [
     { file: "dashboard.html", anyPerm: ["DASHBOARD_VIEW"], anyRole: ["ADMIN"] },
     { file: "products-list.html", anyPerm: ["PRODUCT_VIEW"], anyRole: ["ADMIN"] },
+    { file: "product-create.html", anyPerm: ["PRODUCT_CREATE"], anyRole: ["ADMIN"] },
     { file: "product-detail.html", anyPerm: ["PRODUCT_VIEW"], anyRole: ["ADMIN"] },
     { file: "inventory-overview.html", anyPerm: ["INVENTORY_VIEW"], anyRole: ["ADMIN"] },
     { file: "goods-receipts-list.html", anyPerm: ["GOODS_RECEIPT_VIEW"], anyRole: ["ADMIN"] },
