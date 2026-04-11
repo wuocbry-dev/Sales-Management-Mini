@@ -195,6 +195,7 @@ public class StocktakeService {
       inventoryRepository.save(inv);
 
       InventoryTransaction tx = new InventoryTransaction();
+      tx.setStoreId(st.getStoreId());
       tx.setWarehouseId(st.getWarehouseId());
       tx.setVariantId(line.getVariantId());
       tx.setTransactionType(DomainConstants.INV_TX_STOCKTAKE_ADJUST);

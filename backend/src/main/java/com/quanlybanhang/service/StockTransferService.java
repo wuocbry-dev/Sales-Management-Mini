@@ -161,6 +161,7 @@ public class StockTransferService {
     }
     LocalDateTime t = now();
     long fromWh = st.getFromWarehouseId();
+    long fromStoreId = warehouseRepository.findById(fromWh).orElseThrow().getStoreId();
     for (StockTransferItem line : st.getItems()) {
       ProductVariant v =
           variantRepository
@@ -188,6 +189,7 @@ public class StockTransferService {
       fromInv.setUpdatedAt(t);
       inventoryRepository.save(fromInv);
       recordTx(
+          fromStoreId,
           fromWh,
           line.getVariantId(),
           DomainConstants.INV_TX_TRANSFER_OUT,
@@ -248,6 +250,7 @@ public class StockTransferService {
       toInv.setUpdatedAt(t);
       inventoryRepository.save(toInv);
       recordTx(
+          toStoreId,
           toWh,
           line.getVariantId(),
           DomainConstants.INV_TX_TRANSFER_IN,
@@ -281,6 +284,7 @@ public class StockTransferService {
   }
 
   private void recordTx(
+      Long storeId,
       Long warehouseId,
       Long variantId,
       String type,
@@ -292,6 +296,7 @@ public class StockTransferService {
       long userId,
       LocalDateTime t) {
     InventoryTransaction tx = new InventoryTransaction();
+    tx.setStoreId(storeId);
     tx.setWarehouseId(warehouseId);
     tx.setVariantId(variantId);
     tx.setTransactionType(type);

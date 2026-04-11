@@ -241,6 +241,7 @@ public class SalesReturnService {
       inventoryRepository.save(inv);
 
       InventoryTransaction tx = new InventoryTransaction();
+      tx.setStoreId(sr.getStoreId());
       tx.setWarehouseId(wh.getId());
       tx.setVariantId(line.getVariantId());
       tx.setTransactionType(DomainConstants.INV_TX_SALE_RETURN);

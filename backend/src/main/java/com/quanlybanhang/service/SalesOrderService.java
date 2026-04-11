@@ -233,6 +233,7 @@ public class SalesOrderService {
       inventoryRepository.save(inv);
 
       InventoryTransaction tx = new InventoryTransaction();
+      tx.setStoreId(o.getStoreId());
       tx.setWarehouseId(fulfillWh.getId());
       tx.setVariantId(line.getVariantId());
       tx.setTransactionType(DomainConstants.INV_TX_SALE);

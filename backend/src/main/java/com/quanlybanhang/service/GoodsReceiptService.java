@@ -250,6 +250,7 @@ public class GoodsReceiptService {
     inventoryRepository.save(inv);
 
     InventoryTransaction tx = new InventoryTransaction();
+    tx.setStoreId(storeId);
     tx.setWarehouseId(warehouseId);
     tx.setVariantId(variantId);
     tx.setTransactionType(DomainConstants.INV_TX_GOODS_RECEIPT);
