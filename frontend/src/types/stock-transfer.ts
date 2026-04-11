@@ -15,6 +15,10 @@ export type StockTransferLineResponse = {
   id: number;
   variantId: number;
   quantity: string;
+  /** Có trên API chi tiết phiếu; danh sách có thể null. */
+  variantSku?: string | null;
+  variantName?: string | null;
+  productName?: string | null;
 };
 
 export type StockTransferResponse = {
@@ -22,6 +26,11 @@ export type StockTransferResponse = {
   transferCode: string;
   fromWarehouseId: number;
   toWarehouseId: number;
+  /** Có trên API chi tiết; danh sách phân trang có thể null. */
+  fromWarehouseCode?: string | null;
+  fromWarehouseName?: string | null;
+  toWarehouseCode?: string | null;
+  toWarehouseName?: string | null;
   transferDate: string;
   status: string;
   note: string | null;

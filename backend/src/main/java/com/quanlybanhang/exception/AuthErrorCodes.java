@@ -13,6 +13,8 @@ public final class AuthErrorCodes {
   public static final String USERNAME_ALREADY_EXISTS = "USERNAME_ALREADY_EXISTS";
   public static final String EMAIL_ALREADY_EXISTS = "EMAIL_ALREADY_EXISTS";
 
+  public static final String INVALID_PASSWORD = "INVALID_PASSWORD";
+
   /** STORE_MANAGER chỉ được tạo CASHIER / WAREHOUSE_STAFF qua API store-staff. */
   public static final String INVALID_ROLE_FOR_STORE_MANAGER = "INVALID_ROLE_FOR_STORE_MANAGER";
 
@@ -38,4 +40,7 @@ public final class AuthErrorCodes {
       "TARGET_BRANCH_NOT_IN_MANAGER_STORE";
 
   public static final String SAME_BRANCH_ASSIGNMENT = "SAME_BRANCH_ASSIGNMENT";
+
+  /** Không vô hiệu (xóa mềm) tài khoản đang đăng nhập. */
+  public static final String CANNOT_DEACTIVATE_SELF = "CANNOT_DEACTIVATE_SELF";
 }

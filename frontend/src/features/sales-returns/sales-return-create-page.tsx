@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { createSalesReturnDraft } from "@/api/sales-returns-api";
-import { fetchSalesOrderById } from "@/api/sales-orders-api";
+import { fetchSalesOrderForReturn } from "@/api/sales-orders-api";
 import { fetchStoresPage } from "@/api/stores-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +24,15 @@ import type { SalesReturnCreateRequestBody } from "@/types/sales-return";
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
+function useDebouncedValue<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebounced(value), ms);
+    return () => window.clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
+
 const lineSchema = z.object({
   orderItemId: z.coerce.number().int().positive(),
   variantId: z.coerce.number().int().positive(),
@@ -33,7 +43,7 @@ const lineSchema = z.object({
 
 const schema = z.object({
   storeId: z.string().optional(),
-  orderId: z.coerce.number().int().positive(),
+  orderLookup: z.string().trim().min(1, "Nhập ID đơn (số) hoặc mã đơn (SO-…)."),
   customerId: z.string().optional(),
   returnDate: z.string().min(1),
   note: z.string().max(500).optional(),
@@ -62,19 +72,27 @@ export function SalesReturnCreatePage() {
     resolver: zodResolver(schema),
     defaultValues: {
       storeId: "",
-      orderId: 0,
+      orderLookup: "",
       customerId: "",
       returnDate: "",
       note: "",
-      lines: [{ orderItemId: 0, variantId: 0, quantity: 1, unitPrice: 0, reason: "" }],
+      lines: [{ orderItemId: 0, variantId: 0, quantity: 0, unitPrice: 0, reason: "" }],
     },
   });
 
-  const orderId = form.watch("orderId");
+  const orderLookupRaw = form.watch("orderLookup");
+  const debouncedOrderLookup = useDebouncedValue(orderLookupRaw, 320);
+  const storeIdWatch =
+    pick && me
+      ? Number(form.watch("storeId"))
+      : me && !pick
+        ? me.storeIds[0] ?? 0
+        : 0;
   const orderQ = useQuery({
-    queryKey: ["sales-orders", orderId, "for-return"],
-    queryFn: () => fetchSalesOrderById(orderId),
-    enabled: Number.isFinite(orderId) && orderId > 0,
+    queryKey: ["sales-orders", "for-return", storeIdWatch, debouncedOrderLookup.trim()],
+    queryFn: () =>
+      fetchSalesOrderForReturn({ storeId: storeIdWatch, lookup: debouncedOrderLookup.trim() }),
+    enabled: storeIdWatch > 0 && debouncedOrderLookup.trim().length > 0,
     retry: false,
   });
 
@@ -89,9 +107,17 @@ export function SalesReturnCreatePage() {
         form.setError("storeId", { type: "manual", message: "Vui lòng chọn cửa hàng." });
         throw new Error("validation");
       }
+      const ord = orderQ.data;
+      if (!ord?.id) {
+        form.setError("orderLookup", {
+          type: "manual",
+          message: "Chưa tải được đơn hàng. Kiểm tra ID/mã đơn và cửa hàng.",
+        });
+        throw new Error("validation");
+      }
       const cu = v.customerId?.trim();
       const body: SalesReturnCreateRequestBody = {
-        orderId: v.orderId,
+        orderId: ord.id,
         storeId,
         customerId: cu && Number(cu) > 0 ? Number(cu) : null,
         returnDate: datetimeLocalToBackend(v.returnDate),
@@ -124,7 +150,12 @@ export function SalesReturnCreatePage() {
     const it = items.find((i) => i.id === orderItemId);
     if (!it) return;
     form.setValue(`lines.${lineIndex}.variantId`, it.variantId);
-    form.setValue(`lines.${lineIndex}.unitPrice`, parseFloat(it.unitPrice));
+    form.setValue(`lines.${lineIndex}.unitPrice`, parseFloat(String(it.unitPrice)));
+    const ordered = parseFloat(String(it.quantity));
+    form.setValue(
+      `lines.${lineIndex}.quantity`,
+      Number.isFinite(ordered) && ordered > 0 ? ordered : 0,
+    );
   };
 
   return (
@@ -137,8 +168,9 @@ export function SalesReturnCreatePage() {
         <CardHeader>
           <CardTitle className="text-xl">Tạo phiếu trả hàng</CardTitle>
           <CardDescription>
-            Chỉ áp dụng cho đơn đã hoàn tất. Đơn giá trên từng dòng trả phải trùng khớp đơn giá trên đơn bán. Sau khi lưu
-            bản nháp, mở phiếu và chọn “Xác nhận trả hàng” để cập nhật kho.
+            Chỉ áp dụng cho đơn đã hoàn tất. Mỗi dòng trả theo đúng một dòng đơn: số lượng trả luôn bằng số lượng đặt trên
+            dòng đó; đơn giá phải trùng đơn bán. Sau khi lưu bản nháp, mở phiếu và chọn “Xác nhận trả hàng” để cập nhật
+            kho.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -174,13 +206,24 @@ export function SalesReturnCreatePage() {
 
                 <FormField
                   control={form.control}
-                  name="orderId"
+                  name="orderLookup"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Mã đơn hàng (số)</FormLabel>
+                      <FormLabel>ID đơn hoặc mã đơn</FormLabel>
                       <FormControl>
-                        <Input {...field} type="number" min={1} inputMode="numeric" />
+                        <Input
+                          {...field}
+                          placeholder="VD: 12 hoặc SO-20260412-0123"
+                          autoComplete="off"
+                        />
                       </FormControl>
+                      <p className="text-xs text-muted-foreground">
+                        Nhập <span className="font-mono">order_id</span> (số) hoặc mã hiển thị trên đơn (
+                        <span className="font-mono">order_code</span>).
+                      </p>
+                      {orderQ.isFetching ? (
+                        <p className="text-xs text-muted-foreground">Đang tải đơn…</p>
+                      ) : null}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -245,7 +288,7 @@ export function SalesReturnCreatePage() {
                   <Button
                     type="button"
                     variant="secondary"
-                    onClick={() => append({ orderItemId: 0, variantId: 0, quantity: 1, unitPrice: 0, reason: "" })}
+                    onClick={() => append({ orderItemId: 0, variantId: 0, quantity: 0, unitPrice: 0, reason: "" })}
                   >
                     Thêm dòng
                   </Button>
@@ -273,9 +316,15 @@ export function SalesReturnCreatePage() {
                                 className={selectClass}
                                 value={field.value || ""}
                                 onChange={(e) => {
-                                  const v = Number(e.target.value);
+                                  const raw = e.target.value;
+                                  const v = raw === "" ? 0 : Number(raw);
                                   field.onChange(v);
                                   if (v) fillFromOrderItem(i, v);
+                                  else {
+                                    form.setValue(`lines.${i}.variantId`, 0);
+                                    form.setValue(`lines.${i}.unitPrice`, 0);
+                                    form.setValue(`lines.${i}.quantity`, 0);
+                                  }
                                 }}
                                 disabled={!order || order.status !== "completed"}
                               >
@@ -322,9 +371,15 @@ export function SalesReturnCreatePage() {
                         name={`lines.${i}.quantity`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Số lượng trả</FormLabel>
+                            <FormLabel>Số lượng trả (= SL đặt)</FormLabel>
                             <FormControl>
-                              <Input {...field} type="number" min={0} step="0.001" />
+                              <Input
+                                {...field}
+                                type="number"
+                                readOnly
+                                className="bg-muted tabular-nums"
+                                title="Theo đúng số lượng trên dòng đơn đã chọn"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

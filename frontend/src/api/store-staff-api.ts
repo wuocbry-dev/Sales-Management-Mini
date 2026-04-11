@@ -6,6 +6,7 @@ import type {
   ChangeStoreStaffBranchResult,
   CreateStoreStaffRequestBody,
   StoreStaffRow,
+  UpdateStoreStaffRequestBody,
 } from "@/types/store-staff";
 
 export type StoreStaffListParams = PageQuery & {
@@ -37,10 +38,21 @@ export async function createStoreStaff(body: CreateStoreStaffRequestBody): Promi
   return data;
 }
 
+export async function updateStoreStaff(id: number, body: UpdateStoreStaffRequestBody): Promise<StoreStaffRow> {
+  const { data } = await apiClient.put<StoreStaffRow>(`/api/users/store-staff/${id}`, body);
+  return data;
+}
+
 export async function changeStoreStaffBranch(
   id: number,
   body: ChangeStoreStaffBranchRequestBody,
 ): Promise<ChangeStoreStaffBranchResult> {
   const { data } = await apiClient.put<ChangeStoreStaffBranchResult>(`/api/users/store-staff/${id}/change-branch`, body);
+  return data;
+}
+
+/** Xóa mềm: đặt trạng thái INACTIVE (không xóa user). */
+export async function softDeactivateStoreStaff(id: number): Promise<StoreStaffRow> {
+  const { data } = await apiClient.post<StoreStaffRow>(`/api/users/store-staff/${id}/deactivate`);
   return data;
 }

@@ -14,6 +14,29 @@ import { formatApiError } from "@/lib/api-errors";
 import { stockTransferStatusLabel } from "@/lib/document-flow-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 import { formatQty } from "@/lib/format-qty";
+import type { StockTransferLineResponse } from "@/types/stock-transfer";
+
+function formatWarehouseDisplay(
+  id: number,
+  code: string | null | undefined,
+  name: string | null | undefined,
+): string {
+  const c = code?.trim();
+  const n = name?.trim();
+  if (n && c) return `${n} (${c})`;
+  if (n) return n;
+  if (c) return c;
+  return String(id);
+}
+
+function formatVariantDisplay(item: StockTransferLineResponse): string {
+  const sku = item.variantSku?.trim();
+  const title = [item.productName?.trim(), item.variantName?.trim()].filter(Boolean).join(" · ");
+  if (sku && title) return `${sku} — ${title}`;
+  if (sku) return sku;
+  if (title) return title;
+  return String(item.variantId);
+}
 
 export function StockTransferDetailPage() {
   const me = useAuthStore((s) => s.me);
@@ -39,6 +62,7 @@ export function StockTransferDetailPage() {
       toast.success("Đã xuất kho chuyển.");
       await qc.invalidateQueries({ queryKey: ["stock-transfers"] });
       await qc.invalidateQueries({ queryKey: ["stock-transfers", tid] });
+      await qc.invalidateQueries({ queryKey: ["inventory"] });
     },
     onError: (e) => toast.error(formatApiError(e)),
   });
@@ -50,6 +74,7 @@ export function StockTransferDetailPage() {
       toast.success("Đã nhập kho nhận.");
       await qc.invalidateQueries({ queryKey: ["stock-transfers"] });
       await qc.invalidateQueries({ queryKey: ["stock-transfers", tid] });
+      await qc.invalidateQueries({ queryKey: ["inventory"] });
     },
     onError: (e) => toast.error(formatApiError(e)),
   });
@@ -106,11 +131,15 @@ export function StockTransferDetailPage() {
         <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
           <div>
             <p className="text-xs text-muted-foreground">Kho nguồn</p>
-            <p className="font-medium tabular-nums">{t.fromWarehouseId}</p>
+            <p className="font-medium">
+              {formatWarehouseDisplay(t.fromWarehouseId, t.fromWarehouseCode, t.fromWarehouseName)}
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Kho đích</p>
-            <p className="font-medium tabular-nums">{t.toWarehouseId}</p>
+            <p className="font-medium">
+              {formatWarehouseDisplay(t.toWarehouseId, t.toWarehouseCode, t.toWarehouseName)}
+            </p>
           </div>
           {t.note ? (
             <div className="sm:col-span-2">
@@ -136,7 +165,9 @@ export function StockTransferDetailPage() {
             <TableBody>
               {t.items.map((it) => (
                 <TableRow key={it.id}>
-                  <TableCell className="font-mono text-sm tabular-nums">{it.variantId}</TableCell>
+                  <TableCell className="text-sm">
+                    <span className="font-medium">{formatVariantDisplay(it)}</span>
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{formatQty(it.quantity)}</TableCell>
                 </TableRow>
               ))}

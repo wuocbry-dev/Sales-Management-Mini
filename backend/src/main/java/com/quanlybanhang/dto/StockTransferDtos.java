@@ -24,13 +24,23 @@ public final class StockTransferDtos {
       @Size(max = 500) String note,
       @NotEmpty @Valid List<StockTransferLineRequest> lines) {}
 
-  public record StockTransferLineResponse(Long id, Long variantId, BigDecimal quantity) {}
+  public record StockTransferLineResponse(
+      Long id,
+      Long variantId,
+      BigDecimal quantity,
+      String variantSku,
+      String variantName,
+      String productName) {}
 
   public record StockTransferResponse(
       Long id,
       String transferCode,
       Long fromWarehouseId,
       Long toWarehouseId,
+      String fromWarehouseCode,
+      String fromWarehouseName,
+      String toWarehouseCode,
+      String toWarehouseName,
       LocalDateTime transferDate,
       String status,
       String note,

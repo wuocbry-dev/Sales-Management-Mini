@@ -9,12 +9,14 @@ import com.quanlybanhang.exception.ResourceNotFoundException;
 import com.quanlybanhang.model.DomainConstants;
 import com.quanlybanhang.model.Inventory;
 import com.quanlybanhang.model.InventoryTransaction;
+import com.quanlybanhang.model.Product;
 import com.quanlybanhang.model.ProductVariant;
 import com.quanlybanhang.model.StockTransfer;
 import com.quanlybanhang.model.StockTransferItem;
 import com.quanlybanhang.model.Warehouse;
 import com.quanlybanhang.repository.InventoryRepository;
 import com.quanlybanhang.repository.InventoryTransactionRepository;
+import com.quanlybanhang.repository.ProductRepository;
 import com.quanlybanhang.repository.ProductVariantRepository;
 import com.quanlybanhang.repository.StockTransferRepository;
 import com.quanlybanhang.repository.WarehouseRepository;
@@ -25,6 +27,10 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -44,6 +50,7 @@ public class StockTransferService {
   private final InventoryRepository inventoryRepository;
   private final InventoryTransactionRepository inventoryTransactionRepository;
   private final ProductVariantRepository variantRepository;
+  private final ProductRepository productRepository;
   private final WarehouseRepository warehouseRepository;
   private final StoreAccessService storeAccessService;
 
@@ -129,6 +136,8 @@ public class StockTransferService {
     st.setTransferCode(nextCode());
     st.setFromWarehouseId(from.getId());
     st.setToWarehouseId(to.getId());
+    st.setFromStoreId(from.getStoreId());
+    st.setToStoreId(to.getStoreId());
     st.setTransferDate(req.transferDate());
     st.setStatus(DomainConstants.TRANSFER_DRAFT);
     st.setNote(req.note());
@@ -329,6 +338,10 @@ public class StockTransferService {
         t.getTransferCode(),
         t.getFromWarehouseId(),
         t.getToWarehouseId(),
+        null,
+        null,
+        null,
+        null,
         t.getTransferDate(),
         t.getStatus(),
         t.getNote(),
@@ -340,15 +353,18 @@ public class StockTransferService {
   }
 
   private StockTransferResponse toFull(StockTransfer t) {
-    List<StockTransferLineResponse> lines =
-        t.getItems().stream()
-            .map(i -> new StockTransferLineResponse(i.getId(), i.getVariantId(), i.getQuantity()))
-            .toList();
+    Warehouse fromWh = warehouseRepository.findById(t.getFromWarehouseId()).orElse(null);
+    Warehouse toWh = warehouseRepository.findById(t.getToWarehouseId()).orElse(null);
+    List<StockTransferLineResponse> lines = buildLineResponses(t.getItems());
     return new StockTransferResponse(
         t.getId(),
         t.getTransferCode(),
         t.getFromWarehouseId(),
         t.getToWarehouseId(),
+        fromWh != null ? fromWh.getWarehouseCode() : null,
+        fromWh != null ? fromWh.getWarehouseName() : null,
+        toWh != null ? toWh.getWarehouseCode() : null,
+        toWh != null ? toWh.getWarehouseName() : null,
         t.getTransferDate(),
         t.getStatus(),
         t.getNote(),
@@ -357,5 +373,39 @@ public class StockTransferService {
         t.getCreatedAt(),
         t.getUpdatedAt(),
         lines);
+  }
+
+  private List<StockTransferLineResponse> buildLineResponses(List<StockTransferItem> items) {
+    if (items.isEmpty()) {
+      return List.of();
+    }
+    List<Long> variantIds =
+        items.stream().map(StockTransferItem::getVariantId).filter(Objects::nonNull).distinct().toList();
+    Map<Long, ProductVariant> variantById =
+        variantRepository.findAllById(variantIds).stream()
+            .collect(Collectors.toMap(ProductVariant::getId, Function.identity()));
+    List<Long> productIds =
+        variantById.values().stream().map(ProductVariant::getProductId).filter(Objects::nonNull).distinct().toList();
+    Map<Long, Product> productById =
+        productRepository.findAllById(productIds).stream()
+            .collect(Collectors.toMap(Product::getId, Function.identity()));
+    return items.stream()
+        .map(
+            i -> {
+              ProductVariant v = variantById.get(i.getVariantId());
+              if (v == null) {
+                return new StockTransferLineResponse(
+                    i.getId(), i.getVariantId(), i.getQuantity(), null, null, null);
+              }
+              Product p = productById.get(v.getProductId());
+              return new StockTransferLineResponse(
+                  i.getId(),
+                  i.getVariantId(),
+                  i.getQuantity(),
+                  v.getSku(),
+                  v.getVariantName(),
+                  p != null ? p.getProductName() : null);
+            })
+        .toList();
   }
 }

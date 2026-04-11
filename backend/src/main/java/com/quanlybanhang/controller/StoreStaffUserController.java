@@ -4,6 +4,7 @@ import com.quanlybanhang.dto.UserDtos.ChangeStoreStaffBranchRequest;
 import com.quanlybanhang.dto.UserDtos.ChangeStoreStaffBranchResponse;
 import com.quanlybanhang.dto.UserDtos.CreateStoreStaffRequest;
 import com.quanlybanhang.dto.UserDtos.StoreStaffResponse;
+import com.quanlybanhang.dto.UserDtos.UpdateStoreStaffRequest;
 import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import com.quanlybanhang.service.UserService;
 import jakarta.validation.Valid;
@@ -60,6 +61,23 @@ public class StoreStaffUserController {
   public StoreStaffResponse get(
       @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
     return userService.getStoreStaff(id, principal);
+  }
+
+  @PutMapping("/{id}")
+  @PreAuthorize("@authz.systemManage(authentication) or hasRole('STORE_MANAGER')")
+  public StoreStaffResponse update(
+      @PathVariable Long id,
+      @Valid @RequestBody UpdateStoreStaffRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return userService.updateStoreStaff(id, req, principal);
+  }
+
+  /** Xóa mềm: đặt {@code users.status = INACTIVE} — không xóa bản ghi, không đăng nhập được. */
+  @PostMapping("/{id}/deactivate")
+  @PreAuthorize("@authz.systemManage(authentication) or hasRole('STORE_MANAGER')")
+  public StoreStaffResponse deactivate(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return userService.softDeactivateStoreStaff(id, principal);
   }
 
   @PutMapping("/{id}/change-branch")

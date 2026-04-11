@@ -13,6 +13,8 @@ public final class InventoryDtos {
       Long warehouseId,
       Long storeId,
       Long variantId,
+      String variantSku,
+      String variantName,
       BigDecimal quantityOnHand,
       BigDecimal reservedQty,
       LocalDateTime updatedAt) {}
@@ -21,6 +23,8 @@ public final class InventoryDtos {
       Long id,
       Long warehouseId,
       Long variantId,
+      String variantSku,
+      String variantName,
       String transactionType,
       String referenceType,
       Long referenceId,
@@ -41,5 +45,9 @@ public final class InventoryDtos {
       BigDecimal quantityOnHand) {}
 
   public record InventoryAvailabilityResponse(
-      Long variantId, Long storeId, List<InventoryLocationAvailability> locations) {}
+      Long variantId,
+      Long storeId,
+      String variantSku,
+      String variantName,
+      List<InventoryLocationAvailability> locations) {}
 }

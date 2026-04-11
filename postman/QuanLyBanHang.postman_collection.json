@@ -1031,7 +1031,7 @@
     },
     {
       "name": "12b - Store staff (STORE_MANAGER / admin)",
-      "description": "**CASHIER / WAREHOUSE_STAFF** — `POST|GET|PUT /api/users/store-staff`. Tạo + đổi chi nhánh trong cùng store; `toBranchId` = chi nhánh đích (cùng `storeId` với nhân viên).",
+      "description": "**CASHIER / WAREHOUSE_STAFF** — `POST|GET|PUT /api/users/store-staff`. Tạo; **PUT /{id}** cập nhật họ tên / phone / email / mật khẩu (mật khẩu để trống = giữ cũ); **PUT /{id}/change-branch** đổi chi nhánh trong cùng store. `toBranchId` = chi nhánh đích.",
       "item": [
         {
           "name": "POST users/store-staff — tạo thu ngân / NV kho",
@@ -1075,7 +1075,20 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/users/store-staff/{{staffUserId}}",
-            "description": "**Dùng để:** xem một user CASHIER/WAREHOUSE trong phạm vi quản lý (STORE_MANAGER) hoặc bất kỳ (admin)."
+            "description": "**Dùng để:** xem một user CASHIER/WAREHOUSE trong phạm vi quản lý (STORE_MANAGER) hoặc bất kỳ (admin). Response có `phone`, `email`."
+          }
+        },
+        {
+          "name": "PUT users/store-staff/{id} — cập nhật hồ sơ nhân viên",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Thu ngân Chi nhánh 1 (đổi tên)\",\n  \"phone\": \"0909123456\",\n  \"email\": \"cashier.cn1@company.com\",\n  \"password\": null\n}"
+            },
+            "url": "{{baseUrl}}/users/store-staff/{{staffUserId}}",
+            "description": "**Dùng để:** STORE_MANAGER / admin sửa **fullName**, **phone**, **email**. **password:** gửi chuỗi mới (≥6 ký tự) để đổi mật khẩu; `null` hoặc bỏ trường = giữ mật khẩu cũ. Lỗi: `EMAIL_ALREADY_EXISTS`, `INVALID_PASSWORD`, `FORBIDDEN`."
           }
         },
         {

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { fetchBranchesForStore } from "@/api/branches-api";
 import { createSalesOrderDraft } from "@/api/sales-orders-api";
 import { fetchStoresPage } from "@/api/stores-api";
+import { VariantSearchCombobox } from "@/components/catalog/variant-search-combobox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -280,10 +281,25 @@ export function SalesOrderCreatePage() {
                         control={form.control}
                         name={`lines.${i}.variantId`}
                         render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Mã biến thể</FormLabel>
+                          <FormItem className="sm:col-span-2 lg:col-span-2">
+                            <FormLabel>Biến thể (SKU / tên)</FormLabel>
                             <FormControl>
-                              <Input {...field} className="font-mono" inputMode="numeric" />
+                              <VariantSearchCombobox
+                                key={`${row.id}-${storeWatch}`}
+                                id={field.name}
+                                name={field.name}
+                                storeId={storeWatch}
+                                value={field.value}
+                                onChange={field.onChange}
+                                onPick={(picked) => {
+                                  const sp = Number(picked.sellingPrice);
+                                  form.setValue(`lines.${i}.unitPrice`, Number.isFinite(sp) ? sp : 0);
+                                  form.setValue(`lines.${i}.discountAmount`, 0);
+                                }}
+                                onBlur={field.onBlur}
+                                ref={field.ref}
+                                disabled={!storeWatch}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

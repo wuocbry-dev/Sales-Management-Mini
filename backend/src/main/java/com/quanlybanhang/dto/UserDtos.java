@@ -89,10 +89,23 @@ public final class UserDtos {
               message = "status phải là ACTIVE, INACTIVE hoặc LOCKED")
           String status) {}
 
+  /** Cập nhật hồ sơ nhân viên cửa hàng — {@code password} để trống thì giữ mật khẩu cũ. */
+  public record UpdateStoreStaffRequest(
+      @NotBlank @Size(max = 150) String fullName,
+      @Size(max = 20) String phone,
+      @Size(max = 100)
+          @Pattern(
+              regexp = "^$|^[\\w.+-]+@[\\w.-]+\\.[A-Za-z0-9-]{2,}$",
+              message = "email không hợp lệ")
+          String email,
+      @Size(max = 100) String password) {}
+
   public record StoreStaffResponse(
       Long userId,
       String username,
       String fullName,
+      String phone,
+      String email,
       String roleCode,
       Long storeId,
       Long branchId,

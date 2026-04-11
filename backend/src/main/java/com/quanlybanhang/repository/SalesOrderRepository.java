@@ -19,6 +19,12 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
       "select distinct o from SalesOrder o left join fetch o.items where o.id = :id")
   Optional<SalesOrder> findWithItemsById(@Param("id") Long id);
 
+  @Query(
+      "select distinct o from SalesOrder o left join fetch o.items "
+          + "where o.storeId = :storeId and o.orderCode = :orderCode")
+  Optional<SalesOrder> findWithItemsByStoreIdAndOrderCode(
+      @Param("storeId") Long storeId, @Param("orderCode") String orderCode);
+
   @Query("select coalesce(sum(o.totalAmount), 0) from SalesOrder o where o.status = :status")
   BigDecimal sumTotalAmountByStatus(@Param("status") String status);
 

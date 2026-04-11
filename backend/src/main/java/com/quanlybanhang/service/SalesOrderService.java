@@ -81,6 +81,20 @@ public class SalesOrderService {
     return toFullResponse(o);
   }
 
+  public SalesOrderResponse getByOrderCode(
+      String orderCode, long storeId, JwtAuthenticatedPrincipal principal) {
+    storeAccessService.assertCanAccessStore(storeId, principal);
+    String code = orderCode == null ? "" : orderCode.trim();
+    if (code.isEmpty()) {
+      throw new BusinessException("Thiếu mã đơn hàng.");
+    }
+    SalesOrder o =
+        salesOrderRepository
+            .findWithItemsByStoreIdAndOrderCode(storeId, code)
+            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn với mã: " + code));
+    return toFullResponse(o);
+  }
+
   @Transactional
   public SalesOrderResponse createDraft(
       SalesOrderCreateRequest req, long cashierId, JwtAuthenticatedPrincipal principal) {

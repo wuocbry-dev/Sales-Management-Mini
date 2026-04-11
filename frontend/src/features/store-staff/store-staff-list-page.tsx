@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
-import { fetchStoreStaffPage } from "@/api/store-staff-api";
+import { toast } from "sonner";
+import { fetchStoreStaffPage, softDeactivateStoreStaff } from "@/api/store-staff-api";
 import { fetchStoresPage } from "@/api/stores-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
@@ -13,15 +14,21 @@ import { gateStoreStaffArea } from "@/features/auth/gates";
 import { isSystemManage } from "@/features/auth/access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { userAccountStatusLabel } from "@/lib/entity-status-labels";
+import { formatApiError } from "@/lib/api-errors";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 
 const DEFAULT_SIZE = 15;
+
+function isActiveStoreStaffStatus(status: string) {
+  return status.trim().toUpperCase() === "ACTIVE";
+}
 
 const selectClass =
   "flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
 export function StoreStaffListPage() {
   const me = useAuthStore((s) => s.me);
+  const qc = useQueryClient();
   const canArea = Boolean(me && gateStoreStaffArea(me));
   const admin = Boolean(me && isSystemManage(me));
 
@@ -50,6 +57,16 @@ export function StoreStaffListPage() {
         ...(storeId != null && Number.isFinite(storeId) ? { storeId } : {}),
       }),
     enabled: canArea,
+  });
+
+  const deactivateM = useMutation({
+    meta: { skipGlobalErrorToast: true },
+    mutationFn: (userId: number) => softDeactivateStoreStaff(userId),
+    onSuccess: async () => {
+      toast.success("Đã ngưng nhân viên (xóa mềm).");
+      await qc.invalidateQueries({ queryKey: ["store-staff"] });
+    },
+    onError: (e) => toast.error(formatApiError(e)),
   });
 
   const setFilter = (key: string, value: string) => {
@@ -144,7 +161,7 @@ export function StoreStaffListPage() {
                   <TableHead>Mã cửa hàng</TableHead>
                   <TableHead>Trạng thái</TableHead>
                   <TableHead>Tạo lúc</TableHead>
-                  <TableHead className="w-[90px]" />
+                  <TableHead className="w-[200px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -166,9 +183,32 @@ export function StoreStaffListPage() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatDateTimeVi(row.createdAt)}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link to={`/app/nhan-vien-cua-hang/${row.userId}`}>Mở</Link>
-                        </Button>
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/app/nhan-vien-cua-hang/${row.userId}`}>Mở</Link>
+                          </Button>
+                          {isActiveStoreStaffStatus(row.status) && me && row.userId !== me.id ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:bg-destructive/10"
+                              disabled={deactivateM.isPending}
+                              onClick={() => {
+                                if (
+                                  !window.confirm(
+                                    `Ngưng tài khoản "${row.username}"? Họ sẽ không đăng nhập được (có thể xem lại trong bộ lọc trạng thái).`,
+                                  )
+                                ) {
+                                  return;
+                                }
+                                deactivateM.mutate(row.userId);
+                              }}
+                            >
+                              Ngưng
+                            </Button>
+                          ) : null}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))

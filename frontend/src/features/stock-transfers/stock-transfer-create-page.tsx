@@ -8,6 +8,7 @@ import { z } from "zod";
 import { fetchStoresPage } from "@/api/stores-api";
 import { createStockTransferDraft } from "@/api/stock-transfers-api";
 import { fetchWarehousesForStore } from "@/api/warehouses-api";
+import { VariantSearchCombobox } from "@/components/catalog/variant-search-combobox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -266,9 +267,19 @@ export function StockTransferCreatePage() {
                         name={`lines.${i}.variantId`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Mã biến thể</FormLabel>
+                            <FormLabel>Biến thể (SKU / tên)</FormLabel>
                             <FormControl>
-                              <Input {...field} className="font-mono" inputMode="numeric" />
+                              <VariantSearchCombobox
+                                key={`${row.id}-${storeWatch}`}
+                                id={field.name}
+                                name={field.name}
+                                storeId={storeWatch}
+                                value={field.value}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                ref={field.ref}
+                                disabled={!storeWatch}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

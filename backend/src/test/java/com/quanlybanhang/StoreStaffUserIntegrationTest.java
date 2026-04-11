@@ -446,6 +446,45 @@ class StoreStaffUserIntegrationTest {
   }
 
   @Test
+  void softDeactivateStoreStaff_successThenIdempotent() throws Exception {
+    CreateStoreStaffRequest body =
+        new CreateStoreStaffRequest(
+            "ss_soft1",
+            "password1",
+            "Soft One",
+            null,
+            "ss_soft1@test.local",
+            "CASHIER",
+            branchA1Id,
+            null);
+    var res =
+        mockMvc
+            .perform(
+                post("/api/users/store-staff")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + smToken)
+                    .contentType(APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(body)))
+            .andExpect(status().isCreated())
+            .andReturn();
+    long uid =
+        objectMapper.readTree(res.getResponse().getContentAsString()).get("userId").asLong();
+
+    mockMvc
+        .perform(
+            post("/api/users/store-staff/" + uid + "/deactivate")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + smToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("INACTIVE"));
+
+    mockMvc
+        .perform(
+            post("/api/users/store-staff/" + uid + "/deactivate")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + smToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("INACTIVE"));
+  }
+
+  @Test
   void listStoreStaff_asStoreManager_ok() throws Exception {
     CreateStoreStaffRequest body =
         new CreateStoreStaffRequest(

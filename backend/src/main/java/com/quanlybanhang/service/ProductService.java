@@ -157,7 +157,11 @@ public class ProductService {
         .map(
             row ->
                 new ProductVariantOptionResponse(
-                    row.getId(), row.getSku(), row.getVariantName(), row.getProductName()))
+                    row.getId(),
+                    row.getSku(),
+                    row.getVariantName(),
+                    row.getProductName(),
+                    row.getSellingPrice()))
         .toList();
   }
 

@@ -30,6 +30,10 @@ import { formatApiError } from "@/lib/api-errors";
 
 const DEFAULT_SIZE = 15;
 
+function isActiveAccountStatus(status: string) {
+  return status.trim().toUpperCase() === "ACTIVE";
+}
+
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -164,7 +168,8 @@ export function StoreScopedUsersPage() {
         <CardHeader>
           <CardTitle className="text-lg">Người dùng trong cửa hàng</CardTitle>
           <CardDescription>
-            {st.storeName} — phân chi nhánh làm việc trong phạm vi cửa hàng này.
+            {st.storeName} — phân chi nhánh làm việc trong phạm vi cửa hàng này. Người dùng{" "}
+            <strong>ngưng hoạt động</strong> không thể phân chi nhánh.
             {!canPrefill && canAssign ? (
               <span className="mt-2 block text-amber-700 dark:text-amber-400">
                 Khi lưu, danh sách chi nhánh bạn chọn sẽ thay thế hoàn toàn phân quyền chi nhánh hiện có của người dùng tại
@@ -207,9 +212,18 @@ export function StoreScopedUsersPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         {canAssign ? (
-                          <Button type="button" variant="outline" size="sm" onClick={() => openAssign(row.id)}>
-                            Phân chi nhánh
-                          </Button>
+                          isActiveAccountStatus(row.status) ? (
+                            <Button type="button" variant="outline" size="sm" onClick={() => openAssign(row.id)}>
+                              Phân chi nhánh
+                            </Button>
+                          ) : (
+                            <span
+                              className="text-xs text-muted-foreground"
+                              title="Người dùng ngưng hoạt động — không phân chi nhánh."
+                            >
+                              —
+                            </span>
+                          )
                         ) : (
                           "—"
                         )}

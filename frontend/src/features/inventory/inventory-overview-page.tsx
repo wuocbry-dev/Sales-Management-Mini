@@ -25,8 +25,21 @@ import { formatQty } from "@/lib/format-qty";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
 import { inventoryTransactionTypeLabel } from "@/lib/inventory-transaction-type-labels";
 import { warehouseTypeLabel } from "@/lib/warehouse-type-labels";
-
 const DEFAULT_SIZE = 10;
+
+/** Hiển thị biến thể: `SKU · tên` (fallback id nếu thiếu dữ liệu). */
+function formatInventoryVariantLabel(row: {
+  variantId: number;
+  variantSku?: string | null;
+  variantName?: string | null;
+}) {
+  const sku = row.variantSku?.trim() ?? "";
+  const name = row.variantName?.trim() ?? "";
+  if (sku && name) return `${sku} · ${name}`;
+  if (sku) return sku;
+  if (name) return name;
+  return `#${row.variantId}`;
+}
 
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
@@ -316,7 +329,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Mã biến thể</TableHead>
+                        <TableHead>SKU · tên biến thể</TableHead>
                         <TableHead className="text-right">Tồn thực tế</TableHead>
                         <TableHead className="text-right">Đang giữ chỗ</TableHead>
                         <TableHead>Cập nhật</TableHead>
@@ -332,7 +345,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                       ) : (
                         invByWhQ.data.content.map((row) => (
                           <TableRow key={row.id}>
-                            <TableCell className="font-mono text-sm tabular-nums">{row.variantId}</TableCell>
+                            <TableCell className="text-sm">{formatInventoryVariantLabel(row)}</TableCell>
                             <TableCell className="text-right tabular-nums">{formatQty(row.quantityOnHand)}</TableCell>
                             <TableCell className="text-right tabular-nums">{formatQty(row.reservedQty)}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{formatDateTimeVi(row.updatedAt)}</TableCell>
@@ -371,7 +384,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Kho</TableHead>
-                        <TableHead>Mã biến thể</TableHead>
+                        <TableHead>SKU · tên biến thể</TableHead>
                         <TableHead className="text-right">Tồn thực tế</TableHead>
                         <TableHead className="text-right">Đang giữ chỗ</TableHead>
                       </TableRow>
@@ -387,7 +400,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                         invByStoreQ.data.content.map((row) => (
                           <TableRow key={row.id}>
                             <TableCell className="tabular-nums text-muted-foreground">{row.warehouseId}</TableCell>
-                            <TableCell className="font-mono text-sm tabular-nums">{row.variantId}</TableCell>
+                            <TableCell className="text-sm">{formatInventoryVariantLabel(row)}</TableCell>
                             <TableCell className="text-right tabular-nums">{formatQty(row.quantityOnHand)}</TableCell>
                             <TableCell className="text-right tabular-nums">{formatQty(row.reservedQty)}</TableCell>
                           </TableRow>
@@ -469,7 +482,14 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
             {availabilityQ.isFetching ? <PageSkeleton cards={0} /> : null}
             {availabilityQ.isError ? <ApiErrorState error={availabilityQ.error} onRetry={() => void availabilityQ.refetch()} /> : null}
             {availabilityQ.data ? (
-              <div className="overflow-x-auto rounded-md border">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">
+                  Biến thể:{" "}
+                  <span className="font-normal text-muted-foreground">
+                    {formatInventoryVariantLabel(availabilityQ.data)}
+                  </span>
+                </p>
+                <div className="overflow-x-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -500,6 +520,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             ) : null}
           </CardContent>
@@ -570,7 +591,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                           <TableRow>
                             <TableHead>Thời điểm</TableHead>
                             <TableHead>Loại</TableHead>
-                            <TableHead>Mã biến thể</TableHead>
+                            <TableHead>SKU · tên biến thể</TableHead>
                             <TableHead className="text-right">Thay đổi</TableHead>
                             <TableHead className="text-right">Trước</TableHead>
                             <TableHead className="text-right">Sau</TableHead>
@@ -590,7 +611,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                               <TableRow key={row.id}>
                                 <TableCell className="whitespace-nowrap text-sm">{formatDateTimeVi(row.createdAt)}</TableCell>
                                 <TableCell>{inventoryTransactionTypeLabel(row.transactionType)}</TableCell>
-                                <TableCell className="font-mono text-sm tabular-nums">{row.variantId}</TableCell>
+                                <TableCell className="text-sm">{formatInventoryVariantLabel(row)}</TableCell>
                                 <TableCell className="text-right tabular-nums">{formatQty(row.qtyChange)}</TableCell>
                                 <TableCell className="text-right tabular-nums">{formatQty(row.qtyBefore)}</TableCell>
                                 <TableCell className="text-right tabular-nums">{formatQty(row.qtyAfter)}</TableCell>

@@ -7,15 +7,21 @@ import com.quanlybanhang.dto.InventoryDtos.InventoryTransactionResponse;
 import com.quanlybanhang.model.Branch;
 import com.quanlybanhang.model.Inventory;
 import com.quanlybanhang.model.InventoryTransaction;
+import com.quanlybanhang.model.ProductVariant;
 import com.quanlybanhang.model.Warehouse;
 import com.quanlybanhang.repository.BranchRepository;
 import com.quanlybanhang.repository.InventoryRepository;
 import com.quanlybanhang.repository.InventoryTransactionRepository;
+import com.quanlybanhang.repository.ProductVariantRepository;
 import com.quanlybanhang.repository.spec.InventoryTransactionSpecifications;
 import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +34,7 @@ public class InventoryQueryService {
 
   private final InventoryRepository inventoryRepository;
   private final InventoryTransactionRepository inventoryTransactionRepository;
+  private final ProductVariantRepository variantRepository;
   private final WarehouseService warehouseService;
   private final BranchRepository branchRepository;
   private final StoreAccessService storeAccessService;
@@ -36,9 +43,8 @@ public class InventoryQueryService {
       Long warehouseId, Pageable pageable, JwtAuthenticatedPrincipal principal) {
     warehouseService.assertCanAccessWarehouse(warehouseId, principal);
     Warehouse w = warehouseService.requireById(warehouseId);
-    return inventoryRepository
-        .findByWarehouseId(warehouseId, pageable)
-        .map(i -> toInvResponse(i, w.getStoreId()));
+    return mapInventoryPage(
+        inventoryRepository.findByWarehouseId(warehouseId, pageable), w.getStoreId());
   }
 
   public Page<InventoryResponse> listByStore(
@@ -49,7 +55,7 @@ public class InventoryQueryService {
     if (ids.isEmpty()) {
       return Page.empty(pageable);
     }
-    return inventoryRepository.findByWarehouseIdIn(ids, pageable).map(i -> toInvResponse(i, storeId));
+    return mapInventoryPage(inventoryRepository.findByWarehouseIdIn(ids, pageable), storeId);
   }
 
   public Page<InventoryTransactionResponse> listTransactions(
@@ -64,24 +70,13 @@ public class InventoryQueryService {
     Specification<InventoryTransaction> spec =
         InventoryTransactionSpecifications.filter(
             warehouseId, transactionType, variantId, fromCreatedAt, toCreatedAt);
-    return inventoryTransactionRepository
-        .findAll(spec, pageable)
-        .map(
-            t ->
-                new InventoryTransactionResponse(
-                    t.getId(),
-                    t.getWarehouseId(),
-                    t.getVariantId(),
-                    t.getTransactionType(),
-                    t.getReferenceType(),
-                    t.getReferenceId(),
-                    t.getQtyChange(),
-                    t.getQtyBefore(),
-                    t.getQtyAfter(),
-                    t.getUnitCost(),
-                    t.getNote(),
-                    t.getCreatedBy(),
-                    t.getCreatedAt()));
+    Page<InventoryTransaction> raw = inventoryTransactionRepository.findAll(spec, pageable);
+    Set<Long> vids = new HashSet<>();
+    for (InventoryTransaction row : raw.getContent()) {
+      vids.add(row.getVariantId());
+    }
+    Map<Long, ProductVariant> vmap = loadVariantsById(vids);
+    return raw.map(t -> toTxnResponse(t, vmap.get(t.getVariantId())));
   }
 
   /** Tồn variant theo từng kho trong một store (kho tổng + các chi nhánh). */
@@ -116,18 +111,66 @@ public class InventoryQueryService {
               bname,
               qty));
     }
-    return new InventoryAvailabilityResponse(variantId, storeId, locs);
+    ProductVariant v = variantRepository.findById(variantId).orElse(null);
+    String sku = v != null ? v.getSku() : null;
+    String vname = v != null ? v.getVariantName() : null;
+    return new InventoryAvailabilityResponse(variantId, storeId, sku, vname, locs);
   }
 
-  private InventoryResponse toInvResponse(Inventory i, Long storeId) {
+  private Page<InventoryResponse> mapInventoryPage(Page<Inventory> raw, Long fallbackStoreId) {
+    Set<Long> vids = new HashSet<>();
+    for (Inventory row : raw.getContent()) {
+      vids.add(row.getVariantId());
+    }
+    Map<Long, ProductVariant> vmap = loadVariantsById(vids);
+    return raw.map(i -> toInvResponse(i, fallbackStoreId, vmap.get(i.getVariantId())));
+  }
+
+  private Map<Long, ProductVariant> loadVariantsById(Set<Long> variantIds) {
+    if (variantIds.isEmpty()) {
+      return Map.of();
+    }
+    Map<Long, ProductVariant> out = new HashMap<>();
+    for (ProductVariant v : variantRepository.findAllById(variantIds)) {
+      out.put(v.getId(), v);
+    }
+    return out;
+  }
+
+  private InventoryResponse toInvResponse(Inventory i, Long storeId, ProductVariant v) {
     Long sid = i.getStoreId() != null ? i.getStoreId() : storeId;
+    String sku = v != null ? v.getSku() : null;
+    String vname = v != null ? v.getVariantName() : null;
     return new InventoryResponse(
         i.getId(),
         i.getWarehouseId(),
         sid,
         i.getVariantId(),
+        sku,
+        vname,
         i.getQuantityOnHand(),
         i.getReservedQty(),
         i.getUpdatedAt());
+  }
+
+  private InventoryTransactionResponse toTxnResponse(InventoryTransaction t, ProductVariant v) {
+    String sku = v != null ? v.getSku() : null;
+    String vname = v != null ? v.getVariantName() : null;
+    return new InventoryTransactionResponse(
+        t.getId(),
+        t.getWarehouseId(),
+        t.getVariantId(),
+        sku,
+        vname,
+        t.getTransactionType(),
+        t.getReferenceType(),
+        t.getReferenceId(),
+        t.getQtyChange(),
+        t.getQtyBefore(),
+        t.getQtyAfter(),
+        t.getUnitCost(),
+        t.getNote(),
+        t.getCreatedBy(),
+        t.getCreatedAt());
   }
 }

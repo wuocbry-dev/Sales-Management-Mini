@@ -23,6 +23,8 @@ export type VariantSearchComboboxProps = {
   storeId: number;
   value: number;
   onChange: (variantId: number) => void;
+  /** Gọi khi user chọn một dòng từ danh sách (sau `onChange`). */
+  onPick?: (row: ProductVariantOptionResponse) => void;
   onBlur?: () => void;
   name?: string;
   disabled?: boolean;
@@ -31,7 +33,7 @@ export type VariantSearchComboboxProps = {
 
 export const VariantSearchCombobox = forwardRef<HTMLInputElement, VariantSearchComboboxProps>(
   function VariantSearchCombobox(
-    { storeId, value, onChange, onBlur = () => {}, name = "variantSearch", disabled, id },
+    { storeId, value, onChange, onPick, onBlur = () => {}, name = "variantSearch", disabled, id },
     ref,
   ) {
     const listId = useId();
@@ -65,10 +67,11 @@ export const VariantSearchCombobox = forwardRef<HTMLInputElement, VariantSearchC
     const pick = useCallback(
       (row: ProductVariantOptionResponse) => {
         onChange(row.variantId);
+        onPick?.(row);
         setText(optionLabel(row));
         setOpen(false);
       },
-      [onChange],
+      [onChange, onPick],
     );
 
     return (

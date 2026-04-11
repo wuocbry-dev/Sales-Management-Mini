@@ -24,6 +24,8 @@ public interface UserRepository extends JpaRepository<AppUser, Long> {
 
   boolean existsByEmailIgnoreCase(String email);
 
+  boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);
+
   @Query(
       "SELECT DISTINCT u FROM AppUser u WHERE "
           + "EXISTS (SELECT 1 FROM UserStore us WHERE us.id.userId = u.id AND us.id.storeId = :storeId) "

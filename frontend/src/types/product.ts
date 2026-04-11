@@ -41,6 +41,8 @@ export type ProductVariantOptionResponse = {
   sku: string;
   variantName: string | null;
   productName: string;
+  /** Giá bán niêm yết trên biến thể (điền sẵn đơn giá khi tạo đơn). */
+  sellingPrice: string | number;
 };
 
 export type ProductVariantResponse = {

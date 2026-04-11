@@ -148,6 +148,10 @@ public class SalesReturnService {
           != 0) {
         throw new BusinessException("Đơn giá trả phải khớp đơn giá trên đơn bán.");
       }
+      if (line.quantity().compareTo(oi.getQuantity()) != 0) {
+        throw new BusinessException(
+            "Số lượng trả phải bằng số lượng trên dòng đơn (orderItemId=" + line.orderItemId() + ").");
+      }
       BigDecimal lineTotal =
           line.quantity().multiply(line.unitPrice()).setScale(4, RoundingMode.HALF_UP);
       refund = refund.add(lineTotal);

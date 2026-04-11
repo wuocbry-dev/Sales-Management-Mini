@@ -1,5 +1,7 @@
 package com.quanlybanhang.repository;
 
+import java.math.BigDecimal;
+
 /** Kết quả truy vấn gợi ý biến thể (Spring Data interface projection). */
 public interface ProductVariantOptionProjection {
 
@@ -10,4 +12,6 @@ public interface ProductVariantOptionProjection {
   String getVariantName();
 
   String getProductName();
+
+  BigDecimal getSellingPrice();
 }

@@ -11,6 +11,7 @@ import com.quanlybanhang.dto.UserDtos.CreateUserRequest;
 import com.quanlybanhang.dto.UserDtos.RoleRow;
 import com.quanlybanhang.dto.UserDtos.StoreRow;
 import com.quanlybanhang.dto.UserDtos.StoreStaffResponse;
+import com.quanlybanhang.dto.UserDtos.UpdateStoreStaffRequest;
 import com.quanlybanhang.dto.UserDtos.UpdateUserRequest;
 import com.quanlybanhang.dto.UserDtos.UpdateUserStatusRequest;
 import com.quanlybanhang.dto.UserDtos.UserDetailResponse;
@@ -21,6 +22,7 @@ import com.quanlybanhang.exception.BusinessException;
 import com.quanlybanhang.exception.ResourceNotFoundException;
 import com.quanlybanhang.model.AppUser;
 import com.quanlybanhang.model.Branch;
+import com.quanlybanhang.model.DomainConstants;
 import com.quanlybanhang.model.Role;
 import com.quanlybanhang.model.Store;
 import com.quanlybanhang.model.UserBranch;
@@ -317,6 +319,51 @@ public class UserService {
   }
 
   /**
+   * Xóa mềm nhân viên cửa hàng: {@code INACTIVE} — giữ bản ghi, không cho đăng nhập (xem {@link
+   * com.quanlybanhang.security.CustomUserDetailsService}).
+   */
+  @Transactional
+  public StoreStaffResponse softDeactivateStoreStaff(
+      Long userId, JwtAuthenticatedPrincipal principal) {
+    if (principal != null && principal.userId() == userId) {
+      throw new AuthApiException(
+          HttpStatus.FORBIDDEN,
+          AuthErrorCodes.CANNOT_DEACTIVATE_SELF,
+          "Không thể vô hiệu chính tài khoản đang đăng nhập.");
+    }
+    AppUser u = loadUser(userId);
+    if (!onlyCashierOrWarehouseStaffRoles(userId)) {
+      throw new AuthApiException(
+          HttpStatus.FORBIDDEN,
+          AuthErrorCodes.INVALID_TARGET_ROLE,
+          "Chỉ được vô hiệu nhân viên CASHIER hoặc WAREHOUSE_STAFF.");
+    }
+    if (staffRoleCodeForUser(userId) == null) {
+      throw new ResourceNotFoundException("Không tìm thấy nhân viên.");
+    }
+    if (!storeAccessService.isFullSystemAccess()) {
+      if (principal == null) {
+        throw new AuthApiException(
+            HttpStatus.FORBIDDEN, AuthErrorCodes.FORBIDDEN, "Không có quyền.");
+      }
+      if (!userLinkedToAnyStore(userId, principal.storeIds())) {
+        throw new AuthApiException(
+            HttpStatus.FORBIDDEN,
+            AuthErrorCodes.FORBIDDEN,
+            "Không có quyền vô hiệu nhân viên này.");
+      }
+    }
+    if (isInactiveUserStatus(u.getStatus())) {
+      return toStoreStaffResponseFromUser(u);
+    }
+    LocalDateTime t = LocalDateTime.now();
+    u.setStatus("INACTIVE");
+    u.setUpdatedAt(t);
+    appUserRepository.save(u);
+    return toStoreStaffResponseFromUser(u);
+  }
+
+  /**
    * Điều chuyển nhân viên CASHIER / WAREHOUSE_STAFF sang chi nhánh khác trong cùng cửa hàng —
    * cập nhật bảng {@code user_branches} (một bản ghi, primary = chi nhánh mới).
    */
@@ -332,6 +379,13 @@ public class UserService {
                         HttpStatus.NOT_FOUND,
                         AuthErrorCodes.USER_NOT_FOUND,
                         "Không tìm thấy người dùng."));
+
+    if (isInactiveUserStatus(u.getStatus())) {
+      throw new AuthApiException(
+          HttpStatus.BAD_REQUEST,
+          AuthErrorCodes.INVALID_TARGET_ROLE,
+          "Nhân viên đã ngưng hoạt động — không đổi chi nhánh.");
+    }
 
     if (!onlyCashierOrWarehouseStaffRoles(userId)) {
       throw new AuthApiException(
@@ -430,13 +484,74 @@ public class UserService {
   }
 
   @Transactional
+  public StoreStaffResponse updateStoreStaff(
+      Long userId, UpdateStoreStaffRequest req, JwtAuthenticatedPrincipal principal) {
+    AppUser u = loadUser(userId);
+    if (staffRoleCodeForUser(userId) == null) {
+      throw new ResourceNotFoundException("Không tìm thấy nhân viên.");
+    }
+    if (!onlyCashierOrWarehouseStaffRoles(userId)) {
+      throw new AuthApiException(
+          HttpStatus.FORBIDDEN,
+          AuthErrorCodes.INVALID_TARGET_ROLE,
+          "Chỉ được sửa nhân viên CASHIER hoặc WAREHOUSE_STAFF.");
+    }
+    if (!storeAccessService.isFullSystemAccess()) {
+      if (principal == null || principal.storeIds().isEmpty()) {
+        throw new AuthApiException(
+            HttpStatus.FORBIDDEN,
+            AuthErrorCodes.STORE_MANAGER_NOT_ASSIGNED_TO_STORE,
+            "Tài khoản chưa được gán cửa hàng.");
+      }
+      if (!userLinkedToAnyStore(userId, principal.storeIds())) {
+        throw new AuthApiException(
+            HttpStatus.FORBIDDEN, AuthErrorCodes.FORBIDDEN, "Không có quyền sửa nhân viên này.");
+      }
+    }
+
+    String emailNorm = req.email() == null ? "" : req.email().trim();
+    if (!emailNorm.isEmpty()
+        && appUserRepository.existsByEmailIgnoreCaseAndIdNot(emailNorm, userId)) {
+      throw new AuthApiException(
+          HttpStatus.CONFLICT, AuthErrorCodes.EMAIL_ALREADY_EXISTS, "Email đã được sử dụng.");
+    }
+
+    String newPw = req.password() == null ? "" : req.password().trim();
+    if (!newPw.isEmpty() && newPw.length() < 6) {
+      throw new AuthApiException(
+          HttpStatus.BAD_REQUEST,
+          AuthErrorCodes.INVALID_PASSWORD,
+          "Mật khẩu mới tối thiểu 6 ký tự.");
+    }
+
+    LocalDateTime t = LocalDateTime.now();
+    u.setFullName(req.fullName().trim());
+    if (req.phone() == null || req.phone().isBlank()) {
+      u.setPhone(null);
+    } else {
+      u.setPhone(req.phone().trim());
+    }
+    u.setEmail(emailNorm.isEmpty() ? null : emailNorm);
+    if (!newPw.isEmpty()) {
+      u.setPasswordHash(passwordEncoder.encode(newPw));
+    }
+    u.setUpdatedAt(t);
+    appUserRepository.save(u);
+    return toStoreStaffResponseFromUser(u);
+  }
+
+  @Transactional
   public UserDetailResponse assignBranchesForStore(
       long storeId,
       long userId,
       AssignBranchesRequest req,
       JwtAuthenticatedPrincipal principal) {
     storeAccessService.assertCanAccessStore(storeId, principal);
-    loadUser(userId);
+    AppUser u = loadUser(userId);
+    if (isInactiveUserStatus(u.getStatus())) {
+      throw new BusinessException(
+          "Người dùng đã ngưng hoạt động — không thể phân chi nhánh trong cửa hàng.");
+    }
     List<Long> branchIds = req.branchIds();
     assertBranchesBelongToStore(storeId, branchIds);
     if (!storeAccessService.isFullSystemAccess()
@@ -628,6 +743,14 @@ public class UserService {
     return s;
   }
 
+  private static boolean isInactiveUserStatus(String status) {
+    if (status == null || status.isBlank()) {
+      return false;
+    }
+    String s = status.trim();
+    return s.equalsIgnoreCase("INACTIVE") || s.equalsIgnoreCase(DomainConstants.STATUS_INACTIVE);
+  }
+
   /** Chỉ role CASHIER và/hoặc WAREHOUSE_STAFF, không role khác. */
   private boolean onlyCashierOrWarehouseStaffRoles(Long userId) {
     List<String> codes = roleCodesForUser(userId);
@@ -682,6 +805,8 @@ public class UserService {
         u.getId(),
         u.getUsername(),
         u.getFullName(),
+        u.getPhone(),
+        u.getEmail(),
         roleCode,
         storeId,
         branchId,
@@ -730,6 +855,8 @@ public class UserService {
         u.getId(),
         u.getUsername(),
         u.getFullName(),
+        u.getPhone(),
+        u.getEmail(),
         role,
         storeId,
         branchId,

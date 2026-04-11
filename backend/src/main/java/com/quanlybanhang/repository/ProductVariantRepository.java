@@ -25,7 +25,8 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
   long countByProductStoreIdIn(@Param("storeIds") Collection<Long> storeIds);
 
   @Query(
-      "select v.id as id, v.sku as sku, v.variantName as variantName, p.productName as productName "
+      "select v.id as id, v.sku as sku, v.variantName as variantName, p.productName as productName, "
+          + "v.sellingPrice as sellingPrice "
           + "from ProductVariant v join Product p on p.id = v.productId "
           + "where p.storeId = :storeId and "
           + "(lower(v.sku) like lower(concat('%', :q, '%')) "

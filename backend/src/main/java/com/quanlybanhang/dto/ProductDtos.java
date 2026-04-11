@@ -69,7 +69,11 @@ public final class ProductDtos {
 
   /** Gợi ý biến thể khi tìm theo SKU / tên (phiếu nhập, v.v.). */
   public record ProductVariantOptionResponse(
-      Long variantId, String sku, String variantName, String productName) {}
+      Long variantId,
+      String sku,
+      String variantName,
+      String productName,
+      BigDecimal sellingPrice) {}
 
   public record ProductVariantResponse(
       Long id,

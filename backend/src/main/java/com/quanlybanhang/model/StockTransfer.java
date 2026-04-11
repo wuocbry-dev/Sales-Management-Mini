@@ -35,6 +35,14 @@ public class StockTransfer {
   @Column(name = "to_warehouse_id", nullable = false)
   private Long toWarehouseId;
 
+  /** Cửa hàng của kho nguồn (chuyển nội bộ: trùng {@link #toStoreId}). */
+  @Column(name = "from_store_id", nullable = false)
+  private Long fromStoreId;
+
+  /** Cửa hàng của kho đích. */
+  @Column(name = "to_store_id", nullable = false)
+  private Long toStoreId;
+
   @Column(name = "transfer_date", nullable = false)
   private LocalDateTime transferDate;
 

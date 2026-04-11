@@ -211,7 +211,8 @@ CREATE TABLE `inventories` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `warehouse_id` bigint NOT NULL,
   PRIMARY KEY (`inventory_id`),
-  UNIQUE KEY `uk_inventories_store_variant` (`store_id`,`variant_id`),
+  UNIQUE KEY `uk_inventories_warehouse_variant` (`warehouse_id`,`variant_id`),
+  KEY `idx_inventories_store_id` (`store_id`),
   KEY `fk_inventories_variant` (`variant_id`),
   CONSTRAINT `fk_inventories_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`),
   CONSTRAINT `fk_inventories_variant` FOREIGN KEY (`variant_id`) REFERENCES `product_variants` (`variant_id`)

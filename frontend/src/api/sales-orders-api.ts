@@ -17,6 +17,21 @@ export async function fetchSalesOrderById(id: number): Promise<SalesOrderRespons
   return data;
 }
 
+/** Tra đơn theo ID (chỉ số) hoặc mã `order_code` trong cửa hàng (phiếu trả hàng). */
+export async function fetchSalesOrderForReturn(params: {
+  storeId: number;
+  lookup: string;
+}): Promise<SalesOrderResponse> {
+  const s = params.lookup.trim();
+  if (/^\d+$/.test(s)) {
+    return fetchSalesOrderById(parseInt(s, 10));
+  }
+  const { data } = await apiClient.get<SalesOrderResponse>("/api/sales-orders/by-code", {
+    params: { orderCode: s, storeId: params.storeId },
+  });
+  return data;
+}
+
 export async function createSalesOrderDraft(body: SalesOrderCreateRequestBody): Promise<SalesOrderResponse> {
   const { data } = await apiClient.post<SalesOrderResponse>("/api/sales-orders", body);
   return data;
