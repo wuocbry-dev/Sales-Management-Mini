@@ -42,6 +42,7 @@ class AuthRegisterFirstUserIntegrationTest {
                 .content(objectMapper.writeValueAsString(body)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.user.username").value("bootstrap"))
-        .andExpect(jsonPath("$.roles[0]").value("STORE_MANAGER"));
+        .andExpect(jsonPath("$.roles[0]").value("STORE_MANAGER"))
+        .andExpect(jsonPath("$.storeIds[0]").exists());
   }
 }

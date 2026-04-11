@@ -18,6 +18,7 @@ import com.quanlybanhang.repository.spec.ProductSpecifications;
 import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -55,6 +56,32 @@ public class ProductService {
       return "ACTIVE";
     }
     return raw.trim().toUpperCase();
+  }
+
+  /**
+   * MySQL {@code products.product_type} thường là ENUM {@code NORMAL}, {@code SERVICE}
+   * (xem {@code Docx/sql/DataBase.sql}). Form cũ gửi {@code simple} / {@code variant} → cần
+   * chuẩn hóa trước khi lưu, tránh 409 DATA_INTEGRITY.
+   */
+  private static String normalizeProductType(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return "NORMAL";
+    }
+    String s = raw.trim().toLowerCase(Locale.ROOT);
+    if (s.equals("simple") || s.equals("normal")) {
+      return "NORMAL";
+    }
+    if (s.equals("service")) {
+      return "SERVICE";
+    }
+    if (s.equals("variant")) {
+      return "NORMAL";
+    }
+    String u = raw.trim().toUpperCase(Locale.ROOT);
+    if ("NORMAL".equals(u) || "SERVICE".equals(u)) {
+      return u;
+    }
+    return "NORMAL";
   }
 
   private long resolveStoreIdForCreate(ProductCreateRequest req, JwtAuthenticatedPrincipal principal) {
@@ -145,7 +172,7 @@ public class ProductService {
     p.setUnitId(req.unitId());
     p.setProductCode(req.productCode());
     p.setProductName(req.productName());
-    p.setProductType(req.productType());
+    p.setProductType(normalizeProductType(req.productType()));
     p.setHasVariant(req.hasVariant());
     p.setTrackInventory(req.trackInventory());
     p.setDescription(req.description());

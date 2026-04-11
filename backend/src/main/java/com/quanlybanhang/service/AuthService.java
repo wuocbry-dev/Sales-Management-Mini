@@ -12,10 +12,14 @@ import com.quanlybanhang.exception.ResourceNotFoundException;
 import com.quanlybanhang.model.AppUser;
 import com.quanlybanhang.model.DomainConstants;
 import com.quanlybanhang.model.Role;
+import com.quanlybanhang.model.Store;
 import com.quanlybanhang.model.UserRoleAssignment;
+import com.quanlybanhang.model.UserStore;
 import com.quanlybanhang.repository.AppUserRepository;
 import com.quanlybanhang.repository.RoleRepository;
+import com.quanlybanhang.repository.StoreRepository;
 import com.quanlybanhang.repository.UserRoleAssignmentRepository;
+import com.quanlybanhang.repository.UserStoreRepository;
 import com.quanlybanhang.security.CustomUserDetailsService;
 import com.quanlybanhang.security.CustomUserPrincipal;
 import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
@@ -42,6 +46,9 @@ public class AuthService {
   private final AppUserRepository appUserRepository;
   private final RoleRepository roleRepository;
   private final UserRoleAssignmentRepository userRoleAssignmentRepository;
+  private final StoreRepository storeRepository;
+  private final UserStoreRepository userStoreRepository;
+  private final WarehouseService warehouseService;
   private final CustomUserDetailsService customUserDetailsService;
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
@@ -97,7 +104,48 @@ public class AuthService {
     link.setId(new UserRoleAssignment.Pk(user.getId(), role.getId()));
     userRoleAssignmentRepository.save(link);
 
+    if ("STORE_MANAGER".equalsIgnoreCase(roleCode)) {
+      assignOwnedStoreForNewStoreManager(user, t);
+    }
+
     return buildAuthResponse(user, user.getUsername());
+  }
+
+  /**
+   * Đăng ký công khai với STORE_MANAGER: JWT cần {@code storeIds} (user_stores). Không gán thì
+   * client báo "chưa được gán cửa hàng" và không tạo sản phẩm được.
+   */
+  private void assignOwnedStoreForNewStoreManager(AppUser user, LocalDateTime t) {
+    String baseCode = "CH-" + user.getId();
+    String code = baseCode;
+    int n = 0;
+    while (storeRepository.existsByStoreCode(code)) {
+      n++;
+      code = baseCode + "-" + n;
+    }
+    String name = user.getFullName().trim() + " — Cửa hàng";
+    if (name.length() > 255) {
+      name = name.substring(0, 255);
+    }
+    Store store = new Store();
+    store.setStoreCode(code);
+    store.setStoreName(name);
+    store.setPhone(user.getPhone());
+    store.setEmail(user.getEmail());
+    store.setAddress(null);
+    store.setStatus("ACTIVE");
+    store.setCreatedAt(t);
+    store.setUpdatedAt(t);
+    storeRepository.save(store);
+    warehouseService.ensureCentralWarehouse(store.getId());
+
+    UserStore us = new UserStore();
+    us.setId(new UserStore.Pk(user.getId(), store.getId()));
+    us.setPrimary(true);
+    userStoreRepository.save(us);
+
+    user.setDefaultStore(store);
+    appUserRepository.save(user);
   }
 
   @Transactional(readOnly = true)

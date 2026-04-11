@@ -215,7 +215,8 @@
         showEl("form-error", true);
         setText(
           "form-error",
-          "Tài khoản chưa được gán cửa hàng — không thể xác định cửa hàng để tạo sản phẩm."
+          "Phiên đăng nhập không có cửa hàng (storeIds). Đăng ký mới sẽ tự tạo cửa hàng; " +
+            "tài khoản cũ cần quản trị gán cửa hàng trong hệ thống rồi đăng nhập lại."
         );
         return;
       }
@@ -247,6 +248,9 @@
           "form-success",
           "Đã tạo sản phẩm #" +
             (created && created.id != null ? created.id : "?") +
+            (created && created.storeId != null
+              ? " (cửa hàng #" + created.storeId + ")"
+              : "") +
             ". Chuyển về danh sách…"
         );
         setTimeout(function () {

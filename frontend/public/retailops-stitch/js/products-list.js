@@ -14,7 +14,7 @@
     if (!tbody || !window.RetailOpsApi) return;
     var R = window.RetailOpsApi;
     tbody.innerHTML =
-      '<tr><td colspan="6" class="py-4 px-4 text-slate-500">Đang tải…</td></tr>';
+      '<tr><td colspan="7" class="py-4 px-4 text-slate-500">Đang tải…</td></tr>';
     try {
       var cats = await R.fetchAllPages(function (p) {
         return "/api/categories?page=" + p + "&size=200&sort=categoryName,asc";
@@ -31,11 +31,17 @@
         var catLabel =
           p.categoryId != null ? cmap[p.categoryId] || "#" + p.categoryId : "—";
         (p.variants || []).forEach(function (v) {
+          var storeCell =
+            p.storeId != null && p.storeId !== ""
+              ? '<span class="font-mono text-slate-600">#' + R.escapeHtml(String(p.storeId)) + "</span>"
+              : '<span class="text-amber-600 text-xs">—</span>';
           rowsHtml.push(
             '<tr data-product-row class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">' +
               R.escapeHtml(v.sku || "") +
               '</td><td class="py-3 px-4 font-medium">' +
               R.escapeHtml(p.productName || "") +
+              '</td><td class="py-3 px-4">' +
+              storeCell +
               '</td><td class="py-3 px-4">' +
               R.escapeHtml(catLabel) +
               '</td><td class="py-3 px-4 text-right">' +
@@ -50,7 +56,7 @@
       });
       if (!rowsHtml.length) {
         tbody.innerHTML =
-          '<tr><td colspan="6" class="py-4 px-4 text-slate-500">Không có biến thể / sản phẩm.</td></tr>';
+          '<tr><td colspan="7" class="py-4 px-4 text-slate-500">Không có biến thể / sản phẩm.</td></tr>';
       } else {
         tbody.innerHTML = rowsHtml.join("");
       }
@@ -64,7 +70,7 @@
       }
     } catch (e) {
       tbody.innerHTML =
-        '<tr><td colspan="6" class="py-4 px-4 text-red-600">' +
+        '<tr><td colspan="7" class="py-4 px-4 text-red-600">' +
         R.escapeHtml(e.message || String(e)) +
         "</td></tr>";
     }
