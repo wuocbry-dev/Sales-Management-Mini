@@ -18,8 +18,10 @@ function NavItemButton({
   collapsed: boolean;
   onNavigate?: () => void;
 }) {
-  const base =
-    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-muted hover:text-foreground";
+  const base = cn(
+    "flex w-full items-center rounded-lg py-2.5 text-sm font-medium transition-colors text-muted-foreground hover:bg-muted hover:text-foreground",
+    collapsed ? "justify-center px-0" : "gap-3 px-3",
+  );
 
   return (
     <NavLink
@@ -76,7 +78,7 @@ export function AppShellLayout() {
   const sidebar = (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-40 flex flex-col border-r bg-card shadow-sm transition-all duration-200",
+        "fixed inset-y-0 left-0 z-40 flex flex-col overflow-hidden border-r bg-card shadow-sm transition-all duration-200",
         collapsed ? "w-[72px]" : "w-60",
         mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
       )}
@@ -109,7 +111,14 @@ export function AppShellLayout() {
           {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
         </Button>
       </div>
-      <nav className="flex flex-1 flex-col gap-6 overflow-y-auto p-3">
+      <nav
+        className={cn(
+          "flex min-h-0 flex-1 flex-col gap-6 p-3",
+          collapsed
+            ? "overflow-y-auto overflow-x-hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            : "overflow-y-auto",
+        )}
+      >
         {getSidebarSections(me).map((section) => (
           <NavSection
             key={section.title}
