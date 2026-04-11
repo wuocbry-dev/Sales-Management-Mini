@@ -37,6 +37,7 @@
 
   /** Trang mẫu Stitch / chi tiết → highlight đúng mục cha */
   var FILE_ALIAS_KEY = {
+    "product-create.html": "products",
     "product-detail.html": "products",
     "goods-receipt-step2.html": "receipts",
     "stock-transfer-detail.html": "transfers",
