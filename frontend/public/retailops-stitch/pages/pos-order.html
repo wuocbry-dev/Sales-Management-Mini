@@ -37,36 +37,20 @@
 </nav>
 </aside>
 <main class="ml-64 mt-16 h-[calc(100vh-64px)] overflow-hidden flex flex-col bg-slate-100">
+<script src="../js/api-client.js" defer></script>
 <div class="shrink-0 px-4 py-3 bg-white border-b border-slate-200 flex justify-between items-center">
 <div>
 <h1 class="text-lg font-bold text-slate-900">Tạo đơn bán</h1>
 <p class="text-xs text-slate-500">POS — <a href="sales-orders-list.html" class="text-teal-700 font-medium">Danh sách đơn</a></p>
 </div>
-<span class="text-xs font-medium text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-100">Chi nhánh Q1</span>
+<span id="pos-store-label" class="text-xs font-medium text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-100">—</span>
 </div>
 <div class="flex-1 min-h-0 grid grid-cols-12 gap-0">
 <section class="col-span-12 lg:col-span-3 bg-white border-r border-slate-200 flex flex-col min-h-0">
 <div class="p-3 border-b border-slate-100 space-y-2">
 <input type="search" id="pos-product-search" placeholder="Tên, SKU, barcode…" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"/>
 </div>
-<div id="pos-product-list" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
-<div data-pos-product class="border border-slate-100 rounded-lg p-2 flex gap-2 hover:border-teal-200 cursor-pointer">
-<div class="w-10 h-10 rounded bg-slate-100 shrink-0"></div>
-<div class="flex-1 min-w-0">
-<p class="text-xs font-bold text-slate-800 truncate">Đồng hồ Classic</p>
-<p class="text-[10px] text-slate-400">WTC-001 · 450.000₫</p>
-<button type="button" data-add-product class="mt-1 text-[10px] bg-teal-600 text-white px-2 py-0.5 rounded">Thêm</button>
-</div>
-</div>
-<div data-pos-product class="border border-slate-100 rounded-lg p-2 flex gap-2 hover:border-teal-200 cursor-pointer">
-<div class="w-10 h-10 rounded bg-slate-100 shrink-0"></div>
-<div class="flex-1 min-w-0">
-<p class="text-xs font-bold text-slate-800 truncate">Tai nghe Pro</p>
-<p class="text-[10px] text-slate-400">HDP-992 · 1.250.000₫</p>
-<button type="button" data-add-product class="mt-1 text-[10px] bg-teal-600 text-white px-2 py-0.5 rounded">Thêm</button>
-</div>
-</div>
-</div>
+<div id="pos-product-list" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar"></div>
 </section>
 <section class="col-span-12 lg:col-span-6 bg-slate-50 border-r border-slate-200 flex flex-col min-h-0">
 <div class="px-4 py-2 bg-white border-b border-slate-200 flex justify-between items-center">
@@ -94,12 +78,13 @@
 </div>
 <div>
 <label class="text-xs font-bold text-slate-500 uppercase">Ghi chú</label>
-<textarea class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" rows="2"></textarea>
+<textarea id="pos-note" class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" rows="2" placeholder="Ghi chú đơn…"></textarea>
 </div>
-<button type="button" id="pos-checkout" class="w-full bg-teal-700 hover:bg-teal-800 text-white py-3 rounded-lg text-sm font-bold">Thanh toán (demo)</button>
+<button type="button" id="pos-checkout" class="w-full bg-teal-700 hover:bg-teal-800 text-white py-3 rounded-lg text-sm font-bold">Thanh toán</button>
 </section>
 </div>
 <script src="../js/pos-order.js" defer></script>
 </main>
+<script src="../js/ro-nav-acl.js" defer></script>
 </body>
 </html>

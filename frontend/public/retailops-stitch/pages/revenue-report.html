@@ -37,20 +37,21 @@
 </nav>
 </aside>
 <main class="ml-64 mt-16 p-6 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar">
+<script src="../js/api-client.js" defer></script>
 <div class="flex flex-wrap justify-between items-end gap-4 mb-6">
 <div>
 <h1 class="text-2xl font-bold text-slate-900">Báo cáo doanh thu</h1>
-<p class="text-slate-500 text-sm mt-1">Tổng hợp — <code class="text-xs bg-slate-100 px-1 rounded">GET /api/reports/revenue</code> (gợi ý)</p>
+<p class="text-slate-500 text-sm mt-1">Tổng hợp — <code class="text-xs bg-slate-100 px-1 rounded">GET /api/reports/summary</code></p>
 </div>
 <div class="flex flex-wrap gap-2 items-center">
-<button type="button" id="report-refresh" class="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">Làm mới (demo)</button>
+<button type="button" id="report-refresh" class="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">Làm mới</button>
 </div>
 </div>
 <div id="report-kpi" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">Doanh thu</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="revenue">1.285.450.000 ₫</p></div>
-<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">Đơn hàng</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="orders">3.428</p></div>
-<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">AOV</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="aov">375.000 ₫</p></div>
-<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">Tỉ lệ trả</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="return">1,8%</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">Doanh thu (đơn hoàn tất)</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="revenue">—</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">Đơn hoàn tất</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="orders">—</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">AOV</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="aov">—</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">Tỉ lệ trả / tổng đơn</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="return">—</p></div>
 </div>
 <div class="bg-white border border-slate-200 rounded-xl p-6 mb-6">
 <h2 class="text-lg font-bold text-slate-900 mb-2">Xu hướng (placeholder)</h2>
@@ -68,13 +69,11 @@
 <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b"><tr>
 <th class="py-3 px-4">Cửa hàng</th><th class="py-3 px-4 text-right">Doanh thu</th><th class="py-3 px-4 text-right">Đơn</th>
 </tr></thead>
-<tbody class="divide-y divide-slate-100">
-<tr><td class="py-3 px-4">Q1</td><td class="py-3 px-4 text-right">420.000.000 ₫</td><td class="py-3 px-4 text-right">1.120</td></tr>
-<tr><td class="py-3 px-4">Q7</td><td class="py-3 px-4 text-right">380.000.000 ₫</td><td class="py-3 px-4 text-right">980</td></tr>
-</tbody>
+<tbody id="report-by-store-tbody" class="divide-y divide-slate-100"></tbody>
 </table>
 </div>
 <script src="../js/revenue-report.js" defer></script>
 </main>
+<script src="../js/ro-nav-acl.js" defer></script>
 </body>
 </html>

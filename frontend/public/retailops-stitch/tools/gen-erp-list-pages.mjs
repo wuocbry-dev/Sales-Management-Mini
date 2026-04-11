@@ -54,7 +54,18 @@ function navHtml(activeKey) {
     .join("\n");
 }
 
-function shell({ file, title, activeKey, heading, sub, extraToolbar, tableBody, cssName }) {
+function shell({
+  file,
+  title,
+  activeKey,
+  heading,
+  sub,
+  extraToolbar,
+  theadHtml,
+  tbodyId,
+  listScript,
+  cssName,
+}) {
   const cssFile = `${cssName}.css`;
   return `<!DOCTYPE html>
 <html lang="vi" class="light">
@@ -82,6 +93,7 @@ ${navHtml(activeKey)}
 </nav>
 </aside>
 <main class="ml-64 mt-16 p-6 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar">
+<script src="../js/api-client.js" defer></script>
 <div class="flex flex-wrap justify-between items-start gap-4 mb-6">
 <div>
 <h1 class="text-2xl font-bold text-slate-900">${heading}</h1>
@@ -91,11 +103,14 @@ ${extraToolbar || ""}
 </div>
 <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
 <table class="w-full text-left text-sm">
-${tableBody}
+${theadHtml}
+<tbody id="${tbodyId}" class="divide-y divide-slate-100"></tbody>
 </table>
 </div>
 <p class="text-xs text-slate-400 mt-4">Màn bổ sung (không có trong bộ 14 màn Stitch gốc) — cùng theme RetailOps.</p>
+<script src="../js/${listScript}" defer></script>
 </main>
+<script src="../js/ro-nav-acl.js" defer></script>
 </body>
 </html>
 `;
@@ -108,14 +123,13 @@ const specs = [
     title: "Đơn bán hàng | RetailOps ERP",
     active: "orders",
     heading: "Đơn bán hàng",
-    sub: "API: <code class=\"text-xs bg-slate-100 px-1 rounded\">GET/POST /api/sales-orders</code>",
+    sub: "Dữ liệu từ <code class=\"text-xs bg-slate-100 px-1 rounded\">GET /api/sales-orders</code>",
     extra: `<a href="pos-order.html" class="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2"><span class="material-symbols-outlined text-[20px]">add</span>Tạo đơn (POS)</a>`,
-    table: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
+    thead: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
 <th class="py-3 px-4">Mã đơn</th><th class="py-3 px-4">Cửa hàng</th><th class="py-3 px-4">Khách</th><th class="py-3 px-4">Ngày</th><th class="py-3 px-4">TT thanh toán</th><th class="py-3 px-4 text-right">Tổng</th><th class="py-3 px-4">Trạng thái</th>
-</tr></thead><tbody class="divide-y divide-slate-100">
-<tr class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">SO-20260410-001</td><td class="py-3 px-4">CH Trung tâm</td><td class="py-3 px-4">Khách lẻ</td><td class="py-3 px-4">10/04/2026</td><td class="py-3 px-4"><span class="text-emerald-600 font-medium">Đã thanh toán</span></td><td class="py-3 px-4 text-right">1.250.000 ₫</td><td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-xs">Hoàn tất</span></td></tr>
-<tr class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">SO-20260410-002</td><td class="py-3 px-4">CH Q3</td><td class="py-3 px-4">Nguyễn Văn A</td><td class="py-3 px-4">10/04/2026</td><td class="py-3 px-4"><span class="text-amber-600">Một phần</span></td><td class="py-3 px-4 text-right">890.000 ₫</td><td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs">Nháp</span></td></tr>
-</tbody>`,
+</tr></thead>`,
+    tbodyId: "sales-orders-tbody",
+    listScript: "sales-orders-list.js",
   },
   {
     file: "customers-list.html",
@@ -123,13 +137,13 @@ const specs = [
     title: "Khách hàng | RetailOps ERP",
     active: "customers",
     heading: "Khách hàng",
-    sub: "API: <code class=\"text-xs bg-slate-100 px-1 rounded\">GET/POST/PUT /api/customers</code>",
+    sub: "Dữ liệu từ <code class=\"text-xs bg-slate-100 px-1 rounded\">GET /api/customers</code>",
     extra: "",
-    table: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
+    thead: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
 <th class="py-3 px-4">Mã</th><th class="py-3 px-4">Tên</th><th class="py-3 px-4">SĐT</th><th class="py-3 px-4">Email</th><th class="py-3 px-4">Địa chỉ</th>
-</tr></thead><tbody class="divide-y divide-slate-100">
-<tr class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono">KH001</td><td class="py-3 px-4">Nguyễn Văn A</td><td class="py-3 px-4">0901234567</td><td class="py-3 px-4 text-slate-500">—</td><td class="py-3 px-4 text-slate-600 max-w-xs truncate">TP.HCM</td></tr>
-</tbody>`,
+</tr></thead>`,
+    tbodyId: "customers-tbody",
+    listScript: "customers-list.js",
   },
   {
     file: "goods-receipts-list.html",
@@ -137,13 +151,13 @@ const specs = [
     title: "Phiếu nhập | RetailOps ERP",
     active: "receipts",
     heading: "Phiếu nhập kho",
-    sub: "API: <code class=\"text-xs bg-slate-100 px-1 rounded\">GET/POST /api/goods-receipts</code> — mẫu chi tiết dòng hàng: <a class=\"text-teal-700 font-medium\" href=\"goods-receipt-step2.html\">Bước 2 (Stitch)</a>",
+    sub: "Dữ liệu từ <code class=\"text-xs bg-slate-100 px-1 rounded\">GET /api/goods-receipts</code> — <a class=\"text-teal-700 font-medium\" href=\"goods-receipt-step2.html\">Bước 2 (Stitch)</a>",
     extra: `<div class="flex gap-2"><a href="goods-receipt-step2.html" class="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">Tạo phiếu (mẫu UI)</a></div>`,
-    table: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
-<th class="py-3 px-4">Mã phiếu</th><th class="py-3 px-4">Cửa hàng</th><th class="py-3 px-4">Ngày</th><th class="py-3 px-4">Trạng thái</th><th class="py-3 px-4 text-right">Tổng</th>
-</tr></thead><tbody class="divide-y divide-slate-100">
-<tr class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">PN-20260409-01</td><td class="py-3 px-4">Kho trung tâm</td><td class="py-3 px-4">09/04/2026</td><td class="py-3 px-4"><span class="text-emerald-600 text-xs font-semibold">Hoàn tất</span></td><td class="py-3 px-4 text-right">45.200.000 ₫</td></tr>
-</tbody>`,
+    thead: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
+<th class="py-3 px-4">Mã phiếu</th><th class="py-3 px-4">Cửa hàng</th><th class="py-3 px-4">NCC</th><th class="py-3 px-4">Ngày</th><th class="py-3 px-4">Trạng thái</th><th class="py-3 px-4 text-right">Tổng</th>
+</tr></thead>`,
+    tbodyId: "goods-receipts-tbody",
+    listScript: "goods-receipts-list.js",
   },
   {
     file: "stock-transfers-list.html",
@@ -151,13 +165,13 @@ const specs = [
     title: "Chuyển kho | RetailOps ERP",
     active: "transfers",
     heading: "Chuyển kho",
-    sub: "API: <code class=\"text-xs bg-slate-100 px-1 rounded\">GET/POST /api/stock-transfers</code> — <a class=\"text-teal-700 font-medium\" href=\"stock-transfer-detail.html\">Chi tiết (Stitch)</a>",
+    sub: "Dữ liệu từ <code class=\"text-xs bg-slate-100 px-1 rounded\">GET /api/stock-transfers</code> — <a class=\"text-teal-700 font-medium\" href=\"stock-transfer-detail.html\">Chi tiết (Stitch)</a>",
     extra: "",
-    table: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
+    thead: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
 <th class="py-3 px-4">Mã</th><th class="py-3 px-4">Từ</th><th class="py-3 px-4">Đến</th><th class="py-3 px-4">Ngày</th><th class="py-3 px-4">Trạng thái</th>
-</tr></thead><tbody class="divide-y divide-slate-100">
-<tr class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">CK-001</td><td class="py-3 px-4">CH A</td><td class="py-3 px-4">CH B</td><td class="py-3 px-4">10/04/2026</td><td class="py-3 px-4">Đang xử lý</td></tr>
-</tbody>`,
+</tr></thead>`,
+    tbodyId: "stock-transfers-tbody",
+    listScript: "stock-transfers-list.js",
   },
   {
     file: "stocktakes-list.html",
@@ -165,13 +179,13 @@ const specs = [
     title: "Kiểm kho | RetailOps ERP",
     active: "stocktakes",
     heading: "Kiểm kho",
-    sub: "API: <code class=\"text-xs bg-slate-100 px-1 rounded\">GET/POST /api/stocktakes</code>",
+    sub: "Dữ liệu từ <code class=\"text-xs bg-slate-100 px-1 rounded\">GET /api/stocktakes</code>",
     extra: "",
-    table: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
+    thead: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
 <th class="py-3 px-4">Mã phiếu</th><th class="py-3 px-4">Cửa hàng</th><th class="py-3 px-4">Ngày</th><th class="py-3 px-4">Trạng thái</th>
-</tr></thead><tbody class="divide-y divide-slate-100">
-<tr class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono">KK-20260401</td><td class="py-3 px-4">CH Trung tâm</td><td class="py-3 px-4">01/04/2026</td><td class="py-3 px-4">Nháp</td></tr>
-</tbody>`,
+</tr></thead>`,
+    tbodyId: "stocktakes-tbody",
+    listScript: "stocktakes-list.js",
   },
   {
     file: "sales-returns-list.html",
@@ -179,13 +193,13 @@ const specs = [
     title: "Trả hàng | RetailOps ERP",
     active: "returns",
     heading: "Trả hàng bán",
-    sub: "API: <code class=\"text-xs bg-slate-100 px-1 rounded\">GET/POST /api/sales-returns</code>",
+    sub: "Dữ liệu từ <code class=\"text-xs bg-slate-100 px-1 rounded\">GET /api/sales-returns</code>",
     extra: "",
-    table: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
+    thead: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
 <th class="py-3 px-4">Mã trả</th><th class="py-3 px-4">Đơn gốc</th><th class="py-3 px-4">Cửa hàng</th><th class="py-3 px-4">Ngày</th><th class="py-3 px-4 text-right">Hoàn tiền</th>
-</tr></thead><tbody class="divide-y divide-slate-100">
-<tr class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">TH-001</td><td class="py-3 px-4 font-mono">SO-…</td><td class="py-3 px-4">CH Q1</td><td class="py-3 px-4">08/04/2026</td><td class="py-3 px-4 text-right">150.000 ₫</td></tr>
-</tbody>`,
+</tr></thead>`,
+    tbodyId: "sales-returns-tbody",
+    listScript: "sales-returns-list.js",
   },
   {
     file: "users-admin.html",
@@ -193,13 +207,13 @@ const specs = [
     title: "Người dùng | RetailOps ERP",
     active: "users",
     heading: "Quản trị người dùng",
-    sub: "API: <code class=\"text-xs bg-slate-100 px-1 rounded\">GET/POST/PUT /api/users</code> — yêu cầu quyền ADMIN",
+    sub: "Dữ liệu từ <code class=\"text-xs bg-slate-100 px-1 rounded\">GET /api/users</code> — quyền ADMIN",
     extra: "",
-    table: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
+    thead: `<thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
 <th class="py-3 px-4">Tên đăng nhập</th><th class="py-3 px-4">Họ tên</th><th class="py-3 px-4">Email</th><th class="py-3 px-4">Trạng thái</th>
-</tr></thead><tbody class="divide-y divide-slate-100">
-<tr class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono">admin</td><td class="py-3 px-4">Quản trị</td><td class="py-3 px-4">admin@…</td><td class="py-3 px-4"><span class="text-emerald-600 text-xs font-medium">ACTIVE</span></td></tr>
-</tbody>`,
+</tr></thead>`,
+    tbodyId: "users-tbody",
+    listScript: "users-admin-list.js",
   },
 ];
 
@@ -233,8 +247,10 @@ ${navHtml(activeKey)}
 </nav>
 </aside>
 <main class="${mc}">
+<script src="../js/api-client.js" defer></script>
 ${mainHtml}
 </main>
+<script src="../js/ro-nav-acl.js" defer></script>
 </body>
 </html>`;
 }
@@ -247,7 +263,9 @@ for (const s of specs) {
     heading: s.heading,
     sub: s.sub,
     extraToolbar: s.extra,
-    tableBody: s.table,
+    theadHtml: s.thead,
+    tbodyId: s.tbodyId,
+    listScript: s.listScript,
     cssName: s.css,
   });
   fs.writeFileSync(path.join(pagesDir, s.file), html, "utf8");
@@ -271,7 +289,7 @@ const featurePages = [
     main: `<div class="flex flex-wrap justify-between items-start gap-4 mb-6">
 <div>
 <h1 class="text-2xl font-bold text-slate-900">Sản phẩm</h1>
-<p class="text-slate-500 text-sm mt-1">Danh mục hàng hóa — <code class="text-xs bg-slate-100 px-1 rounded">GET /api/products</code>. <a href="product-detail.html" class="text-teal-700 font-medium">Chi tiết (mẫu)</a></p>
+<p class="text-slate-500 text-sm mt-1">Danh mục hàng hóa — <code class="text-xs bg-slate-100 px-1 rounded">GET /api/products</code> (mỗi dòng = một biến thể SKU). <a href="product-detail.html" class="text-teal-700 font-medium">Chi tiết (mẫu)</a></p>
 </div>
 <button type="button" class="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2.5 rounded-lg text-sm font-semibold">Thêm sản phẩm</button>
 </div>
@@ -282,13 +300,9 @@ const featurePages = [
 <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
 <table class="w-full text-left text-sm">
 <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
-<th class="py-3 px-4">SKU</th><th class="py-3 px-4">Tên</th><th class="py-3 px-4">Danh mục</th><th class="py-3 px-4 text-right">Giá</th><th class="py-3 px-4 text-right">Tồn</th><th class="py-3 px-4">TT</th>
+<th class="py-3 px-4">SKU</th><th class="py-3 px-4">Tên</th><th class="py-3 px-4">Danh mục</th><th class="py-3 px-4 text-right">Giá bán</th><th class="py-3 px-4 text-right">Tồn tối thiểu</th><th class="py-3 px-4">TT</th>
 </tr></thead>
-<tbody id="product-tbody" class="divide-y divide-slate-100">
-<tr data-product-row class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">NK-AM270</td><td class="py-3 px-4 font-medium">Giày chạy Nike Air</td><td class="py-3 px-4">Giày nam</td><td class="py-3 px-4 text-right">3.450.000 ₫</td><td class="py-3 px-4 text-right font-semibold">142</td><td class="py-3 px-4"><span class="text-emerald-600 text-xs font-medium">Đang bán</span></td></tr>
-<tr data-product-row class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">SW-S7</td><td class="py-3 px-4 font-medium">Đồng hồ thông minh S7</td><td class="py-3 px-4">Phụ kiện</td><td class="py-3 px-4 text-right">9.200.000 ₫</td><td class="py-3 px-4 text-right font-semibold text-amber-600">8</td><td class="py-3 px-4"><span class="text-emerald-600 text-xs font-medium">Đang bán</span></td></tr>
-<tr data-product-row class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">SNY-XM4</td><td class="py-3 px-4 font-medium">Tai nghe Sony XM4</td><td class="py-3 px-4">Âm thanh</td><td class="py-3 px-4 text-right">6.500.000 ₫</td><td class="py-3 px-4 text-right font-semibold">0</td><td class="py-3 px-4"><span class="text-slate-500 text-xs">Ngừng KD</span></td></tr>
-</tbody>
+<tbody id="product-tbody" class="divide-y divide-slate-100"></tbody>
 </table>
 </div>
 <p class="text-xs text-slate-400 mt-4">Giao diện thống nhất navbar ERP — lọc cục bộ (demo).</p>
@@ -301,21 +315,19 @@ const featurePages = [
     active: "inventory",
     main: `<div class="mb-6">
 <h1 class="text-2xl font-bold text-slate-900">Tồn kho</h1>
-<p class="text-slate-500 text-sm mt-1">Theo SKU / cửa hàng — <code class="text-xs bg-slate-100 px-1 rounded">GET /api/inventory</code> (gợi ý tích hợp)</p>
+<p class="text-slate-500 text-sm mt-1">Theo cửa hàng — <code class="text-xs bg-slate-100 px-1 rounded">GET /api/inventories?storeId=…</code> + sản phẩm để hiển thị SKU/tên.</p>
 </div>
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Tổng SKU</p><p class="text-2xl font-bold mt-1">1.240</p></div>
-<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Tổng tồn</p><p class="text-2xl font-bold mt-1 text-teal-700">45.680</p></div>
-<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Giữ chỗ</p><p class="text-2xl font-bold mt-1 text-amber-600">1.120</p></div>
-<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Cảnh báo thấp</p><p class="text-2xl font-bold mt-1 text-red-600">37</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Dòng tồn</p><p id="inv-kpi-rows" class="text-2xl font-bold mt-1">—</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Tổng tồn</p><p id="inv-kpi-qty" class="text-2xl font-bold mt-1 text-teal-700">—</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Giữ chỗ</p><p id="inv-kpi-reserved" class="text-2xl font-bold mt-1 text-amber-600">—</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Dưới mức tồn tối thiểu</p><p id="inv-kpi-low" class="text-2xl font-bold mt-1 text-red-600">—</p></div>
 </div>
 <div class="bg-white border border-slate-200 rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
 <div>
 <label class="block text-xs font-semibold text-slate-500 mb-1">Cửa hàng</label>
-<select id="inv-store" class="border border-slate-200 rounded-lg text-sm py-2 px-3 min-w-[160px]">
-<option value="">Tất cả</option>
-<option value="q1">Chi nhánh Q1</option>
-<option value="q7">Chi nhánh Q7</option>
+<select id="inv-store" class="border border-slate-200 rounded-lg text-sm py-2 px-3 min-w-[200px]">
+<option value="">Đang tải…</option>
 </select>
 </div>
 <div class="flex-1 min-w-[200px]">
@@ -328,11 +340,7 @@ const featurePages = [
 <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
 <th class="py-3 px-4">SKU</th><th class="py-3 px-4">Tên</th><th class="py-3 px-4">Cửa hàng</th><th class="py-3 px-4 text-right">Tồn</th><th class="py-3 px-4 text-right">Giữ chỗ</th>
 </tr></thead>
-<tbody id="inv-tbody" class="divide-y divide-slate-100">
-<tr data-inv-row data-store="q1" class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono">WTC-001</td><td class="py-3 px-4">Đồng hồ Classic</td><td class="py-3 px-4">Q1</td><td class="py-3 px-4 text-right font-semibold">24</td><td class="py-3 px-4 text-right text-slate-500">2</td></tr>
-<tr data-inv-row data-store="q1" class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono">HDP-992</td><td class="py-3 px-4">Tai nghe Pro</td><td class="py-3 px-4">Q1</td><td class="py-3 px-4 text-right font-semibold">12</td><td class="py-3 px-4 text-right text-slate-500">0</td></tr>
-<tr data-inv-row data-store="q7" class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono">SUN-102</td><td class="py-3 px-4">Kính Aviator</td><td class="py-3 px-4">Q7</td><td class="py-3 px-4 text-right font-semibold text-amber-600">3</td><td class="py-3 px-4 text-right text-slate-500">1</td></tr>
-</tbody>
+<tbody id="inv-tbody" class="divide-y divide-slate-100"></tbody>
 </table>
 </div>
 <script src="../js/inventory-overview.js" defer></script>`,
@@ -357,11 +365,7 @@ const featurePages = [
 <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b"><tr>
 <th class="py-3 px-4">Mã</th><th class="py-3 px-4">Tên</th><th class="py-3 px-4">Khu vực</th><th class="py-3 px-4">Trạng thái</th>
 </tr></thead>
-<tbody id="store-tbody" class="divide-y divide-slate-100">
-<tr data-store-row class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">CH-Q1</td><td class="py-3 px-4 font-medium">Chi nhánh Quận 1</td><td class="py-3 px-4">TP.HCM</td><td class="py-3 px-4"><span class="text-emerald-600 text-xs font-medium">Hoạt động</span></td></tr>
-<tr data-store-row class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">CH-Q7</td><td class="py-3 px-4 font-medium">Chi nhánh Quận 7</td><td class="py-3 px-4">TP.HCM</td><td class="py-3 px-4"><span class="text-emerald-600 text-xs font-medium">Hoạt động</span></td></tr>
-<tr data-store-row class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">KHO-BT</td><td class="py-3 px-4 font-medium">Kho Bình Tân</td><td class="py-3 px-4">TP.HCM</td><td class="py-3 px-4"><span class="text-slate-500 text-xs">Bảo trì</span></td></tr>
-</tbody>
+<tbody id="store-tbody" class="divide-y divide-slate-100"></tbody>
 </table>
 </div>
 <script src="../js/stores-list.js" defer></script>`,
@@ -374,17 +378,17 @@ const featurePages = [
     main: `<div class="flex flex-wrap justify-between items-end gap-4 mb-6">
 <div>
 <h1 class="text-2xl font-bold text-slate-900">Báo cáo doanh thu</h1>
-<p class="text-slate-500 text-sm mt-1">Tổng hợp — <code class="text-xs bg-slate-100 px-1 rounded">GET /api/reports/revenue</code> (gợi ý)</p>
+<p class="text-slate-500 text-sm mt-1">Tổng hợp — <code class="text-xs bg-slate-100 px-1 rounded">GET /api/reports/summary</code></p>
 </div>
 <div class="flex flex-wrap gap-2 items-center">
-<button type="button" id="report-refresh" class="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">Làm mới (demo)</button>
+<button type="button" id="report-refresh" class="bg-teal-700 hover:bg-teal-800 text-white px-4 py-2 rounded-lg text-sm font-semibold">Làm mới</button>
 </div>
 </div>
 <div id="report-kpi" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">Doanh thu</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="revenue">1.285.450.000 ₫</p></div>
-<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">Đơn hàng</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="orders">3.428</p></div>
-<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">AOV</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="aov">375.000 ₫</p></div>
-<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">Tỉ lệ trả</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="return">1,8%</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">Doanh thu (đơn hoàn tất)</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="revenue">—</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">Đơn hoàn tất</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="orders">—</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">AOV</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="aov">—</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-5"><p class="text-sm text-slate-500">Tỉ lệ trả / tổng đơn</p><p class="text-2xl font-bold text-slate-900 mt-1" data-kpi="return">—</p></div>
 </div>
 <div class="bg-white border border-slate-200 rounded-xl p-6 mb-6">
 <h2 class="text-lg font-bold text-slate-900 mb-2">Xu hướng (placeholder)</h2>
@@ -402,10 +406,7 @@ const featurePages = [
 <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b"><tr>
 <th class="py-3 px-4">Cửa hàng</th><th class="py-3 px-4 text-right">Doanh thu</th><th class="py-3 px-4 text-right">Đơn</th>
 </tr></thead>
-<tbody class="divide-y divide-slate-100">
-<tr><td class="py-3 px-4">Q1</td><td class="py-3 px-4 text-right">420.000.000 ₫</td><td class="py-3 px-4 text-right">1.120</td></tr>
-<tr><td class="py-3 px-4">Q7</td><td class="py-3 px-4 text-right">380.000.000 ₫</td><td class="py-3 px-4 text-right">980</td></tr>
-</tbody>
+<tbody id="report-by-store-tbody" class="divide-y divide-slate-100"></tbody>
 </table>
 </div>
 <script src="../js/revenue-report.js" defer></script>`,
@@ -422,31 +423,14 @@ const featurePages = [
 <h1 class="text-lg font-bold text-slate-900">Tạo đơn bán</h1>
 <p class="text-xs text-slate-500">POS — <a href="sales-orders-list.html" class="text-teal-700 font-medium">Danh sách đơn</a></p>
 </div>
-<span class="text-xs font-medium text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-100">Chi nhánh Q1</span>
+<span id="pos-store-label" class="text-xs font-medium text-teal-700 bg-teal-50 px-3 py-1 rounded-full border border-teal-100">—</span>
 </div>
 <div class="flex-1 min-h-0 grid grid-cols-12 gap-0">
 <section class="col-span-12 lg:col-span-3 bg-white border-r border-slate-200 flex flex-col min-h-0">
 <div class="p-3 border-b border-slate-100 space-y-2">
 <input type="search" id="pos-product-search" placeholder="Tên, SKU, barcode…" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"/>
 </div>
-<div id="pos-product-list" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
-<div data-pos-product class="border border-slate-100 rounded-lg p-2 flex gap-2 hover:border-teal-200 cursor-pointer">
-<div class="w-10 h-10 rounded bg-slate-100 shrink-0"></div>
-<div class="flex-1 min-w-0">
-<p class="text-xs font-bold text-slate-800 truncate">Đồng hồ Classic</p>
-<p class="text-[10px] text-slate-400">WTC-001 · 450.000₫</p>
-<button type="button" data-add-product class="mt-1 text-[10px] bg-teal-600 text-white px-2 py-0.5 rounded">Thêm</button>
-</div>
-</div>
-<div data-pos-product class="border border-slate-100 rounded-lg p-2 flex gap-2 hover:border-teal-200 cursor-pointer">
-<div class="w-10 h-10 rounded bg-slate-100 shrink-0"></div>
-<div class="flex-1 min-w-0">
-<p class="text-xs font-bold text-slate-800 truncate">Tai nghe Pro</p>
-<p class="text-[10px] text-slate-400">HDP-992 · 1.250.000₫</p>
-<button type="button" data-add-product class="mt-1 text-[10px] bg-teal-600 text-white px-2 py-0.5 rounded">Thêm</button>
-</div>
-</div>
-</div>
+<div id="pos-product-list" class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar"></div>
 </section>
 <section class="col-span-12 lg:col-span-6 bg-slate-50 border-r border-slate-200 flex flex-col min-h-0">
 <div class="px-4 py-2 bg-white border-b border-slate-200 flex justify-between items-center">
@@ -474,9 +458,9 @@ const featurePages = [
 </div>
 <div>
 <label class="text-xs font-bold text-slate-500 uppercase">Ghi chú</label>
-<textarea class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" rows="2"></textarea>
+<textarea id="pos-note" class="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" rows="2" placeholder="Ghi chú đơn…"></textarea>
 </div>
-<button type="button" id="pos-checkout" class="w-full bg-teal-700 hover:bg-teal-800 text-white py-3 rounded-lg text-sm font-bold">Thanh toán (demo)</button>
+<button type="button" id="pos-checkout" class="w-full bg-teal-700 hover:bg-teal-800 text-white py-3 rounded-lg text-sm font-bold">Thanh toán</button>
 </section>
 </div>
 <script src="../js/pos-order.js" defer></script>`,

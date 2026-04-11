@@ -37,6 +37,7 @@
 </nav>
 </aside>
 <main class="ml-64 mt-16 p-6 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar">
+<script src="../js/api-client.js" defer></script>
 <div class="flex flex-wrap justify-between items-start gap-4 mb-6">
 <div>
 <h1 class="text-2xl font-bold text-slate-900">Cửa hàng</h1>
@@ -52,14 +53,11 @@
 <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b"><tr>
 <th class="py-3 px-4">Mã</th><th class="py-3 px-4">Tên</th><th class="py-3 px-4">Khu vực</th><th class="py-3 px-4">Trạng thái</th>
 </tr></thead>
-<tbody id="store-tbody" class="divide-y divide-slate-100">
-<tr data-store-row class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">CH-Q1</td><td class="py-3 px-4 font-medium">Chi nhánh Quận 1</td><td class="py-3 px-4">TP.HCM</td><td class="py-3 px-4"><span class="text-emerald-600 text-xs font-medium">Hoạt động</span></td></tr>
-<tr data-store-row class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">CH-Q7</td><td class="py-3 px-4 font-medium">Chi nhánh Quận 7</td><td class="py-3 px-4">TP.HCM</td><td class="py-3 px-4"><span class="text-emerald-600 text-xs font-medium">Hoạt động</span></td></tr>
-<tr data-store-row class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">KHO-BT</td><td class="py-3 px-4 font-medium">Kho Bình Tân</td><td class="py-3 px-4">TP.HCM</td><td class="py-3 px-4"><span class="text-slate-500 text-xs">Bảo trì</span></td></tr>
-</tbody>
+<tbody id="store-tbody" class="divide-y divide-slate-100"></tbody>
 </table>
 </div>
 <script src="../js/stores-list.js" defer></script>
 </main>
+<script src="../js/ro-nav-acl.js" defer></script>
 </body>
 </html>

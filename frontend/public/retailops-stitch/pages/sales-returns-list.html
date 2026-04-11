@@ -37,10 +37,11 @@
 </nav>
 </aside>
 <main class="ml-64 mt-16 p-6 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar">
+<script src="../js/api-client.js" defer></script>
 <div class="flex flex-wrap justify-between items-start gap-4 mb-6">
 <div>
 <h1 class="text-2xl font-bold text-slate-900">Trả hàng bán</h1>
-<p class="text-slate-500 text-sm mt-1">API: <code class="text-xs bg-slate-100 px-1 rounded">GET/POST /api/sales-returns</code></p>
+<p class="text-slate-500 text-sm mt-1">Dữ liệu từ <code class="text-xs bg-slate-100 px-1 rounded">GET /api/sales-returns</code></p>
 </div>
 
 </div>
@@ -48,12 +49,13 @@
 <table class="w-full text-left text-sm">
 <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
 <th class="py-3 px-4">Mã trả</th><th class="py-3 px-4">Đơn gốc</th><th class="py-3 px-4">Cửa hàng</th><th class="py-3 px-4">Ngày</th><th class="py-3 px-4 text-right">Hoàn tiền</th>
-</tr></thead><tbody class="divide-y divide-slate-100">
-<tr class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono text-teal-700">TH-001</td><td class="py-3 px-4 font-mono">SO-…</td><td class="py-3 px-4">CH Q1</td><td class="py-3 px-4">08/04/2026</td><td class="py-3 px-4 text-right">150.000 ₫</td></tr>
-</tbody>
+</tr></thead>
+<tbody id="sales-returns-tbody" class="divide-y divide-slate-100"></tbody>
 </table>
 </div>
 <p class="text-xs text-slate-400 mt-4">Màn bổ sung (không có trong bộ 14 màn Stitch gốc) — cùng theme RetailOps.</p>
+<script src="../js/sales-returns-list.js" defer></script>
 </main>
+<script src="../js/ro-nav-acl.js" defer></script>
 </body>
 </html>

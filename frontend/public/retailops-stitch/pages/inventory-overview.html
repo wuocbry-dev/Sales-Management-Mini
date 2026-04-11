@@ -37,23 +37,22 @@
 </nav>
 </aside>
 <main class="ml-64 mt-16 p-6 h-[calc(100vh-64px)] overflow-y-auto custom-scrollbar">
+<script src="../js/api-client.js" defer></script>
 <div class="mb-6">
 <h1 class="text-2xl font-bold text-slate-900">Tồn kho</h1>
-<p class="text-slate-500 text-sm mt-1">Theo SKU / cửa hàng — <code class="text-xs bg-slate-100 px-1 rounded">GET /api/inventory</code> (gợi ý tích hợp)</p>
+<p class="text-slate-500 text-sm mt-1">Theo cửa hàng — <code class="text-xs bg-slate-100 px-1 rounded">GET /api/inventories?storeId=…</code> + sản phẩm để hiển thị SKU/tên.</p>
 </div>
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Tổng SKU</p><p class="text-2xl font-bold mt-1">1.240</p></div>
-<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Tổng tồn</p><p class="text-2xl font-bold mt-1 text-teal-700">45.680</p></div>
-<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Giữ chỗ</p><p class="text-2xl font-bold mt-1 text-amber-600">1.120</p></div>
-<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Cảnh báo thấp</p><p class="text-2xl font-bold mt-1 text-red-600">37</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Dòng tồn</p><p id="inv-kpi-rows" class="text-2xl font-bold mt-1">—</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Tổng tồn</p><p id="inv-kpi-qty" class="text-2xl font-bold mt-1 text-teal-700">—</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Giữ chỗ</p><p id="inv-kpi-reserved" class="text-2xl font-bold mt-1 text-amber-600">—</p></div>
+<div class="bg-white border border-slate-200 rounded-xl p-4"><p class="text-xs text-slate-500 uppercase font-semibold">Dưới mức tồn tối thiểu</p><p id="inv-kpi-low" class="text-2xl font-bold mt-1 text-red-600">—</p></div>
 </div>
 <div class="bg-white border border-slate-200 rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
 <div>
 <label class="block text-xs font-semibold text-slate-500 mb-1">Cửa hàng</label>
-<select id="inv-store" class="border border-slate-200 rounded-lg text-sm py-2 px-3 min-w-[160px]">
-<option value="">Tất cả</option>
-<option value="q1">Chi nhánh Q1</option>
-<option value="q7">Chi nhánh Q7</option>
+<select id="inv-store" class="border border-slate-200 rounded-lg text-sm py-2 px-3 min-w-[200px]">
+<option value="">Đang tải…</option>
 </select>
 </div>
 <div class="flex-1 min-w-[200px]">
@@ -66,14 +65,11 @@
 <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-200"><tr>
 <th class="py-3 px-4">SKU</th><th class="py-3 px-4">Tên</th><th class="py-3 px-4">Cửa hàng</th><th class="py-3 px-4 text-right">Tồn</th><th class="py-3 px-4 text-right">Giữ chỗ</th>
 </tr></thead>
-<tbody id="inv-tbody" class="divide-y divide-slate-100">
-<tr data-inv-row data-store="q1" class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono">WTC-001</td><td class="py-3 px-4">Đồng hồ Classic</td><td class="py-3 px-4">Q1</td><td class="py-3 px-4 text-right font-semibold">24</td><td class="py-3 px-4 text-right text-slate-500">2</td></tr>
-<tr data-inv-row data-store="q1" class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono">HDP-992</td><td class="py-3 px-4">Tai nghe Pro</td><td class="py-3 px-4">Q1</td><td class="py-3 px-4 text-right font-semibold">12</td><td class="py-3 px-4 text-right text-slate-500">0</td></tr>
-<tr data-inv-row data-store="q7" class="hover:bg-slate-50/80"><td class="py-3 px-4 font-mono">SUN-102</td><td class="py-3 px-4">Kính Aviator</td><td class="py-3 px-4">Q7</td><td class="py-3 px-4 text-right font-semibold text-amber-600">3</td><td class="py-3 px-4 text-right text-slate-500">1</td></tr>
-</tbody>
+<tbody id="inv-tbody" class="divide-y divide-slate-100"></tbody>
 </table>
 </div>
 <script src="../js/inventory-overview.js" defer></script>
 </main>
+<script src="../js/ro-nav-acl.js" defer></script>
 </body>
 </html>
