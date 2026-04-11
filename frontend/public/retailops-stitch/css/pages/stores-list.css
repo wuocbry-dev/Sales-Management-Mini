@@ -1,7 +1,0 @@
-/* Tên class riêng để không trùng utility line-clamp của Tailwind CDN */
-.ro-line-clamp-1 {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
