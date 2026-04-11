@@ -2,6 +2,7 @@ package com.quanlybanhang.repository;
 
 import com.quanlybanhang.model.SalesReturn;
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -24,4 +25,7 @@ public interface SalesReturnRepository
       @Param("orderId") Long orderId,
       @Param("orderItemId") Long orderItemId,
       @Param("status") String status);
+
+  @Query("select count(r) from SalesReturn r where r.storeId in :storeIds")
+  long countReturnsForStoreIds(@Param("storeIds") Collection<Long> storeIds);
 }

@@ -32,6 +32,9 @@ public class Stocktake {
   @Column(name = "store_id", nullable = false)
   private Long storeId;
 
+  @Column(name = "warehouse_id", nullable = false)
+  private Long warehouseId;
+
   @Column(name = "stocktake_date", nullable = false)
   private LocalDateTime stocktakeDate;
 

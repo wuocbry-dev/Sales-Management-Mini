@@ -22,6 +22,8 @@ public final class SalesOrderDtos {
 
   public record SalesOrderCreateRequest(
       @NotNull Long storeId,
+      /** Null = trừ tồn kho tổng (CENTRAL); có giá trị = kho chi nhánh tương ứng. */
+      Long branchId,
       Long customerId,
       @NotNull LocalDateTime orderDate,
       @NotNull @DecimalMin(value = "0") BigDecimal headerDiscountAmount,
@@ -63,6 +65,7 @@ public final class SalesOrderDtos {
       Long id,
       String orderCode,
       Long storeId,
+      Long branchId,
       Long customerId,
       Long cashierId,
       LocalDateTime orderDate,

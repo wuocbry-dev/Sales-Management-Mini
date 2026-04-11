@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Quản lý bán hàng API",
-    "description": "**Mục đích:** gọi thử toàn bộ REST backend (Spring) — đăng ký/đăng nhập, master data, bán hàng, kho, người dùng (ADMIN).\n\n**Cách dùng nhanh:**\n1. Sửa biến collection `loginUsername` / `loginPassword`.\n2. **00 - Auth → POST login** (hoặc POST register): script Tests tự lưu `accessToken`.\n3. Các folder khác kế thừa **Bearer {{accessToken}}**.\n4. **Không cần token:** `GET /health`, `POST /auth/register`, `POST /auth/login`.\n5. **Tồn kho / giao dịch kho:** user thường chỉ xem được `storeId` được gán trong JWT; ADMIN xem mọi cửa hàng.\n6. Chỉnh `baseUrl`, `storeId`, `variantId`, `userId`, … theo dữ liệu MySQL của bạn.",
+    "description": "**Mục đích:** gọi thử REST backend — auth, master data, **kho theo warehouse**, chi nhánh, chuyển kho (send/receive), báo cáo, RBAC.\n\n**DB / 500:** Schema MySQL phải khớp `Docx/sql/DataBase.sql` (ví dụ bảng `branches` có `phone`, `email`). Backend có thể bật `spring.jpa.hibernate.ddl-auto=update` để tự thêm cột thiếu khi khởi động; hoặc chạy `Docx/sql/migrations/20260411_branches_phone_email.sql`. Sau khi đổi quyền role trên server, **login lại** để JWT có `STORE_CREATE` / `storeIds` mới.\n\n**Cách dùng nhanh:**\n1. Sửa `loginUsername` / `loginPassword`; **POST login** hoặc **POST register** (script lưu `accessToken`).\n2. **Đăng ký** công khai → role mặc định **STORE_MANAGER** (không còn user đầu = SYSTEM_ADMIN).\n3. Điền `storeId`, `warehouseId` (kho tổng thường có mã **CENTRAL**), `branchId` theo DB.\n4. **Không token:** `/health`, `/auth/register`, `/auth/login`.\n5. **SYSTEM_ADMIN / quản trị:** `/api/users`, `/api/rbac/*`.\n6. **STORE_MANAGER:** user theo cửa hàng `/api/stores/{storeId}/users`, gán chi nhánh; **tạo thu ngân / NV kho:** `POST /api/users/store-staff` (chỉ CASHIER / WAREHOUSE_STAFF, `branchId` thuộc store được gán).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -34,7 +34,16 @@
     { "key": "receiptId", "value": "1" },
     { "key": "returnId", "value": "1" },
     { "key": "transferId", "value": "1" },
-    { "key": "stocktakeId", "value": "1" }
+    { "key": "stocktakeId", "value": "1" },
+    { "key": "branchId", "value": "1" },
+    { "key": "warehouseId", "value": "1" },
+    { "key": "fromWarehouseId", "value": "1" },
+    { "key": "toWarehouseId", "value": "2" },
+    { "key": "permissionOverrideId", "value": "1" },
+    { "key": "rbacRoleId", "value": "1" },
+    { "key": "permissionId", "value": "1" },
+    { "key": "staffUserId", "value": "1" },
+    { "key": "toBranchId", "value": "2" }
   ],
   "item": [
     {
@@ -42,7 +51,7 @@
       "description": "Đăng ký tài khoản mới, đăng nhập lấy JWT, xem profile user hiện tại (`/me`).",
       "item": [
         {
-          "name": "POST register — tạo user mới (user đầu = ADMIN)",
+          "name": "POST register — tạo user (role STORE_MANAGER mặc định)",
           "event": [
             {
               "listen": "test",
@@ -66,7 +75,7 @@
               "raw": "{\n  \"username\": \"demo_user\",\n  \"email\": \"demo@example.com\",\n  \"password\": \"secret12\",\n  \"fullName\": \"Người dùng demo\",\n  \"phone\": null\n}"
             },
             "url": "{{baseUrl}}/auth/register",
-            "description": "**Dùng để:** đăng ký. User đầu tiên trong DB nhận role ADMIN; các user sau nhận role mặc định (thường CASHIER). Trả về `accessToken`, `user`, `roles`, `permissions` — giống login. Script lưu token vào `accessToken`."
+            "description": "**Dùng để:** đăng ký công khai. Mọi user nhận role **STORE_MANAGER** (quản lý cửa hàng) theo cấu hình backend; **SYSTEM_ADMIN** chỉ tạo qua seed SQL / tài khoản quản trị. Trả về JWT + `roles` + `permissions`. Script lưu `accessToken`."
           }
         },
         {
@@ -153,10 +162,10 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"storeCode\": \"CH001\",\n  \"storeName\": \"Cửa hàng mẫu\",\n  \"phone\": \"0900000001\",\n  \"email\": \"store@example.com\",\n  \"address\": \"123 Đường ABC\",\n  \"status\": \"active\"\n}"
+              "raw": "{\n  \"storeCode\": \"CH001\",\n  \"storeName\": \"Cửa hàng mẫu\",\n  \"phone\": \"0900000001\",\n  \"email\": \"store@example.com\",\n  \"address\": \"123 Đường ABC\",\n  \"status\": \"ACTIVE\"\n}"
             },
             "url": "{{baseUrl}}/stores",
-            "description": "**Dùng để:** tạo cửa hàng. `status` trong app thường là `active`/`inactive` (chuỗi, khớp JPA)."
+            "description": "**Dùng để:** tạo cửa hàng. `status` trong DB là ENUM `ACTIVE`/`INACTIVE`; API chuẩn hóa `trim()` + chữ hoa (ví dụ `active` → `ACTIVE`)."
           }
         },
         {
@@ -166,7 +175,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"storeCode\": \"CH001\",\n  \"storeName\": \"Cửa hàng đổi tên\",\n  \"phone\": \"0900000001\",\n  \"email\": \"store@example.com\",\n  \"address\": \"123 Đường ABC\",\n  \"status\": \"active\"\n}"
+              "raw": "{\n  \"storeCode\": \"CH001\",\n  \"storeName\": \"Cửa hàng đổi tên\",\n  \"phone\": \"0900000001\",\n  \"email\": \"store@example.com\",\n  \"address\": \"123 Đường ABC\",\n  \"status\": \"ACTIVE\"\n}"
             },
             "url": "{{baseUrl}}/stores/{{storeId}}",
             "description": "**Dùng để:** sửa thông tin cửa hàng. Đổi biến `storeId` cho đúng bản ghi."
@@ -388,10 +397,10 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"categoryId\": 1,\n  \"brandId\": 1,\n  \"unitId\": 1,\n  \"productCode\": \"SP001\",\n  \"productName\": \"Sản phẩm mẫu\",\n  \"productType\": \"simple\",\n  \"hasVariant\": true,\n  \"trackInventory\": true,\n  \"description\": \"Mô tả\",\n  \"status\": \"active\",\n  \"variants\": [\n    {\n      \"sku\": \"SP001-DO-M\",\n      \"barcode\": \"8930000000001\",\n      \"variantName\": \"Đỏ / M\",\n      \"attributesJson\": \"{\\\"color\\\":\\\"red\\\",\\\"size\\\":\\\"M\\\"}\",\n      \"costPrice\": 100000.0000,\n      \"sellingPrice\": 150000.0000,\n      \"reorderLevel\": 5.0000,\n      \"status\": \"active\"\n    }\n  ]\n}"
+              "raw": "{\n  \"categoryId\": 1,\n  \"brandId\": 1,\n  \"unitId\": 1,\n  \"productCode\": \"SP001\",\n  \"productName\": \"Sản phẩm mẫu\",\n  \"productType\": \"NORMAL\",\n  \"hasVariant\": true,\n  \"trackInventory\": true,\n  \"description\": \"Mô tả\",\n  \"status\": \"ACTIVE\",\n  \"variants\": [\n    {\n      \"sku\": \"SP001-DO-M\",\n      \"barcode\": \"8930000000001\",\n      \"variantName\": \"Đỏ / M\",\n      \"attributesJson\": \"{\\\"color\\\":\\\"red\\\",\\\"size\\\":\\\"M\\\"}\",\n      \"costPrice\": 100000.0000,\n      \"sellingPrice\": 150000.0000,\n      \"reorderLevel\": 5.0000,\n      \"status\": \"ACTIVE\"\n    }\n  ]\n}"
             },
             "url": "{{baseUrl}}/products",
-            "description": "**Dùng để:** tạo mới sản phẩm; bắt buộc có ít nhất một `variants` (SKU). `variantId` sau này dùng cho tồn kho, bán hàng, phiếu nhập."
+            "description": "**Dùng để:** tạo mới sản phẩm; bắt buộc có ít nhất một `variants` (SKU). `productType` trong DB: **NORMAL** hoặc **SERVICE** (không dùng `simple`). `status` / variant `status`: ENUM **ACTIVE**/**INACTIVE** (API cũng chấp nhận chữ thường và chuẩn hóa). `variantId` sau này dùng cho tồn kho, bán hàng, phiếu nhập."
           }
         }
       ]
@@ -425,10 +434,10 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerCode\": \"KH001\",\n  \"fullName\": \"Khách lẻ mẫu\",\n  \"phone\": \"0922222222\",\n  \"email\": \"khach@example.com\",\n  \"gender\": \"other\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"address\": \"TP.HCM\",\n  \"status\": \"active\"\n}"
+              "raw": "{\n  \"customerCode\": \"KH001\",\n  \"fullName\": \"Khách lẻ mẫu\",\n  \"phone\": \"0922222222\",\n  \"email\": \"khach@example.com\",\n  \"gender\": \"OTHER\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"address\": \"TP.HCM\",\n  \"status\": \"ACTIVE\"\n}"
             },
             "url": "{{baseUrl}}/customers",
-            "description": "**Dùng để:** thêm khách mới; lấy `customerId` gắn vào đơn bán."
+            "description": "**Dùng để:** thêm khách mới; lấy `customerId` gắn vào đơn bán. `gender`: **MALE** / **FEMALE** / **OTHER**; `status`: **ACTIVE** / **INACTIVE** (API chuẩn hóa chữ hoa)."
           }
         },
         {
@@ -438,7 +447,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerCode\": \"KH001\",\n  \"fullName\": \"Khách đổi tên\",\n  \"phone\": \"0922222222\",\n  \"email\": \"khach@example.com\",\n  \"gender\": \"other\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"address\": \"TP.HCM\",\n  \"status\": \"active\"\n}"
+              "raw": "{\n  \"customerCode\": \"KH001\",\n  \"fullName\": \"Khách đổi tên\",\n  \"phone\": \"0922222222\",\n  \"email\": \"khach@example.com\",\n  \"gender\": \"OTHER\",\n  \"dateOfBirth\": \"1990-05-15\",\n  \"address\": \"TP.HCM\",\n  \"status\": \"ACTIVE\"\n}"
             },
             "url": "{{baseUrl}}/customers/{{customerId}}",
             "description": "**Dùng để:** sửa thông tin khách."
@@ -447,32 +456,50 @@
       ]
     },
     {
-      "name": "05 - Inventory",
-      "description": "Tồn kho theo cửa hàng + lịch sử giao dịch tồn. User thường chỉ được `storeId` nằm trong JWT; ADMIN xem mọi cửa — sai store → 403.",
+      "name": "05 - Inventory (warehouse)",
+      "description": "Tồn kho theo **kho** (`warehouseId`) hoặc gộp theo **cửa hàng** (`storeId` = tất cả kho trong store). Giao dịch tồn bắt buộc `warehouseId`.",
       "item": [
         {
-          "name": "GET inventories — tồn kho theo cửa hàng",
+          "name": "GET inventories — theo một kho (warehouseId)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/inventories?warehouseId={{warehouseId}}&page=0&size=20",
+            "description": "**Dùng để:** xem tồn từng variant tại **một kho** (kho tổng CENTRAL hoặc kho chi nhánh). Cần quyền `INVENTORY_VIEW` + phạm vi JWT."
+          }
+        },
+        {
+          "name": "GET inventories — gộp mọi kho của cửa hàng (storeId)",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/inventories?storeId={{storeId}}&page=0&size=20",
-            "description": "**Dùng để:** xem `quantityOnHand` / `reservedQty` theo từng variant tại một cửa hàng. Cần `INVENTORY_VIEW` hoặc ADMIN."
+            "description": "**Dùng để:** xem tồn **gộp tất cả kho** thuộc `storeId` (kho tổng + các kho chi nhánh). Phải có **một trong hai**: `warehouseId` hoặc `storeId`."
           }
         },
         {
-          "name": "GET inventory-transactions — biến động tồn theo cửa",
+          "name": "GET inventories/availability — tồn variant theo từng kho trong store",
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/inventory-transactions?storeId={{storeId}}&page=0&size=20",
-            "description": "**Dùng để:** xem log nhập/xuất/điều chỉnh. Bắt buộc `storeId`. Tùy chọn: `transactionType`, `variantId`, `fromCreatedAt`, `toCreatedAt` (ISO-8601)."
+            "url": "{{baseUrl}}/inventories/availability?storeId={{storeId}}&variantId={{variantId}}",
+            "description": "**Dùng để:** biết variant còn ở **kho tổng / kho branch nào** và số lượng từng nơi (điều phối khi chi nhánh hết hàng)."
+          }
+        },
+        {
+          "name": "GET inventory-transactions — biến động tồn theo kho",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/inventory-transactions?warehouseId={{warehouseId}}&page=0&size=20",
+            "description": "**Dùng để:** lịch sử nhập/xuất/kiểm kê/chuyển kho… **bắt buộc `warehouseId`**. Thêm tùy chọn: `transactionType`, `variantId`, `fromCreatedAt`, `toCreatedAt` (ISO-8601)."
           }
         }
       ]
     },
     {
       "name": "06 - Goods receipts",
-      "description": "Phiếu nhập kho: tạo draft → confirm để cộng tồn + ghi inventory transaction. `created_by` / `approved_by` lấy từ JWT.",
+      "description": "Phiếu nhập: **nhập vào `warehouseId`** (bỏ qu/null = kho tổng CENTRAL của store). Draft → **confirm** cộng tồn đúng kho + ghi inventory transaction.",
       "item": [
         {
           "name": "GET goods-receipts — danh sách phiếu nhập",
@@ -480,7 +507,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/goods-receipts?page=0&size=20",
-            "description": "**Dùng để:** tra cứu phiếu nhập. Filter: `storeId`, `status`, `fromReceiptDate`, `toReceiptDate` (ISO date-time)."
+            "description": "**Dùng để:** tra cứu phiếu nhập. Filter: `storeId`, `status`, `fromReceiptDate`, `toReceiptDate` (ISO). Response có `warehouseId` (kho nhập)."
           }
         },
         {
@@ -499,10 +526,10 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"storeId\": {{storeId}},\n  \"supplierId\": {{supplierId}},\n  \"receiptDate\": \"2026-04-10T10:00:00\",\n  \"headerDiscountAmount\": 0,\n  \"note\": \"Nhập hàng test Postman\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 10.0000,\n      \"unitCost\": 80000.0000,\n      \"discountAmount\": 0\n    }\n  ]\n}"
+              "raw": "{\n  \"storeId\": {{storeId}},\n  \"warehouseId\": null,\n  \"supplierId\": {{supplierId}},\n  \"receiptDate\": \"2026-04-10T10:00:00\",\n  \"headerDiscountAmount\": 0,\n  \"note\": \"Nhập hàng test Postman — warehouseId null = kho tổng\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 10.0000,\n      \"unitCost\": 80000.0000,\n      \"discountAmount\": 0\n    }\n  ]\n}"
             },
             "url": "{{baseUrl}}/goods-receipts",
-            "description": "**Dùng để:** lập phiếu nhập chưa nhập kho. User phải được phép thao tác trên `storeId` (JWT storeIds hoặc ADMIN). `created_by` = user đăng nhập."
+            "description": "**Dùng để:** tạo phiếu nhập **draft**. `warehouseId`: **null** = nhập vào **kho tổng** (CENTRAL); hoặc ghi số id kho chi nhánh để nhập thẳng branch. `created_by` = user JWT."
           }
         },
         {
@@ -511,14 +538,14 @@
             "method": "POST",
             "header": [],
             "url": "{{baseUrl}}/goods-receipts/{{receiptId}}/confirm",
-            "description": "**Dùng để:** chốt phiếu draft → cộng tồn + ghi `inventory_transactions`. Kiểm tra quyền trên cửa hàng của phiếu. `approved_by` = user đăng nhập."
+            "description": "**Dùng để:** chốt phiếu draft → **cộng tồn đúng `warehouseId`** của phiếu + ghi `inventory_transactions`. Chỉ trạng thái draft. `approved_by` = user JWT."
           }
         }
       ]
     },
     {
       "name": "07 - Sales orders",
-      "description": "Đơn bán: draft → confirm (thanh toán) hoặc cancel.",
+      "description": "Đơn bán: **có `branchId`** → trừ tồn **kho chi nhánh**; **không `branchId`** → trừ **kho tổng**. Draft → confirm (thanh toán) / cancel.",
       "item": [
         {
           "name": "GET sales-orders — danh sách đơn",
@@ -545,10 +572,23 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"storeId\": {{storeId}},\n  \"customerId\": {{customerId}},\n  \"orderDate\": \"2026-04-10T14:30:00\",\n  \"headerDiscountAmount\": 0,\n  \"note\": \"Bán lẻ test\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 1.0000,\n      \"unitPrice\": 150000.0000,\n      \"discountAmount\": 0\n    }\n  ]\n}"
+              "raw": "{\n  \"storeId\": {{storeId}},\n  \"branchId\": null,\n  \"customerId\": {{customerId}},\n  \"orderDate\": \"2026-04-10T14:30:00\",\n  \"headerDiscountAmount\": 0,\n  \"note\": \"Bán lẻ — branchId null = trừ kho tổng\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 1.0000,\n      \"unitPrice\": 150000.0000,\n      \"discountAmount\": 0\n    }\n  ]\n}"
             },
             "url": "{{baseUrl}}/sales-orders",
-            "description": "**Dùng để:** tạo đơn chưa thanh toán; lưu `orderId` để confirm/cancel."
+            "description": "**Dùng để:** tạo đơn **draft**. `branchId`: **null** = bán từ **kho tổng**; đặt `{{branchId}}` = bán từ **kho chi nhánh** đó (phải có tồn ở kho branch)."
+          }
+        },
+        {
+          "name": "POST sales-order — draft bán tại chi nhánh (branchId)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"storeId\": {{storeId}},\n  \"branchId\": {{branchId}},\n  \"customerId\": null,\n  \"orderDate\": \"2026-04-10T14:30:00\",\n  \"headerDiscountAmount\": 0,\n  \"note\": \"Bán tại chi nhánh — trừ kho branch\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 1.0000,\n      \"unitPrice\": 150000.0000,\n      \"discountAmount\": 0\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/sales-orders",
+            "description": "**Dùng để:** đơn **POS chi nhánh**: trừ tồn **kho của branch** (không trừ kho tổng). Cần tồn đủ trên kho branch."
           }
         },
         {
@@ -635,8 +675,8 @@
       ]
     },
     {
-      "name": "09 - Stock transfers",
-      "description": "Chuyển kho giữa hai cửa hàng: draft → confirm.",
+      "name": "09 - Stock transfers (warehouse)",
+      "description": "Chuyển kho **trong cùng store**: hai bước — **send** (trừ kho nguồn) → **receive** (cộng kho đích). Không còn `/confirm` một bước.",
       "item": [
         {
           "name": "GET stock-transfers — danh sách phiếu chuyển",
@@ -644,45 +684,63 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/stock-transfers?page=0&size=20",
-            "description": "**Dùng để:** tra cứu chuyển kho. Filter: `fromStoreId`, `toStoreId`, `status`."
+            "description": "**Dùng để:** tra cứu phiếu. Filter: `fromWarehouseId`, `toWarehouseId`, `status` (draft / sent / completed)."
           }
         },
         {
-          "name": "GET stock-transfer by id — chi tiết phiếu chuyển",
+          "name": "GET stock-transfers — lọc theo kho nguồn/đích",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/stock-transfers?page=0&size=20&fromWarehouseId={{fromWarehouseId}}&toWarehouseId={{toWarehouseId}}",
+            "description": "**Dùng để:** lọc phiếu theo **kho nguồn** và/hoặc **kho đích** (cùng cửa hàng)."
+          }
+        },
+        {
+          "name": "GET stock-transfer by id — chi tiết phiếu + dòng",
           "request": {
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/stock-transfers/{{transferId}}",
-            "description": "**Dùng để:** xem một phiếu chuyển và các dòng hàng."
+            "description": "**Dùng để:** xem một phiếu (mã, trạng thái, `fromWarehouseId` / `toWarehouseId`, lines)."
           }
         },
         {
-          "name": "POST stock-transfer — tạo phiếu chuyển (draft)",
+          "name": "POST stock-transfer — tạo phiếu (draft)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"fromStoreId\": {{storeId}},\n  \"toStoreId\": {{toStoreId}},\n  \"transferDate\": \"2026-04-10T11:00:00\",\n  \"note\": \"Chuyển kho test\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 2.0000\n    }\n  ]\n}"
+              "raw": "{\n  \"fromWarehouseId\": {{fromWarehouseId}},\n  \"toWarehouseId\": {{toWarehouseId}},\n  \"transferDate\": \"2026-04-10T11:00:00\",\n  \"note\": \"Chuyển kho nội bộ (cùng store)\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"quantity\": 2.0000\n    }\n  ]\n}"
             },
             "url": "{{baseUrl}}/stock-transfers",
-            "description": "**Dùng để:** lập phiếu chuyển từ `fromStoreId` sang `toStoreId`."
+            "description": "**Dùng để:** tạo phiếu **draft** giữa hai kho **cùng cửa hàng** (kho tổng ↔ kho chi nhánh hoặc branch ↔ branch). Điền `fromWarehouseId` / `toWarehouseId` từ GET warehouses."
           }
         },
         {
-          "name": "POST stock-transfer confirm — xác nhận chuyển (trừ/ cộng tồn)",
+          "name": "POST stock-transfer send — xuất kho nguồn (draft → sent)",
           "request": {
             "method": "POST",
             "header": [],
-            "url": "{{baseUrl}}/stock-transfers/{{transferId}}/confirm",
-            "description": "**Dùng để:** hoàn tất chuyển kho, cập nhật tồn hai bên."
+            "url": "{{baseUrl}}/stock-transfers/{{transferId}}/send",
+            "description": "**Dùng để:** bước 1 — **trừ tồn kho nguồn**; trạng thái draft → sent. Không gọi lặp khi đã sent."
+          }
+        },
+        {
+          "name": "POST stock-transfer receive — nhập kho đích (sent → completed)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/stock-transfers/{{transferId}}/receive",
+            "description": "**Dùng để:** bước 2 — **cộng tồn kho đích**; trạng thái sent → completed. Phải gọi sau **send**."
           }
         }
       ]
     },
     {
       "name": "10 - Stocktakes",
-      "description": "Kiểm kê kho: nhập số thực tế → confirm điều chỉnh chênh lệch.",
+      "description": "Kiểm kê **theo từng kho** (`warehouseId` bắt buộc): so sánh tồn hệ thống vs số thực tế → **confirm** điều chỉnh.",
       "item": [
         {
           "name": "GET stocktakes — danh sách phiếu kiểm kê",
@@ -709,10 +767,10 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"storeId\": {{storeId}},\n  \"stocktakeDate\": \"2026-04-10T09:00:00\",\n  \"note\": \"Kiểm kê mẫu\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"actualQty\": 100.0000,\n      \"note\": \"Đếm thực tế\"\n    }\n  ]\n}"
+              "raw": "{\n  \"storeId\": {{storeId}},\n  \"warehouseId\": {{warehouseId}},\n  \"stocktakeDate\": \"2026-04-10T09:00:00\",\n  \"note\": \"Kiểm kê theo một kho\",\n  \"lines\": [\n    {\n      \"variantId\": {{variantId}},\n      \"actualQty\": 100.0000,\n      \"note\": \"Đếm thực tế\"\n    }\n  ]\n}"
             },
             "url": "{{baseUrl}}/stocktakes",
-            "description": "**Dùng để:** tạo phiếu kiểm kê với số lượng thực tế (`actualQty`) từng variant."
+            "description": "**Dùng để:** tạo phiếu **draft** cho **một kho** (`warehouseId`). `systemQty` trên dòng lấy từ tồn kho đó; `actualQty` = số đếm thực tế."
           }
         },
         {
@@ -721,14 +779,14 @@
             "method": "POST",
             "header": [],
             "url": "{{baseUrl}}/stocktakes/{{stocktakeId}}/confirm",
-            "description": "**Dùng để:** áp chênh lệch kiểm kê vào tồn kho."
+            "description": "**Dùng để:** chốt phiếu draft → điều chỉnh tồn **đúng `warehouseId`** của phiếu kiểm kê (ghi inventory transaction)."
           }
         }
       ]
     },
     {
-      "name": "11 - Users (ADMIN)",
-      "description": "Quản trị người dùng: chỉ role **ADMIN**. Các request khác trả 403 nếu không phải admin.",
+      "name": "11 - Users (SYSTEM_ADMIN / ADMIN)",
+      "description": "Quản trị user toàn hệ thống: **SYSTEM_ADMIN** hoặc **ADMIN** (`@authz.systemManage`). Người dùng **STORE_MANAGER** dùng folder **12** để xem user trong cửa hàng.",
       "item": [
         {
           "name": "GET users — danh sách user (phân trang)",
@@ -736,7 +794,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/users?page=0&size=20",
-            "description": "**Dùng để:** xem toàn bộ user hệ thống (cần ADMIN)."
+            "description": "**Dùng để:** xem toàn bộ user (chỉ **SYSTEM_ADMIN** hoặc **ADMIN**)."
           }
         },
         {
@@ -758,7 +816,7 @@
               "raw": "{\n  \"username\": \"staff01\",\n  \"email\": \"staff01@example.com\",\n  \"password\": \"secret12\",\n  \"fullName\": \"Nhân viên 01\",\n  \"phone\": null,\n  \"defaultStoreId\": {{storeId}},\n  \"roleIds\": [2],\n  \"storeIds\": [{{storeId}}],\n  \"primaryStoreId\": {{storeId}}\n}"
             },
             "url": "{{baseUrl}}/users",
-            "description": "**Dùng để:** tạo user mới. `roleIds`: id trong bảng `roles` (ví dụ 1=ADMIN, 2=CASHIER — kiểm tra DB). `storeIds`/`primaryStoreId` gán cửa hàng."
+            "description": "**Dùng để:** tạo user mới. `roleIds`: id bảng `roles` (tra GET `/api/rbac/roles`). `storeIds` / `primaryStoreId` gán phạm vi cửa hàng (JWT `storeIds`)."
           }
         },
         {
@@ -811,6 +869,320 @@
             },
             "url": "{{baseUrl}}/users/{{userId}}/stores",
             "description": "**Dùng để:** cập nhật cửa hàng user được phép thao tác (ảnh hưởng claim `storeIds` trong JWT sau khi đăng nhập lại)."
+          }
+        },
+        {
+          "name": "PUT user branches — gán chi nhánh + chi nhánh chính (toàn hệ thống)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchIds\": [{{branchId}}],\n  \"primaryBranchId\": {{branchId}}\n}"
+            },
+            "url": "{{baseUrl}}/users/{{userId}}/branches",
+            "description": "**Dùng để:** gán user vào các **chi nhánh** (JWT `branchIds`). Cần **SYSTEM_ADMIN** / **ADMIN**."
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Branches, warehouses, users theo cửa hàng",
+      "description": "**Chi nhánh** và **kho** (kho tổng CENTRAL + kho WH-B-* mỗi branch). **User trong store** — STORE_MANAGER có `USER_VIEW` nhưng không gọi được `/api/users`.",
+      "item": [
+        {
+          "name": "GET branches — danh sách chi nhánh của store",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/stores/{{storeId}}/branches?page=0&size=20",
+            "description": "**Dùng để:** liệt kê chi nhánh thuộc `storeId`. Quyền `BRANCH_VIEW`."
+          }
+        },
+        {
+          "name": "GET branch by id — chi tiết một chi nhánh",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/stores/{{storeId}}/branches/{{branchId}}",
+            "description": "**Dùng để:** xem một chi nhánh (mã, tên, SĐT, email…)."
+          }
+        },
+        {
+          "name": "POST branch — tạo chi nhánh (tự tạo kho branch)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchCode\": \"CN01\",\n  \"branchName\": \"Chi nhánh mẫu\",\n  \"phone\": \"0900000000\",\n  \"email\": \"cn@example.com\",\n  \"address\": \"Địa chỉ\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "url": "{{baseUrl}}/stores/{{storeId}}/branches",
+            "description": "**Dùng để:** thêm chi nhánh; backend **tự tạo kho** gắn branch (`BRANCH_CREATE`)."
+          }
+        },
+        {
+          "name": "PUT branch — sửa chi nhánh",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchCode\": \"CN01\",\n  \"branchName\": \"Chi nhánh đổi tên\",\n  \"phone\": \"0900000000\",\n  \"email\": \"cn@example.com\",\n  \"address\": \"Địa chỉ\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "url": "{{baseUrl}}/stores/{{storeId}}/branches/{{branchId}}",
+            "description": "**Dùng để:** cập nhật thông tin chi nhánh (`BRANCH_UPDATE`)."
+          }
+        },
+        {
+          "name": "GET branches — alias query storeId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/branches?storeId={{storeId}}&page=0&size=20",
+            "description": "**Dùng để:** giống GET `/stores/{storeId}/branches` — tiện khi chỉ có query `storeId`."
+          }
+        },
+        {
+          "name": "GET branch by id — alias (chỉ branchId)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/branches/{{branchId}}",
+            "description": "**Dùng để:** xem chi nhánh theo id (không cần `storeId` trên path)."
+          }
+        },
+        {
+          "name": "POST branch — alias ?storeId=",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchCode\": \"CN02\",\n  \"branchName\": \"Chi nhánh 2\",\n  \"phone\": null,\n  \"email\": null,\n  \"address\": null,\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "url": "{{baseUrl}}/branches?storeId={{storeId}}",
+            "description": "**Dùng để:** tạo chi nhánh qua **POST /branches?storeId=** (cùng body với nested)."
+          }
+        },
+        {
+          "name": "PUT branch — alias (chỉ branchId)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchCode\": \"CN01\",\n  \"branchName\": \"Chi nhánh đổi tên (alias)\",\n  \"phone\": \"0900000000\",\n  \"email\": \"cn@example.com\",\n  \"address\": \"Địa chỉ\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "url": "{{baseUrl}}/branches/{{branchId}}",
+            "description": "**Dùng để:** cùng nghiệp vụ **PUT** `/stores/{storeId}/branches/{branchId}` nhưng chỉ cần `branchId` trên path (`BranchController.updateById`)."
+          }
+        },
+        {
+          "name": "GET warehouses — danh sách kho của cửa hàng",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/stores/{{storeId}}/warehouses",
+            "description": "**Dùng để:** lấy **kho tổng** (CENTRAL) + **kho từng chi nhánh** — dùng id cho phiếu nhập / chuyển kho / kiểm kê. `INVENTORY_VIEW`."
+          }
+        },
+        {
+          "name": "GET warehouses — alias ?storeId=",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/warehouses?storeId={{storeId}}",
+            "description": "**Dùng để:** cùng dữ liệu với GET `/stores/{storeId}/warehouses`."
+          }
+        },
+        {
+          "name": "GET warehouse by id — chi tiết một kho",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/stores/{{storeId}}/warehouses/{{warehouseId}}",
+            "description": "**Dùng để:** xem một kho (loại CENTRAL/BRANCH, `branchId` nếu có)."
+          }
+        },
+        {
+          "name": "GET users theo cửa hàng — danh sách user trong store",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/stores/{{storeId}}/users?page=0&size=20",
+            "description": "**Dùng để:** **STORE_MANAGER** (hoặc admin) xem user thuộc **một cửa hàng** — không dùng `/api/users`."
+          }
+        },
+        {
+          "name": "PUT user branches theo store — gán chi nhánh cho user trong phạm vi store",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branchIds\": [{{branchId}}],\n  \"primaryBranchId\": {{branchId}}\n}"
+            },
+            "url": "{{baseUrl}}/stores/{{storeId}}/users/{{userId}}/branches",
+            "description": "**Dùng để:** **STORE_MANAGER** gán nhân viên vào chi nhánh (`USER_ASSIGN_BRANCH`). `branchIds` phải thuộc `storeId`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "12b - Store staff (STORE_MANAGER / admin)",
+      "description": "**CASHIER / WAREHOUSE_STAFF** — `POST|GET|PUT /api/users/store-staff`. Tạo + đổi chi nhánh trong cùng store; `toBranchId` = chi nhánh đích (cùng `storeId` với nhân viên).",
+      "item": [
+        {
+          "name": "POST users/store-staff — tạo thu ngân / NV kho",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  var j = pm.response.json();",
+                  "  if (j.userId) pm.collectionVariables.set('staffUserId', String(j.userId));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"cashier_cn1\",\n  \"password\": \"123456@Abc\",\n  \"fullName\": \"Thu ngân Chi nhánh 1\",\n  \"phone\": \"0909123456\",\n  \"email\": \"cashier.cn1@company.com\",\n  \"roleCode\": \"CASHIER\",\n  \"branchId\": {{branchId}}\n}"
+            },
+            "url": "{{baseUrl}}/users/store-staff",
+            "description": "**Dùng để:** STORE_MANAGER hoặc SYSTEM_ADMIN tạo user **CASHIER** hoặc **WAREHOUSE_STAFF** gán `user_stores`, `user_branches`, một role. Lỗi: `USERNAME_ALREADY_EXISTS`, `EMAIL_ALREADY_EXISTS`, `INVALID_ROLE_FOR_STORE_MANAGER`, `BRANCH_NOT_FOUND`, `BRANCH_NOT_IN_MANAGER_STORE`, `STORE_MANAGER_NOT_ASSIGNED_TO_STORE`."
+          }
+        },
+        {
+          "name": "GET users/store-staff — danh sách (filter roleCode, branchId, status, storeId)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/store-staff?page=0&size=20&roleCode=CASHIER",
+            "description": "**Dùng để:** liệt kê nhân viên trong phạm vi store của STORE_MANAGER. **SYSTEM_ADMIN:** không `storeId` = toàn hệ thống; có `storeId` = một cửa hàng."
+          }
+        },
+        {
+          "name": "GET users/store-staff/{id} — chi tiết một nhân viên",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/store-staff/{{staffUserId}}",
+            "description": "**Dùng để:** xem một user CASHIER/WAREHOUSE trong phạm vi quản lý (STORE_MANAGER) hoặc bất kỳ (admin)."
+          }
+        },
+        {
+          "name": "PUT users/store-staff/{id}/change-branch — đổi chi nhánh nhân viên",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newBranchId\": {{toBranchId}}\n}"
+            },
+            "url": "{{baseUrl}}/users/store-staff/{{staffUserId}}/change-branch",
+            "description": "**Dùng để:** STORE_MANAGER / admin chuyển CASHIER hoặc WAREHOUSE_STAFF sang chi nhánh khác **cùng cửa hàng**. Cập nhật `user_branches` (một dòng, primary = chi nhánh mới). Đặt `toBranchId` khác `branchId` ban đầu. Lỗi: `USER_NOT_FOUND`, `BRANCH_NOT_FOUND`, `INVALID_TARGET_ROLE`, `USER_NOT_IN_MANAGER_SCOPE`, `TARGET_BRANCH_NOT_IN_MANAGER_STORE`, `SAME_BRANCH_ASSIGNMENT`, `FORBIDDEN`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Dashboard",
+      "description": "Chỉ số tổng quan (dashboard) — quyền `DASHBOARD_VIEW`.",
+      "item": [
+        {
+          "name": "GET dashboard/kpis — KPI tổng hợp",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/dashboard/kpis",
+            "description": "**Dùng để:** số liệu tổng quan (sản phẩm, cửa hàng, đơn, doanh thu, tồn thấp, trả hàng…) theo phạm vi JWT / admin."
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 - Reports",
+      "description": "Báo cáo doanh thu / đơn — `REPORT_VIEW` hoặc `REPORT_VIEW_BRANCH`.",
+      "item": [
+        {
+          "name": "GET reports/summary — tóm tắt báo cáo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/reports/summary",
+            "description": "**Dùng để:** tổng hợp báo cáo (theo logic `ReportQueryService`); phạm vi theo role (toàn store / chi nhánh)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 - RBAC (roles, permissions, overrides)",
+      "description": "Danh mục role/permission và **override** quyền theo role + optional store/branch. Cần quyền tương ứng hoặc **SYSTEM_ADMIN**.",
+      "item": [
+        {
+          "name": "GET rbac/roles — danh sách role (phân trang)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/rbac/roles?page=0&size=50",
+            "description": "**Dùng để:** xem `role_code` (SYSTEM_ADMIN, STORE_MANAGER, …) và id để gán user / override."
+          }
+        },
+        {
+          "name": "GET rbac/permissions — danh sách permission",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/rbac/permissions?page=0&size=100",
+            "description": "**Dùng để:** xem mã quyền (`ORDER_CREATE`, `INVENTORY_VIEW`, …) và id cho override."
+          }
+        },
+        {
+          "name": "GET rbac/permission-overrides — danh sách override",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/rbac/permission-overrides",
+            "description": "**Dùng để:** liệt kê override. Query tùy chọn: `roleId={{rbacRoleId}}` lọc theo role."
+          }
+        },
+        {
+          "name": "GET rbac/permission-overrides — theo roleId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/rbac/permission-overrides?roleId={{rbacRoleId}}",
+            "description": "**Dùng để:** chỉ xem override của một **role**."
+          }
+        },
+        {
+          "name": "POST rbac/permission-overrides — tạo ALLOW/DENY",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roleId\": {{rbacRoleId}},\n  \"permissionId\": {{permissionId}},\n  \"storeId\": {{storeId}},\n  \"branchId\": null,\n  \"overrideType\": \"ALLOW\"\n}"
+            },
+            "url": "{{baseUrl}}/rbac/permission-overrides",
+            "description": "**Dùng để:** thêm override: `overrideType` = **ALLOW** hoặc **DENY**; `storeId`/`branchId` tùy chọn (phạm vi). Đổi `permissionId` theo GET permissions."
+          }
+        },
+        {
+          "name": "DELETE rbac/permission-overrides/{id} — xóa override",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/rbac/permission-overrides/{{permissionOverrideId}}",
+            "description": "**Dùng để:** xóa một bản ghi override theo id (204 No Content khi thành công)."
           }
         }
       ]

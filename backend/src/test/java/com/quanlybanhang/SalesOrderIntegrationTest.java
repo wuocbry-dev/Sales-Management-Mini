@@ -20,6 +20,7 @@ import com.quanlybanhang.model.Role;
 import com.quanlybanhang.model.SalesOrder;
 import com.quanlybanhang.model.Store;
 import com.quanlybanhang.model.UserRoleAssignment;
+import com.quanlybanhang.model.UserStore;
 import com.quanlybanhang.repository.AppUserRepository;
 import com.quanlybanhang.repository.InventoryRepository;
 import com.quanlybanhang.repository.ProductRepository;
@@ -28,6 +29,8 @@ import com.quanlybanhang.repository.RoleRepository;
 import com.quanlybanhang.repository.SalesOrderRepository;
 import com.quanlybanhang.repository.StoreRepository;
 import com.quanlybanhang.repository.UserRoleAssignmentRepository;
+import com.quanlybanhang.repository.UserStoreRepository;
+import com.quanlybanhang.service.WarehouseService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,8 +63,11 @@ class SalesOrderIntegrationTest {
   @Autowired private ProductVariantRepository variantRepository;
   @Autowired private InventoryRepository inventoryRepository;
   @Autowired private SalesOrderRepository salesOrderRepository;
+  @Autowired private UserStoreRepository userStoreRepository;
+  @Autowired private WarehouseService warehouseService;
 
   private long storeId;
+  private long centralWarehouseId;
   private long variantId;
   private long cashierUserId;
   private String token;
@@ -70,12 +76,10 @@ class SalesOrderIntegrationTest {
   void seed() throws Exception {
     LocalDateTime t = LocalDateTime.now();
 
-    Role role = new Role();
-    role.setRoleCode("CASHIER");
-    role.setRoleName("Thu ngân");
-    role.setCreatedAt(t);
-    role.setUpdatedAt(t);
-    roleRepository.save(role);
+    Role role =
+        roleRepository
+            .findByRoleCode("CASHIER")
+            .orElseThrow(() -> new IllegalStateException("Thiếu role CASHIER (bootstrap)."));
 
     AppUser u = new AppUser();
     u.setUsername("itest_cashier");
@@ -99,6 +103,12 @@ class SalesOrderIntegrationTest {
     store.setUpdatedAt(t);
     storeRepository.save(store);
     storeId = store.getId();
+    centralWarehouseId = warehouseService.ensureCentralWarehouse(storeId).getId();
+
+    UserStore userStore = new UserStore();
+    userStore.setId(new UserStore.Pk(cashierUserId, storeId));
+    userStore.setPrimary(true);
+    userStoreRepository.save(userStore);
 
     Product p = new Product();
     p.setProductCode("P-IT-1");
@@ -127,7 +137,7 @@ class SalesOrderIntegrationTest {
     variantId = v.getId();
 
     Inventory inv = new Inventory();
-    inv.setStoreId(storeId);
+    inv.setWarehouseId(centralWarehouseId);
     inv.setVariantId(variantId);
     inv.setQuantityOnHand(new BigDecimal("10.0000"));
     inv.setReservedQty(BigDecimal.ZERO);
@@ -199,7 +209,9 @@ class SalesOrderIntegrationTest {
         .andExpect(jsonPath("$.status").value(DomainConstants.ORDER_COMPLETED));
 
     Inventory after =
-        inventoryRepository.findByStoreIdAndVariantId(storeId, variantId).orElseThrow();
+        inventoryRepository
+            .findByWarehouseIdAndVariantId(centralWarehouseId, variantId)
+            .orElseThrow();
     assertThat(after.getQuantityOnHand()).isEqualByComparingTo(new BigDecimal("8.0000"));
   }
 
@@ -290,8 +302,8 @@ class SalesOrderIntegrationTest {
                 .header("Authorization", "Bearer " + token)
                 .contentType(APPLICATION_JSON)
                 .content(createOrderJson(999_999L, variantId, BigDecimal.ONE, new BigDecimal("10"))))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("BUSINESS_RULE"));
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.code").value("FORBIDDEN"));
   }
 
   @Test

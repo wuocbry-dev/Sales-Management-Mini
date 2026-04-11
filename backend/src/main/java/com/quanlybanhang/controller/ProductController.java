@@ -26,7 +26,7 @@ public class ProductController {
   private final ProductService productService;
 
   @GetMapping
-  @PreAuthorize("hasRole('ADMIN') or hasAuthority('PRODUCT_VIEW')")
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_VIEW')")
   public Page<ProductResponse> list(
       Pageable pageable,
       @RequestParam(required = false) String status,
@@ -37,14 +37,14 @@ public class ProductController {
   }
 
   @GetMapping("/{id}")
-  @PreAuthorize("hasRole('ADMIN') or hasAuthority('PRODUCT_VIEW')")
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_VIEW')")
   public ProductResponse get(@PathVariable Long id) {
     return productService.getProduct(id);
   }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  @PreAuthorize("hasRole('ADMIN') or hasAuthority('PRODUCT_CREATE')")
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_CREATE')")
   public ProductResponse create(@Valid @RequestBody ProductCreateRequest req) {
     return productService.createProduct(req);
   }

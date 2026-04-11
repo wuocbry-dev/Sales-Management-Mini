@@ -1,33 +1,48 @@
 package com.quanlybanhang.service;
 
+import com.quanlybanhang.dto.UserDtos.AssignBranchesRequest;
 import com.quanlybanhang.dto.UserDtos.AssignRolesRequest;
 import com.quanlybanhang.dto.UserDtos.AssignStoresRequest;
+import com.quanlybanhang.dto.UserDtos.BranchRow;
+import com.quanlybanhang.dto.UserDtos.ChangeStoreStaffBranchRequest;
+import com.quanlybanhang.dto.UserDtos.ChangeStoreStaffBranchResponse;
+import com.quanlybanhang.dto.UserDtos.CreateStoreStaffRequest;
 import com.quanlybanhang.dto.UserDtos.CreateUserRequest;
 import com.quanlybanhang.dto.UserDtos.RoleRow;
 import com.quanlybanhang.dto.UserDtos.StoreRow;
+import com.quanlybanhang.dto.UserDtos.StoreStaffResponse;
 import com.quanlybanhang.dto.UserDtos.UpdateUserRequest;
 import com.quanlybanhang.dto.UserDtos.UpdateUserStatusRequest;
 import com.quanlybanhang.dto.UserDtos.UserDetailResponse;
 import com.quanlybanhang.dto.UserDtos.UserResponse;
+import com.quanlybanhang.exception.AuthApiException;
+import com.quanlybanhang.exception.AuthErrorCodes;
 import com.quanlybanhang.exception.BusinessException;
 import com.quanlybanhang.exception.ResourceNotFoundException;
 import com.quanlybanhang.model.AppUser;
+import com.quanlybanhang.model.Branch;
 import com.quanlybanhang.model.Role;
 import com.quanlybanhang.model.Store;
+import com.quanlybanhang.model.UserBranch;
 import com.quanlybanhang.model.UserRoleAssignment;
 import com.quanlybanhang.model.UserStore;
 import com.quanlybanhang.repository.AppUserRepository;
+import com.quanlybanhang.repository.BranchRepository;
 import com.quanlybanhang.repository.RoleRepository;
 import com.quanlybanhang.repository.StoreRepository;
+import com.quanlybanhang.repository.UserBranchRepository;
 import com.quanlybanhang.repository.UserRoleAssignmentRepository;
 import com.quanlybanhang.repository.UserStoreRepository;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,7 +56,10 @@ public class UserService {
   private final StoreRepository storeRepository;
   private final UserRoleAssignmentRepository userRoleAssignmentRepository;
   private final UserStoreRepository userStoreRepository;
+  private final UserBranchRepository userBranchRepository;
+  private final BranchRepository branchRepository;
   private final PasswordEncoder passwordEncoder;
+  private final StoreAccessService storeAccessService;
 
   @Transactional(readOnly = true)
   public Page<UserResponse> list(Pageable pageable) {
@@ -145,6 +163,290 @@ public class UserService {
     return get(id);
   }
 
+  @Transactional
+  public UserDetailResponse assignBranches(Long id, AssignBranchesRequest req) {
+    loadUser(id);
+    List<Long> branchIds = req.branchIds();
+    assertBranchesExist(branchIds);
+    replaceBranches(id, branchIds, req.primaryBranchId());
+    return get(id);
+  }
+
+  @Transactional(readOnly = true)
+  public Page<UserResponse> listUsersForStore(
+      long storeId, Pageable pageable, JwtAuthenticatedPrincipal principal) {
+    storeAccessService.assertCanAccessStore(storeId, principal);
+    return appUserRepository.pageUsersLinkedToStore(storeId, pageable).map(this::toUserResponse);
+  }
+
+  @Transactional
+  public StoreStaffResponse createStoreStaff(
+      CreateStoreStaffRequest req, JwtAuthenticatedPrincipal principal) {
+    String roleCodeUpper = req.roleCode() == null ? "" : req.roleCode().trim().toUpperCase();
+    if (!"CASHIER".equals(roleCodeUpper) && !"WAREHOUSE_STAFF".equals(roleCodeUpper)) {
+      throw new AuthApiException(
+          HttpStatus.BAD_REQUEST,
+          AuthErrorCodes.INVALID_ROLE_FOR_STORE_MANAGER,
+          "Chỉ được tạo role CASHIER hoặc WAREHOUSE_STAFF.");
+    }
+
+    Branch branch =
+        branchRepository
+            .findById(req.branchId())
+            .orElseThrow(
+                () ->
+                    new AuthApiException(
+                        HttpStatus.NOT_FOUND,
+                        AuthErrorCodes.BRANCH_NOT_FOUND,
+                        "Không tìm thấy chi nhánh."));
+    long storeId = branch.getStoreId();
+
+    if (!storeAccessService.isFullSystemAccess()) {
+      if (principal == null || principal.storeIds().isEmpty()) {
+        throw new AuthApiException(
+            HttpStatus.FORBIDDEN,
+            AuthErrorCodes.STORE_MANAGER_NOT_ASSIGNED_TO_STORE,
+            "Tài khoản chưa được gán cửa hàng.");
+      }
+      if (!storeAccessService.canAccessStore(storeId, principal)) {
+        throw new AuthApiException(
+            HttpStatus.FORBIDDEN,
+            AuthErrorCodes.BRANCH_NOT_IN_MANAGER_STORE,
+            "Chi nhánh không thuộc cửa hàng bạn quản lý.");
+      }
+    }
+
+    String username = req.username().trim();
+    if (appUserRepository.existsByUsername(username)) {
+      throw new AuthApiException(
+          HttpStatus.CONFLICT,
+          AuthErrorCodes.USERNAME_ALREADY_EXISTS,
+          "Tên đăng nhập đã được sử dụng.");
+    }
+    String emailNorm = req.email() == null ? "" : req.email().trim();
+    if (!emailNorm.isEmpty() && appUserRepository.existsByEmailIgnoreCase(emailNorm)) {
+      throw new AuthApiException(
+          HttpStatus.CONFLICT, AuthErrorCodes.EMAIL_ALREADY_EXISTS, "Email đã được sử dụng.");
+    }
+
+    Role role =
+        roleRepository
+            .findByRoleCode(roleCodeUpper)
+            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy role."));
+
+    LocalDateTime t = LocalDateTime.now();
+    AppUser u = new AppUser();
+    u.setUsername(username);
+    u.setEmail(emailNorm.isEmpty() ? null : emailNorm);
+    u.setPasswordHash(passwordEncoder.encode(req.password()));
+    u.setFullName(req.fullName().trim());
+    if (req.phone() != null && !req.phone().isBlank()) {
+      u.setPhone(req.phone().trim());
+    }
+    String st =
+        req.status() == null || req.status().isBlank()
+            ? "ACTIVE"
+            : normalizeStatus(req.status());
+    u.setStatus(st);
+    u.setCreatedAt(t);
+    u.setUpdatedAt(t);
+    applyDefaultStore(u, storeId);
+    appUserRepository.save(u);
+
+    replaceRoles(u.getId(), List.of(role.getId()));
+    replaceStores(u.getId(), List.of(storeId), storeId);
+    replaceBranches(u.getId(), List.of(branch.getId()), branch.getId());
+
+    return toStoreStaffResponse(u, roleCodeUpper, storeId, branch.getId());
+  }
+
+  @Transactional(readOnly = true)
+  public Page<StoreStaffResponse> listStoreStaff(
+      String roleCode,
+      Long branchId,
+      String status,
+      Long storeIdFilter,
+      Pageable pageable,
+      JwtAuthenticatedPrincipal principal) {
+    String roleFilter = blankToNull(roleCode == null ? null : roleCode.trim().toUpperCase());
+    String statusFilter = blankToNull(status == null ? null : normalizeStatus(status));
+    if (storeAccessService.isFullSystemAccess()) {
+      if (storeIdFilter != null) {
+        if (!storeRepository.existsById(storeIdFilter)) {
+          throw new ResourceNotFoundException("Không tìm thấy cửa hàng.");
+        }
+        return appUserRepository
+            .pageStoreStaffInStores(
+                List.of(storeIdFilter), roleFilter, branchId, statusFilter, pageable)
+            .map(u -> toStoreStaffResponseFromUser(u));
+      }
+      return appUserRepository
+          .pageStoreStaffAll(roleFilter, branchId, statusFilter, pageable)
+          .map(this::toStoreStaffResponseFromUser);
+    }
+    if (principal == null || principal.storeIds().isEmpty()) {
+      throw new AuthApiException(
+          HttpStatus.FORBIDDEN,
+          AuthErrorCodes.STORE_MANAGER_NOT_ASSIGNED_TO_STORE,
+          "Tài khoản chưa được gán cửa hàng.");
+    }
+    return appUserRepository
+        .pageStoreStaffInStores(
+            principal.storeIds(), roleFilter, branchId, statusFilter, pageable)
+        .map(this::toStoreStaffResponseFromUser);
+  }
+
+  @Transactional(readOnly = true)
+  public StoreStaffResponse getStoreStaff(Long id, JwtAuthenticatedPrincipal principal) {
+    AppUser u = loadUser(id);
+    String staffRole = staffRoleCodeForUser(u.getId());
+    if (staffRole == null) {
+      throw new ResourceNotFoundException("Không tìm thấy nhân viên.");
+    }
+    if (!storeAccessService.isFullSystemAccess()) {
+      if (principal == null) {
+        throw new AuthApiException(
+            HttpStatus.FORBIDDEN, AuthErrorCodes.FORBIDDEN, "Không có quyền.");
+      }
+      if (!userLinkedToAnyStore(u.getId(), principal.storeIds())) {
+        throw new AuthApiException(
+            HttpStatus.FORBIDDEN, AuthErrorCodes.FORBIDDEN, "Không có quyền xem nhân viên này.");
+      }
+    }
+    return toStoreStaffResponseFromUser(u);
+  }
+
+  /**
+   * Điều chuyển nhân viên CASHIER / WAREHOUSE_STAFF sang chi nhánh khác trong cùng cửa hàng —
+   * cập nhật bảng {@code user_branches} (một bản ghi, primary = chi nhánh mới).
+   */
+  @Transactional
+  public ChangeStoreStaffBranchResponse changeStoreStaffBranch(
+      Long userId, ChangeStoreStaffBranchRequest req, JwtAuthenticatedPrincipal principal) {
+    AppUser u =
+        appUserRepository
+            .findById(userId)
+            .orElseThrow(
+                () ->
+                    new AuthApiException(
+                        HttpStatus.NOT_FOUND,
+                        AuthErrorCodes.USER_NOT_FOUND,
+                        "Không tìm thấy người dùng."));
+
+    if (!onlyCashierOrWarehouseStaffRoles(userId)) {
+      throw new AuthApiException(
+          HttpStatus.FORBIDDEN,
+          AuthErrorCodes.INVALID_TARGET_ROLE,
+          "Chỉ được điều chuyển nhân viên chỉ có role CASHIER hoặc WAREHOUSE_STAFF.");
+    }
+    String roleCode = staffRoleCodeForUser(userId);
+    if (roleCode == null) {
+      throw new AuthApiException(
+          HttpStatus.FORBIDDEN,
+          AuthErrorCodes.INVALID_TARGET_ROLE,
+          "Không xác định được role nhân viên.");
+    }
+
+    Long oldBranchId = resolveCurrentBranchId(userId);
+    if (oldBranchId == null) {
+      throw new AuthApiException(
+          HttpStatus.BAD_REQUEST,
+          AuthErrorCodes.INVALID_TARGET_ROLE,
+          "Người dùng chưa được gán chi nhánh.");
+    }
+    Branch oldBranch =
+        branchRepository
+            .findById(oldBranchId)
+            .orElseThrow(
+                () ->
+                    new AuthApiException(
+                        HttpStatus.NOT_FOUND,
+                        AuthErrorCodes.BRANCH_NOT_FOUND,
+                        "Không tìm thấy chi nhánh hiện tại."));
+    long storeId = oldBranch.getStoreId();
+
+    if (!storeAccessService.isFullSystemAccess()) {
+      if (principal == null || principal.storeIds().isEmpty()) {
+        throw new AuthApiException(
+            HttpStatus.FORBIDDEN,
+            AuthErrorCodes.STORE_MANAGER_NOT_ASSIGNED_TO_STORE,
+            "Tài khoản chưa được gán cửa hàng.");
+      }
+      if (!principal.storeIds().contains(storeId)
+          || !appUserRepository.existsUserLinkedToStore(userId, storeId)) {
+        throw new AuthApiException(
+            HttpStatus.FORBIDDEN,
+            AuthErrorCodes.USER_NOT_IN_MANAGER_SCOPE,
+            "Người dùng không thuộc phạm vi cửa hàng bạn quản lý.");
+      }
+    }
+
+    Branch newBranch =
+        branchRepository
+            .findById(req.newBranchId())
+            .orElseThrow(
+                () ->
+                    new AuthApiException(
+                        HttpStatus.NOT_FOUND,
+                        AuthErrorCodes.BRANCH_NOT_FOUND,
+                        "Không tìm thấy chi nhánh đích."));
+    if (!Objects.equals(storeId, newBranch.getStoreId())) {
+      throw new AuthApiException(
+          HttpStatus.FORBIDDEN,
+          AuthErrorCodes.TARGET_BRANCH_NOT_IN_MANAGER_STORE,
+          "Chi nhánh đích phải thuộc cùng cửa hàng với chi nhánh hiện tại.");
+    }
+    if (!storeAccessService.isFullSystemAccess()
+        && !storeAccessService.canAccessStore(newBranch.getStoreId(), principal)) {
+      throw new AuthApiException(
+          HttpStatus.FORBIDDEN,
+          AuthErrorCodes.TARGET_BRANCH_NOT_IN_MANAGER_STORE,
+          "Không có quyền thao tác trên chi nhánh đích.");
+    }
+
+    if (Objects.equals(oldBranchId, newBranch.getId())) {
+      throw new AuthApiException(
+          HttpStatus.BAD_REQUEST,
+          AuthErrorCodes.SAME_BRANCH_ASSIGNMENT,
+          "Người dùng đã được gán chi nhánh này.");
+    }
+
+    replaceBranches(userId, List.of(newBranch.getId()), newBranch.getId());
+
+    LocalDateTime now = LocalDateTime.now();
+    u.setUpdatedAt(now);
+    appUserRepository.save(u);
+
+    return new ChangeStoreStaffBranchResponse(
+        u.getId(),
+        u.getUsername(),
+        u.getFullName(),
+        roleCode,
+        storeId,
+        oldBranchId,
+        newBranch.getId(),
+        u.getStatus(),
+        now);
+  }
+
+  @Transactional
+  public UserDetailResponse assignBranchesForStore(
+      long storeId,
+      long userId,
+      AssignBranchesRequest req,
+      JwtAuthenticatedPrincipal principal) {
+    storeAccessService.assertCanAccessStore(storeId, principal);
+    loadUser(userId);
+    List<Long> branchIds = req.branchIds();
+    assertBranchesBelongToStore(storeId, branchIds);
+    if (!storeAccessService.isFullSystemAccess()
+        && !appUserRepository.existsUserLinkedToStore(userId, storeId)) {
+      throw new BusinessException("Người dùng không thuộc cửa hàng này.");
+    }
+    replaceBranches(userId, branchIds, req.primaryBranchId());
+    return get(userId);
+  }
+
   private AppUser loadUser(Long id) {
     return appUserRepository
         .findById(id)
@@ -183,6 +485,26 @@ public class UserService {
     }
   }
 
+  private void assertBranchesExist(List<Long> branchIds) {
+    for (Long bid : branchIds) {
+      if (!branchRepository.existsById(bid)) {
+        throw new ResourceNotFoundException("Không tìm thấy chi nhánh.");
+      }
+    }
+  }
+
+  private void assertBranchesBelongToStore(long storeId, List<Long> branchIds) {
+    for (Long bid : branchIds) {
+      var br =
+          branchRepository
+              .findById(bid)
+              .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chi nhánh."));
+      if (!Objects.equals(storeId, br.getStoreId())) {
+        throw new BusinessException("Chi nhánh không thuộc cửa hàng này.");
+      }
+    }
+  }
+
   private void replaceRoles(Long userId, List<Long> roleIds) {
     userRoleAssignmentRepository.deleteById_UserId(userId);
     for (Long rid : roleIds) {
@@ -202,6 +524,19 @@ public class UserService {
       us.setId(new UserStore.Pk(userId, sid));
       us.setPrimary(primaryStoreId != null && primaryStoreId.equals(sid));
       userStoreRepository.save(us);
+    }
+  }
+
+  private void replaceBranches(Long userId, List<Long> branchIds, Long primaryBranchId) {
+    if (primaryBranchId != null && !branchIds.contains(primaryBranchId)) {
+      throw new BusinessException("primaryBranchId phải nằm trong branchIds.");
+    }
+    userBranchRepository.deleteById_UserId(userId);
+    for (Long bid : branchIds) {
+      UserBranch ub = new UserBranch();
+      ub.setId(new UserBranch.Pk(userId, bid));
+      ub.setPrimary(primaryBranchId != null && primaryBranchId.equals(bid));
+      userBranchRepository.save(ub);
     }
   }
 
@@ -254,6 +589,23 @@ public class UserService {
     }
     stores.sort(Comparator.comparing(StoreRow::storeCode));
 
+    List<BranchRow> branches = new ArrayList<>();
+    for (UserBranch ub : userBranchRepository.findById_UserId(u.getId())) {
+      Long bid = ub.getId().getBranchId();
+      branchRepository
+          .findById(bid)
+          .ifPresent(
+              br ->
+                  branches.add(
+                      new BranchRow(
+                          br.getId(),
+                          br.getStoreId(),
+                          br.getBranchCode(),
+                          br.getBranchName(),
+                          ub.isPrimary())));
+    }
+    branches.sort(Comparator.comparing(BranchRow::branchCode));
+
     Long defId = u.getDefaultStore() != null ? u.getDefaultStore().getId() : null;
 
     return new UserDetailResponse(
@@ -265,6 +617,123 @@ public class UserService {
         u.getStatus(),
         defId,
         List.copyOf(roles),
-        List.copyOf(stores));
+        List.copyOf(stores),
+        List.copyOf(branches));
+  }
+
+  private static String blankToNull(String s) {
+    if (s == null || s.isBlank()) {
+      return null;
+    }
+    return s;
+  }
+
+  /** Chỉ role CASHIER và/hoặc WAREHOUSE_STAFF, không role khác. */
+  private boolean onlyCashierOrWarehouseStaffRoles(Long userId) {
+    List<String> codes = roleCodesForUser(userId);
+    if (codes.isEmpty()) {
+      return false;
+    }
+    for (String c : codes) {
+      if (!"CASHIER".equals(c) && !"WAREHOUSE_STAFF".equals(c)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Chi nhánh “hiện tại”: primary nếu có, không thì bản ghi đầu. */
+  private Long resolveCurrentBranchId(Long userId) {
+    List<UserBranch> branches = userBranchRepository.findById_UserId(userId);
+    if (branches.isEmpty()) {
+      return null;
+    }
+    for (UserBranch ub : branches) {
+      if (ub.isPrimary()) {
+        return ub.getId().getBranchId();
+      }
+    }
+    return branches.getFirst().getId().getBranchId();
+  }
+
+  private String staffRoleCodeForUser(Long userId) {
+    List<String> codes = roleCodesForUser(userId);
+    if (codes.contains("CASHIER")) {
+      return "CASHIER";
+    }
+    if (codes.contains("WAREHOUSE_STAFF")) {
+      return "WAREHOUSE_STAFF";
+    }
+    return null;
+  }
+
+  private boolean userLinkedToAnyStore(long userId, List<Long> storeIds) {
+    for (Long sid : storeIds) {
+      if (appUserRepository.existsUserLinkedToStore(userId, sid)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private StoreStaffResponse toStoreStaffResponse(
+      AppUser u, String roleCode, long storeId, long branchId) {
+    return new StoreStaffResponse(
+        u.getId(),
+        u.getUsername(),
+        u.getFullName(),
+        roleCode,
+        storeId,
+        branchId,
+        u.getStatus(),
+        u.getCreatedAt());
+  }
+
+  private StoreStaffResponse toStoreStaffResponseFromUser(AppUser u) {
+    String role = staffRoleCodeForUser(u.getId());
+    if (role == null) {
+      throw new BusinessException("Người dùng không phải nhân viên kho / thu ngân.");
+    }
+    Long storeId;
+    Long branchId;
+    List<UserBranch> branches = userBranchRepository.findById_UserId(u.getId());
+    UserBranch pickedBranch = null;
+    for (UserBranch ub : branches) {
+      if (ub.isPrimary()) {
+        pickedBranch = ub;
+        break;
+      }
+    }
+    if (pickedBranch == null && !branches.isEmpty()) {
+      pickedBranch = branches.getFirst();
+    }
+    if (pickedBranch != null) {
+      Long bid = pickedBranch.getId().getBranchId();
+      Branch br =
+          branchRepository
+              .findById(bid)
+              .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy chi nhánh."));
+      storeId = br.getStoreId();
+      branchId = bid;
+    } else {
+      storeId = null;
+      branchId = null;
+      for (UserStore us : userStoreRepository.findById_UserId(u.getId())) {
+        storeId = us.getId().getStoreId();
+        break;
+      }
+      if (storeId == null && u.getDefaultStore() != null) {
+        storeId = u.getDefaultStore().getId();
+      }
+    }
+    return new StoreStaffResponse(
+        u.getId(),
+        u.getUsername(),
+        u.getFullName(),
+        role,
+        storeId,
+        branchId,
+        u.getStatus(),
+        u.getCreatedAt());
   }
 }

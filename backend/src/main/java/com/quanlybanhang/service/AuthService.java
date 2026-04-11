@@ -39,8 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AuthService {
 
-  private static final String ROLE_FIRST_USER = "ADMIN";
-
   private final AppUserRepository appUserRepository;
   private final RoleRepository roleRepository;
   private final UserRoleAssignmentRepository userRoleAssignmentRepository;
@@ -51,7 +49,8 @@ public class AuthService {
   @Value("${app.jwt.expiration-ms:86400000}")
   private long expirationMs;
 
-  @Value("${app.auth.register-default-role:CASHIER}")
+  /** Mọi user đăng ký công khai đều nhận role này (mặc định quản lý cửa hàng). Không còn ngoại lệ SYSTEM_ADMIN cho user đầu. */
+  @Value("${app.auth.register-default-role:STORE_MANAGER}")
   private String registerDefaultRoleCode;
 
   @Transactional
@@ -69,7 +68,6 @@ public class AuthService {
           HttpStatus.CONFLICT, AuthErrorCodes.EMAIL_ALREADY_EXISTS, "Email đã được sử dụng.");
     }
 
-    long userCountBefore = appUserRepository.count();
     LocalDateTime t = LocalDateTime.now();
     AppUser user = new AppUser();
     user.setUsername(username);
@@ -86,7 +84,7 @@ public class AuthService {
     user.setUpdatedAt(t);
     appUserRepository.save(user);
 
-    String roleCode = userCountBefore == 0 ? ROLE_FIRST_USER : registerDefaultRoleCode.trim();
+    String roleCode = registerDefaultRoleCode.trim();
     Role role =
         roleRepository
             .findByRoleCode(roleCode)
@@ -161,6 +159,7 @@ public class AuthService {
         List.copyOf(roles),
         List.copyOf(permissions),
         jp.storeIds(),
+        jp.branchIds(),
         defaultStoreId);
   }
 
@@ -210,7 +209,8 @@ public class AuthService {
             user.getFullName(),
             roleCodes,
             permissionCodes,
-            principal.getAssignedStoreIds());
+            principal.getAssignedStoreIds(),
+            principal.getAssignedBranchIds());
 
     AuthUserInfo userInfo =
         new AuthUserInfo(
@@ -227,6 +227,8 @@ public class AuthService {
         expirationMs / 1000,
         userInfo,
         List.copyOf(roleCodes),
-        List.copyOf(permissionCodes));
+        List.copyOf(permissionCodes),
+        List.copyOf(principal.getAssignedStoreIds()),
+        List.copyOf(principal.getAssignedBranchIds()));
   }
 }

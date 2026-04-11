@@ -60,6 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         fullName = "";
       }
       List<Long> storeIds = toLongList(claims.get("storeIds"));
+      List<Long> branchIds = toLongList(claims.get("branchIds"));
 
       @SuppressWarnings("unchecked")
       List<String> roles = claims.get("roles", List.class);
@@ -84,7 +85,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
       }
 
-      var principal = new JwtAuthenticatedPrincipal(userId, username, fullName, storeIds);
+      var principal = new JwtAuthenticatedPrincipal(userId, username, fullName, storeIds, branchIds);
       var auth =
           new UsernamePasswordAuthenticationToken(principal, null, authorities);
       auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

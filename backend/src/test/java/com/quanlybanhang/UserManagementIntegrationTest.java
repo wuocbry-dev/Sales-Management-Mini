@@ -48,19 +48,14 @@ class UserManagementIntegrationTest {
   @BeforeEach
   void seed() throws Exception {
     LocalDateTime t = LocalDateTime.now();
-    Role adminRole = new Role();
-    adminRole.setRoleCode("ADMIN");
-    adminRole.setRoleName("Admin");
-    adminRole.setCreatedAt(t);
-    adminRole.setUpdatedAt(t);
-    roleRepository.save(adminRole);
-
-    Role cashierRole = new Role();
-    cashierRole.setRoleCode("CASHIER");
-    cashierRole.setRoleName("Cashier");
-    cashierRole.setCreatedAt(t);
-    cashierRole.setUpdatedAt(t);
-    roleRepository.save(cashierRole);
+    Role adminRole =
+        roleRepository
+            .findByRoleCode("SYSTEM_ADMIN")
+            .orElseThrow(() -> new IllegalStateException("Thiếu role SYSTEM_ADMIN (bootstrap)."));
+    Role cashierRole =
+        roleRepository
+            .findByRoleCode("CASHIER")
+            .orElseThrow(() -> new IllegalStateException("Thiếu role CASHIER (bootstrap)."));
     cashierRoleId = cashierRole.getId();
 
     AppUser admin = new AppUser();

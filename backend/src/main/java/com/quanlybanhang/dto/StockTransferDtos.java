@@ -18,8 +18,8 @@ public final class StockTransferDtos {
       @NotNull @DecimalMin(value = "0.0001") BigDecimal quantity) {}
 
   public record StockTransferCreateRequest(
-      @NotNull Long fromStoreId,
-      @NotNull Long toStoreId,
+      @NotNull Long fromWarehouseId,
+      @NotNull Long toWarehouseId,
       @NotNull LocalDateTime transferDate,
       @Size(max = 500) String note,
       @NotEmpty @Valid List<StockTransferLineRequest> lines) {}
@@ -29,8 +29,8 @@ public final class StockTransferDtos {
   public record StockTransferResponse(
       Long id,
       String transferCode,
-      Long fromStoreId,
-      Long toStoreId,
+      Long fromWarehouseId,
+      Long toWarehouseId,
       LocalDateTime transferDate,
       String status,
       String note,

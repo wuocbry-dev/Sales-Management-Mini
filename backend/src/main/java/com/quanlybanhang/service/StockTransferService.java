@@ -12,21 +12,25 @@ import com.quanlybanhang.model.InventoryTransaction;
 import com.quanlybanhang.model.ProductVariant;
 import com.quanlybanhang.model.StockTransfer;
 import com.quanlybanhang.model.StockTransferItem;
+import com.quanlybanhang.model.Warehouse;
 import com.quanlybanhang.repository.InventoryRepository;
 import com.quanlybanhang.repository.InventoryTransactionRepository;
 import com.quanlybanhang.repository.ProductVariantRepository;
 import com.quanlybanhang.repository.StockTransferRepository;
-import com.quanlybanhang.repository.StoreRepository;
+import com.quanlybanhang.repository.WarehouseRepository;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,22 +44,41 @@ public class StockTransferService {
   private final InventoryRepository inventoryRepository;
   private final InventoryTransactionRepository inventoryTransactionRepository;
   private final ProductVariantRepository variantRepository;
-  private final StoreRepository storeRepository;
+  private final WarehouseRepository warehouseRepository;
+  private final StoreAccessService storeAccessService;
 
   private LocalDateTime now() {
     return LocalDateTime.now(ZONE);
   }
 
   public Page<StockTransferResponse> list(
-      Pageable pageable, Long fromStoreId, Long toStoreId, String status) {
+      Pageable pageable,
+      Long fromWarehouseId,
+      Long toWarehouseId,
+      String status,
+      JwtAuthenticatedPrincipal principal) {
+    List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
+    List<Long> whScope = warehouseIdsForStoreScope(scope);
     Specification<StockTransfer> spec =
         (root, query, cb) -> {
-          var preds = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
-          if (fromStoreId != null) {
-            preds.add(cb.equal(root.get("fromStoreId"), fromStoreId));
+          var preds = new ArrayList<jakarta.persistence.criteria.Predicate>();
+          if (whScope != null) {
+            preds.add(
+                cb.or(
+                    root.get("fromWarehouseId").in(whScope),
+                    root.get("toWarehouseId").in(whScope)));
           }
-          if (toStoreId != null) {
-            preds.add(cb.equal(root.get("toStoreId"), toStoreId));
+          if (fromWarehouseId != null) {
+            preds.add(cb.equal(root.get("fromWarehouseId"), fromWarehouseId));
+            if (whScope != null && !whScope.contains(fromWarehouseId)) {
+              throw new AccessDeniedException("Không có quyền xem kho nguồn này.");
+            }
+          }
+          if (toWarehouseId != null) {
+            preds.add(cb.equal(root.get("toWarehouseId"), toWarehouseId));
+            if (whScope != null && !whScope.contains(toWarehouseId)) {
+              throw new AccessDeniedException("Không có quyền xem kho đích này.");
+            }
           }
           if (status != null && !status.isBlank()) {
             preds.add(cb.equal(root.get("status"), status.trim()));
@@ -68,22 +91,33 @@ public class StockTransferService {
     return stockTransferRepository.findAll(spec, pageable).map(this::toSummary);
   }
 
-  public StockTransferResponse get(Long id) {
+  private List<Long> warehouseIdsForStoreScope(List<Long> storeScope) {
+    if (storeScope == null) {
+      return null;
+    }
+    return warehouseRepository.findByStoreIdIn(storeScope).stream().map(Warehouse::getId).toList();
+  }
+
+  public StockTransferResponse get(Long id, JwtAuthenticatedPrincipal principal) {
     StockTransfer t =
         stockTransferRepository
             .findWithItemsById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Phiếu chuyển không tồn tại: " + id));
+    assertTransferWarehousesAllowed(t.getFromWarehouseId(), t.getToWarehouseId(), principal);
     return toFull(t);
   }
 
   @Transactional
-  public StockTransferResponse createDraft(StockTransferCreateRequest req, long userId) {
-    if (req.fromStoreId().equals(req.toStoreId())) {
-      throw new BusinessException("Kho nguồn và kho đích phải khác nhau.");
+  public StockTransferResponse createDraft(
+      StockTransferCreateRequest req, long userId, JwtAuthenticatedPrincipal principal) {
+    Warehouse from = warehouseRepository.findById(req.fromWarehouseId()).orElseThrow();
+    Warehouse to = warehouseRepository.findById(req.toWarehouseId()).orElseThrow();
+    assertTransferWarehousesAllowed(from.getId(), to.getId(), principal);
+    if (!from.getStoreId().equals(to.getStoreId())) {
+      throw new BusinessException("Chỉ chuyển trong cùng một cửa hàng.");
     }
-    if (!storeRepository.existsById(req.fromStoreId())
-        || !storeRepository.existsById(req.toStoreId())) {
-      throw new BusinessException("Cửa hàng không tồn tại.");
+    if (from.getId().equals(to.getId())) {
+      throw new BusinessException("Kho nguồn và kho đích phải khác nhau.");
     }
     for (StockTransferLineRequest line : req.lines()) {
       if (!variantRepository.existsById(line.variantId())) {
@@ -93,8 +127,8 @@ public class StockTransferService {
     LocalDateTime t = now();
     StockTransfer st = new StockTransfer();
     st.setTransferCode(nextCode());
-    st.setFromStoreId(req.fromStoreId());
-    st.setToStoreId(req.toStoreId());
+    st.setFromWarehouseId(from.getId());
+    st.setToWarehouseId(to.getId());
     st.setTransferDate(req.transferDate());
     st.setStatus(DomainConstants.TRANSFER_DRAFT);
     st.setNote(req.note());
@@ -108,22 +142,25 @@ public class StockTransferService {
       st.addLine(item);
     }
     stockTransferRepository.save(st);
-    return get(st.getId());
+    return get(st.getId(), principal);
   }
 
+  /** Trừ tồn kho nguồn — chỉ gọi khi trạng thái draft. */
   @Transactional
-  public StockTransferResponse confirm(Long id, long userId) {
+  public StockTransferResponse send(Long id, long userId, JwtAuthenticatedPrincipal principal) {
     StockTransfer st =
         stockTransferRepository
             .findWithItemsById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Phiếu chuyển không tồn tại: " + id));
+    assertTransferWarehousesAllowed(st.getFromWarehouseId(), st.getToWarehouseId(), principal);
     if (!DomainConstants.TRANSFER_DRAFT.equals(st.getStatus())) {
-      throw new BusinessException("Chỉ xác nhận phiếu chuyển ở trạng thái draft.");
+      throw new BusinessException("Chỉ gửi được phiếu ở trạng thái draft.");
     }
     if (st.getItems().isEmpty()) {
       throw new BusinessException("Phiếu không có dòng chi tiết.");
     }
     LocalDateTime t = now();
+    long fromWh = st.getFromWarehouseId();
     for (StockTransferItem line : st.getItems()) {
       ProductVariant v =
           variantRepository
@@ -132,16 +169,14 @@ public class StockTransferService {
       BigDecimal qty = line.getQuantity();
       Inventory fromInv =
           inventoryRepository
-              .findByStoreIdAndVariantId(st.getFromStoreId(), line.getVariantId())
+              .findByWarehouseIdAndVariantId(fromWh, line.getVariantId())
               .orElseThrow(
                   () ->
                       new BusinessException(
                           "Không có tồn tại kho nguồn cho variant " + line.getVariantId()));
-      BigDecimal available =
-          fromInv.getQuantityOnHand().subtract(fromInv.getReservedQty());
+      BigDecimal available = fromInv.getQuantityOnHand().subtract(fromInv.getReservedQty());
       if (available.compareTo(qty) < 0) {
-        throw new BusinessException(
-            "Không đủ tồn kho nguồn (variant " + line.getVariantId() + ")");
+        throw new BusinessException("Không đủ tồn kho nguồn (variant " + line.getVariantId() + ")");
       }
       BigDecimal fromBefore = fromInv.getQuantityOnHand();
       BigDecimal fromAfter = fromBefore.subtract(qty);
@@ -149,7 +184,7 @@ public class StockTransferService {
       fromInv.setUpdatedAt(t);
       inventoryRepository.save(fromInv);
       recordTx(
-          st.getFromStoreId(),
+          fromWh,
           line.getVariantId(),
           DomainConstants.INV_TX_TRANSFER_OUT,
           st.getId(),
@@ -159,14 +194,39 @@ public class StockTransferService {
           v.getCostPrice(),
           userId,
           t);
+    }
+    st.setStatus(DomainConstants.TRANSFER_SENT);
+    st.setUpdatedAt(t);
+    stockTransferRepository.save(st);
+    return get(id, principal);
+  }
 
+  /** Cộng tồn kho đích — chỉ sau khi đã sent. */
+  @Transactional
+  public StockTransferResponse receive(Long id, long userId, JwtAuthenticatedPrincipal principal) {
+    StockTransfer st =
+        stockTransferRepository
+            .findWithItemsById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Phiếu chuyển không tồn tại: " + id));
+    assertTransferWarehousesAllowed(st.getFromWarehouseId(), st.getToWarehouseId(), principal);
+    if (!DomainConstants.TRANSFER_SENT.equals(st.getStatus())) {
+      throw new BusinessException("Chỉ nhận được phiếu đã gửi (sent).");
+    }
+    LocalDateTime t = now();
+    long toWh = st.getToWarehouseId();
+    for (StockTransferItem line : st.getItems()) {
+      ProductVariant v =
+          variantRepository
+              .findById(line.getVariantId())
+              .orElseThrow(() -> new BusinessException("Biến thể không tồn tại: " + line.getVariantId()));
+      BigDecimal qty = line.getQuantity();
       Inventory toInv =
           inventoryRepository
-              .findByStoreIdAndVariantId(st.getToStoreId(), line.getVariantId())
+              .findByWarehouseIdAndVariantId(toWh, line.getVariantId())
               .orElseGet(
                   () -> {
                     Inventory n = new Inventory();
-                    n.setStoreId(st.getToStoreId());
+                    n.setWarehouseId(toWh);
                     n.setVariantId(line.getVariantId());
                     n.setQuantityOnHand(BigDecimal.ZERO);
                     n.setReservedQty(BigDecimal.ZERO);
@@ -179,7 +239,7 @@ public class StockTransferService {
       toInv.setUpdatedAt(t);
       inventoryRepository.save(toInv);
       recordTx(
-          st.getToStoreId(),
+          toWh,
           line.getVariantId(),
           DomainConstants.INV_TX_TRANSFER_IN,
           st.getId(),
@@ -194,11 +254,25 @@ public class StockTransferService {
     st.setReceivedBy(userId);
     st.setUpdatedAt(t);
     stockTransferRepository.save(st);
-    return get(id);
+    return get(id, principal);
+  }
+
+  private void assertTransferWarehousesAllowed(
+      long fromWarehouseId, long toWarehouseId, JwtAuthenticatedPrincipal principal) {
+    Warehouse from = warehouseRepository.findById(fromWarehouseId).orElseThrow();
+    Warehouse to = warehouseRepository.findById(toWarehouseId).orElseThrow();
+    storeAccessService.assertCanAccessStore(from.getStoreId(), principal);
+    storeAccessService.assertCanAccessStore(to.getStoreId(), principal);
+    if (from.getBranchId() != null && storeAccessService.isBranchOnlyScoped(principal)) {
+      storeAccessService.assertCanAccessBranch(from.getBranchId(), principal);
+    }
+    if (to.getBranchId() != null && storeAccessService.isBranchOnlyScoped(principal)) {
+      storeAccessService.assertCanAccessBranch(to.getBranchId(), principal);
+    }
   }
 
   private void recordTx(
-      Long storeId,
+      Long warehouseId,
       Long variantId,
       String type,
       Long transferId,
@@ -209,7 +283,7 @@ public class StockTransferService {
       long userId,
       LocalDateTime t) {
     InventoryTransaction tx = new InventoryTransaction();
-    tx.setStoreId(storeId);
+    tx.setWarehouseId(warehouseId);
     tx.setVariantId(variantId);
     tx.setTransactionType(type);
     tx.setReferenceType(DomainConstants.REF_TYPE_STOCK_TRANSFER);
@@ -239,8 +313,8 @@ public class StockTransferService {
     return new StockTransferResponse(
         t.getId(),
         t.getTransferCode(),
-        t.getFromStoreId(),
-        t.getToStoreId(),
+        t.getFromWarehouseId(),
+        t.getToWarehouseId(),
         t.getTransferDate(),
         t.getStatus(),
         t.getNote(),
@@ -259,8 +333,8 @@ public class StockTransferService {
     return new StockTransferResponse(
         t.getId(),
         t.getTransferCode(),
-        t.getFromStoreId(),
-        t.getToStoreId(),
+        t.getFromWarehouseId(),
+        t.getToWarehouseId(),
         t.getTransferDate(),
         t.getStatus(),
         t.getNote(),

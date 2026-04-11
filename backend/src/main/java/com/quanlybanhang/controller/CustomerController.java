@@ -5,6 +5,7 @@ import com.quanlybanhang.dto.CustomerDtos.CustomerResponse;
 import com.quanlybanhang.service.CustomerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -25,22 +26,26 @@ public class CustomerController {
   private final CustomerService customerService;
 
   @GetMapping
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('CUSTOMER_VIEW')")
   public Page<CustomerResponse> list(Pageable pageable) {
     return customerService.list(pageable);
   }
 
   @GetMapping("/{id}")
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('CUSTOMER_VIEW')")
   public CustomerResponse get(@PathVariable Long id) {
     return customerService.get(id);
   }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('CUSTOMER_CREATE')")
   public CustomerResponse create(@Valid @RequestBody CustomerRequest req) {
     return customerService.create(req);
   }
 
   @PutMapping("/{id}")
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('CUSTOMER_UPDATE')")
   public CustomerResponse update(@PathVariable Long id, @Valid @RequestBody CustomerRequest req) {
     return customerService.update(id, req);
   }

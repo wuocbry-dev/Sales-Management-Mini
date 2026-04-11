@@ -22,8 +22,8 @@ public class Inventory {
   @Column(name = "inventory_id")
   private Long id;
 
-  @Column(name = "store_id", nullable = false)
-  private Long storeId;
+  @Column(name = "warehouse_id", nullable = false)
+  private Long warehouseId;
 
   @Column(name = "variant_id", nullable = false)
   private Long variantId;

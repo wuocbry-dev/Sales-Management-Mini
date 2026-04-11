@@ -1,12 +1,17 @@
 -- =============================================================================
 -- Sales Management Mini — schema MySQL đầy đủ + seed role/permission
 -- =============================================================================
--- Chạy toàn bộ file trên MySQL (Workbench / CLI).
+-- Cách dùng:
 --
--- Cảnh báo: phần DROP + CREATE sẽ XÓA DỮ LIỆU các bảng dưới đây trong database
--- đích. Chỉ dùng môi trường dev / reset schema.
--- Tên DB mặc định khớp backend: spring.datasource.url → .../sales_management_mini
--- Đổi tên: thay sales_management_mini ở CREATE DATABASE + USE (2 chỗ).
+-- 1) Cài mới / reset hoàn toàn (dev): chạy từ đầu file đến hết "PHẦN A".
+--    Phần DROP + CREATE sẽ XÓA DỮ LIỆU — chỉ môi trường dev hoặc DB rỗng có chủ đích reset.
+--
+-- 2) Nâng cấp DB đã tồn tại (giữ dữ liệu): KHÔNG chạy DROP; chỉ chạy "PHẦN B"
+--    (script idempotent: bảng IF NOT EXISTS, INSERT ... ON DUPLICATE KEY UPDATE,
+--    DELETE quyền thừa rồi gán lại role_permissions). Có thể tách PHẦN B ra file
+--    riêng nếu team muốn — hiện gộp một file để đồng bộ một nguồn.
+--
+-- Tên DB mặc định khớp backend: .../sales_management_mini — đổi ở CREATE DATABASE + USE.
 -- =============================================================================
 
 SET NAMES utf8mb4;
@@ -36,6 +41,7 @@ DROP TABLE IF EXISTS sales_orders;
 DROP TABLE IF EXISTS goods_receipt_items;
 DROP TABLE IF EXISTS goods_receipts;
 DROP TABLE IF EXISTS inventories;
+DROP TABLE IF EXISTS warehouses;
 DROP TABLE IF EXISTS product_variants;
 DROP TABLE IF EXISTS products;
 DROP TABLE IF EXISTS customers;
@@ -43,6 +49,9 @@ DROP TABLE IF EXISTS suppliers;
 DROP TABLE IF EXISTS units;
 DROP TABLE IF EXISTS brands;
 DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS role_permission_overrides;
+DROP TABLE IF EXISTS user_branches;
+DROP TABLE IF EXISTS branches;
 DROP TABLE IF EXISTS user_stores;
 DROP TABLE IF EXISTS user_roles;
 DROP TABLE IF EXISTS role_permissions;
@@ -70,6 +79,47 @@ CREATE TABLE stores (
     status ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- -----------------------------
+-- 1b. BRANCHES (chi nhánh thuộc cửa hàng)
+-- -----------------------------
+CREATE TABLE branches (
+    branch_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    store_id BIGINT UNSIGNED NOT NULL,
+    branch_code VARCHAR(50) NOT NULL,
+    branch_name VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    email VARCHAR(100),
+    address VARCHAR(255),
+    status ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_branches_store_code (store_id, branch_code),
+    CONSTRAINT fk_branches_store
+        FOREIGN KEY (store_id) REFERENCES stores(store_id)
+);
+
+-- -----------------------------
+-- 1c. WAREHOUSES (kho tổng CENTRAL / kho chi nhánh BRANCH)
+-- -----------------------------
+CREATE TABLE warehouses (
+    warehouse_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    store_id BIGINT UNSIGNED NOT NULL,
+    branch_id BIGINT UNSIGNED NULL,
+    warehouse_code VARCHAR(50) NOT NULL,
+    warehouse_name VARCHAR(255) NOT NULL,
+    warehouse_type ENUM('CENTRAL', 'BRANCH') NOT NULL,
+    status ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_warehouses_store_code (store_id, warehouse_code),
+    CONSTRAINT fk_warehouses_store
+        FOREIGN KEY (store_id) REFERENCES stores(store_id),
+    CONSTRAINT fk_warehouses_branch
+        FOREIGN KEY (branch_id) REFERENCES branches(branch_id),
+    INDEX idx_warehouses_store (store_id),
+    INDEX idx_warehouses_branch (branch_id)
 );
 
 -- -----------------------------
@@ -101,6 +151,23 @@ CREATE TABLE role_permissions (
         FOREIGN KEY (role_id) REFERENCES roles(role_id),
     CONSTRAINT fk_role_permissions_permission
         FOREIGN KEY (permission_id) REFERENCES permissions(permission_id)
+);
+
+-- Ghi đè ALLOW/DENY theo store/chi nhánh (nền RBAC scoped; JWT vẫn gộp phần global NULL,NULL tại login)
+CREATE TABLE role_permission_overrides (
+    override_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    role_id BIGINT UNSIGNED NOT NULL,
+    permission_id BIGINT UNSIGNED NOT NULL,
+    store_id BIGINT UNSIGNED NULL,
+    branch_id BIGINT UNSIGNED NULL,
+    override_type ENUM('ALLOW', 'DENY') NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_rpo_role FOREIGN KEY (role_id) REFERENCES roles(role_id),
+    CONSTRAINT fk_rpo_permission FOREIGN KEY (permission_id) REFERENCES permissions(permission_id),
+    CONSTRAINT fk_rpo_store FOREIGN KEY (store_id) REFERENCES stores(store_id),
+    CONSTRAINT fk_rpo_branch FOREIGN KEY (branch_id) REFERENCES branches(branch_id),
+    INDEX idx_rpo_role (role_id),
+    INDEX idx_rpo_scope (store_id, branch_id)
 );
 
 -- -----------------------------
@@ -140,6 +207,17 @@ CREATE TABLE user_stores (
         FOREIGN KEY (user_id) REFERENCES users(user_id),
     CONSTRAINT fk_user_stores_store
         FOREIGN KEY (store_id) REFERENCES stores(store_id)
+);
+
+CREATE TABLE user_branches (
+    user_id BIGINT UNSIGNED NOT NULL,
+    branch_id BIGINT UNSIGNED NOT NULL,
+    is_primary TINYINT(1) NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, branch_id),
+    CONSTRAINT fk_user_branches_user
+        FOREIGN KEY (user_id) REFERENCES users(user_id),
+    CONSTRAINT fk_user_branches_branch
+        FOREIGN KEY (branch_id) REFERENCES branches(branch_id)
 );
 
 -- -----------------------------
@@ -250,14 +328,14 @@ CREATE TABLE product_variants (
 -- -----------------------------
 CREATE TABLE inventories (
     inventory_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    store_id BIGINT UNSIGNED NOT NULL,
+    warehouse_id BIGINT UNSIGNED NOT NULL,
     variant_id BIGINT UNSIGNED NOT NULL,
     quantity_on_hand DECIMAL(18,3) NOT NULL DEFAULT 0.000,
     reserved_qty DECIMAL(18,3) NOT NULL DEFAULT 0.000,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_inventories_store_variant (store_id, variant_id),
-    CONSTRAINT fk_inventories_store
-        FOREIGN KEY (store_id) REFERENCES stores(store_id),
+    UNIQUE KEY uk_inventories_warehouse_variant (warehouse_id, variant_id),
+    CONSTRAINT fk_inventories_warehouse
+        FOREIGN KEY (warehouse_id) REFERENCES warehouses(warehouse_id),
     CONSTRAINT fk_inventories_variant
         FOREIGN KEY (variant_id) REFERENCES product_variants(variant_id)
 );
@@ -266,6 +344,7 @@ CREATE TABLE goods_receipts (
     receipt_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     receipt_code VARCHAR(50) NOT NULL UNIQUE,
     store_id BIGINT UNSIGNED NOT NULL,
+    warehouse_id BIGINT UNSIGNED NOT NULL,
     supplier_id BIGINT UNSIGNED NULL,
     receipt_date DATETIME NOT NULL,
     status ENUM('DRAFT', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'DRAFT',
@@ -279,6 +358,8 @@ CREATE TABLE goods_receipts (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_goods_receipts_store
         FOREIGN KEY (store_id) REFERENCES stores(store_id),
+    CONSTRAINT fk_goods_receipts_warehouse
+        FOREIGN KEY (warehouse_id) REFERENCES warehouses(warehouse_id),
     CONSTRAINT fk_goods_receipts_supplier
         FOREIGN KEY (supplier_id) REFERENCES suppliers(supplier_id),
     CONSTRAINT fk_goods_receipts_created_by
@@ -309,6 +390,7 @@ CREATE TABLE sales_orders (
     order_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     order_code VARCHAR(50) NOT NULL UNIQUE,
     store_id BIGINT UNSIGNED NOT NULL,
+    branch_id BIGINT UNSIGNED NULL,
     customer_id BIGINT UNSIGNED NULL,
     cashier_id BIGINT UNSIGNED NOT NULL,
     order_date DATETIME NOT NULL,
@@ -323,6 +405,8 @@ CREATE TABLE sales_orders (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_sales_orders_store
         FOREIGN KEY (store_id) REFERENCES stores(store_id),
+    CONSTRAINT fk_sales_orders_branch
+        FOREIGN KEY (branch_id) REFERENCES branches(branch_id),
     CONSTRAINT fk_sales_orders_customer
         FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
     CONSTRAINT fk_sales_orders_cashier
@@ -417,24 +501,24 @@ CREATE TABLE payments (
 CREATE TABLE stock_transfers (
     transfer_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     transfer_code VARCHAR(50) NOT NULL UNIQUE,
-    from_store_id BIGINT UNSIGNED NOT NULL,
-    to_store_id BIGINT UNSIGNED NOT NULL,
+    from_warehouse_id BIGINT UNSIGNED NOT NULL,
+    to_warehouse_id BIGINT UNSIGNED NOT NULL,
     transfer_date DATETIME NOT NULL,
-    status ENUM('DRAFT', 'IN_TRANSIT', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'DRAFT',
+    status VARCHAR(16) NOT NULL DEFAULT 'draft',
     note VARCHAR(500),
     created_by BIGINT UNSIGNED NOT NULL,
     received_by BIGINT UNSIGNED NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_stock_transfers_from_store
-        FOREIGN KEY (from_store_id) REFERENCES stores(store_id),
-    CONSTRAINT fk_stock_transfers_to_store
-        FOREIGN KEY (to_store_id) REFERENCES stores(store_id),
+    CONSTRAINT fk_stock_transfers_from_wh
+        FOREIGN KEY (from_warehouse_id) REFERENCES warehouses(warehouse_id),
+    CONSTRAINT fk_stock_transfers_to_wh
+        FOREIGN KEY (to_warehouse_id) REFERENCES warehouses(warehouse_id),
     CONSTRAINT fk_stock_transfers_created_by
         FOREIGN KEY (created_by) REFERENCES users(user_id),
     CONSTRAINT fk_stock_transfers_received_by
         FOREIGN KEY (received_by) REFERENCES users(user_id),
-    INDEX idx_stock_transfers_from_to (from_store_id, to_store_id),
+    INDEX idx_stock_transfers_from_to (from_warehouse_id, to_warehouse_id),
     INDEX idx_stock_transfers_date (transfer_date)
 );
 
@@ -456,6 +540,7 @@ CREATE TABLE stocktakes (
     stocktake_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     stocktake_code VARCHAR(50) NOT NULL UNIQUE,
     store_id BIGINT UNSIGNED NOT NULL,
+    warehouse_id BIGINT UNSIGNED NOT NULL,
     stocktake_date DATETIME NOT NULL,
     status ENUM('DRAFT', 'COUNTING', 'COMPLETED', 'CANCELLED') NOT NULL DEFAULT 'DRAFT',
     note VARCHAR(500),
@@ -465,6 +550,8 @@ CREATE TABLE stocktakes (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_stocktakes_store
         FOREIGN KEY (store_id) REFERENCES stores(store_id),
+    CONSTRAINT fk_stocktakes_warehouse
+        FOREIGN KEY (warehouse_id) REFERENCES warehouses(warehouse_id),
     CONSTRAINT fk_stocktakes_created_by
         FOREIGN KEY (created_by) REFERENCES users(user_id),
     CONSTRAINT fk_stocktakes_approved_by
@@ -491,7 +578,7 @@ CREATE TABLE stocktake_items (
 -- -----------------------------
 CREATE TABLE inventory_transactions (
     transaction_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    store_id BIGINT UNSIGNED NOT NULL,
+    warehouse_id BIGINT UNSIGNED NOT NULL,
     variant_id BIGINT UNSIGNED NOT NULL,
     transaction_type ENUM(
         'OPENING',
@@ -512,13 +599,13 @@ CREATE TABLE inventory_transactions (
     note VARCHAR(255),
     created_by BIGINT UNSIGNED NOT NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_inventory_transactions_store
-        FOREIGN KEY (store_id) REFERENCES stores(store_id),
+    CONSTRAINT fk_inventory_transactions_warehouse
+        FOREIGN KEY (warehouse_id) REFERENCES warehouses(warehouse_id),
     CONSTRAINT fk_inventory_transactions_variant
         FOREIGN KEY (variant_id) REFERENCES product_variants(variant_id),
     CONSTRAINT fk_inventory_transactions_created_by
         FOREIGN KEY (created_by) REFERENCES users(user_id),
-    INDEX idx_inventory_transactions_store_variant_date (store_id, variant_id, created_at),
+    INDEX idx_inventory_transactions_wh_variant_date (warehouse_id, variant_id, created_at),
     INDEX idx_inventory_transactions_reference (reference_type, reference_id)
 );
 
@@ -549,8 +636,10 @@ CREATE TABLE audit_logs (
 -- =============================================================================
 
 INSERT INTO roles (role_code, role_name, description, created_at, updated_at) VALUES
-  ('ADMIN', 'System Admin', 'Quản trị toàn hệ thống', NOW(), NOW()),
+  ('SYSTEM_ADMIN', 'System Admin', 'Quản trị toàn hệ thống (JWT/RBAC đầy đủ)', NOW(), NOW()),
+  ('ADMIN', 'Admin (legacy)', 'Tương đương quyền cao — giữ tương thích DB cũ', NOW(), NOW()),
   ('STORE_MANAGER', 'Store Manager', 'Quản lý cửa hàng', NOW(), NOW()),
+  ('BRANCH_MANAGER', 'Branch Manager', 'Quản lý chi nhánh / vận hành không tạo cửa hàng', NOW(), NOW()),
   ('CASHIER', 'Cashier', 'Thu ngân / nhân viên bán hàng', NOW(), NOW()),
   ('WAREHOUSE_STAFF', 'Warehouse Staff', 'Nhân viên kho', NOW(), NOW())
 ON DUPLICATE KEY UPDATE
@@ -559,25 +648,53 @@ ON DUPLICATE KEY UPDATE
   updated_at = VALUES(updated_at);
 
 INSERT INTO permissions (permission_code, permission_name, module_name, action_name, created_at) VALUES
-  ('STORE_VIEW', 'Xem cửa hàng', 'STORE', 'VIEW', NOW()),
-  ('STORE_CREATE', 'Tạo cửa hàng', 'STORE', 'CREATE', NOW()),
-  ('STORE_UPDATE', 'Sửa cửa hàng', 'STORE', 'UPDATE', NOW()),
+  ('DASHBOARD_VIEW', 'Vào màn Điều hành', 'DASHBOARD', 'VIEW', NOW()),
+  ('RBAC_MANAGE', 'Quản lý ma trận phân quyền (UI)', 'RBAC', 'MANAGE', NOW()),
   ('USER_VIEW', 'Xem người dùng', 'USER', 'VIEW', NOW()),
   ('USER_CREATE', 'Tạo người dùng', 'USER', 'CREATE', NOW()),
   ('USER_UPDATE', 'Sửa người dùng', 'USER', 'UPDATE', NOW()),
+  ('USER_LOCK', 'Khóa/mở tài khoản', 'USER', 'LOCK', NOW()),
+  ('USER_ASSIGN_BRANCH', 'Gán user vào chi nhánh (trong phạm vi store)', 'USER', 'ASSIGN_BRANCH', NOW()),
+  ('ROLE_VIEW', 'Xem vai trò', 'ROLE', 'VIEW', NOW()),
+  ('ROLE_CREATE', 'Tạo vai trò', 'ROLE', 'CREATE', NOW()),
+  ('ROLE_UPDATE', 'Sửa vai trò', 'ROLE', 'UPDATE', NOW()),
+  ('PERMISSION_VIEW', 'Xem quyền', 'PERMISSION', 'VIEW', NOW()),
+  ('PERMISSION_ASSIGN', 'Gán quyền cho vai trò (global)', 'PERMISSION', 'ASSIGN', NOW()),
+  ('PERMISSION_OVERRIDE_MANAGE', 'Ghi đè quyền theo Store/Branch', 'RBAC', 'OVERRIDE', NOW()),
+  ('STORE_VIEW', 'Xem cửa hàng', 'STORE', 'VIEW', NOW()),
+  ('STORE_CREATE', 'Tạo cửa hàng', 'STORE', 'CREATE', NOW()),
+  ('STORE_UPDATE', 'Sửa cửa hàng', 'STORE', 'UPDATE', NOW()),
+  ('BRANCH_VIEW', 'Xem chi nhánh', 'BRANCH', 'VIEW', NOW()),
+  ('BRANCH_CREATE', 'Tạo chi nhánh', 'BRANCH', 'CREATE', NOW()),
+  ('BRANCH_UPDATE', 'Sửa chi nhánh', 'BRANCH', 'UPDATE', NOW()),
   ('PRODUCT_VIEW', 'Xem sản phẩm', 'PRODUCT', 'VIEW', NOW()),
   ('PRODUCT_CREATE', 'Tạo sản phẩm', 'PRODUCT', 'CREATE', NOW()),
   ('PRODUCT_UPDATE', 'Sửa sản phẩm', 'PRODUCT', 'UPDATE', NOW()),
   ('INVENTORY_VIEW', 'Xem tồn kho', 'INVENTORY', 'VIEW', NOW()),
+  ('INVENTORY_TRANSACTION_VIEW', 'Xem lịch sử biến động tồn kho', 'INVENTORY', 'TRANSACTION_VIEW', NOW()),
   ('GOODS_RECEIPT_VIEW', 'Xem phiếu nhập', 'GOODS_RECEIPT', 'VIEW', NOW()),
   ('GOODS_RECEIPT_CREATE', 'Tạo phiếu nhập', 'GOODS_RECEIPT', 'CREATE', NOW()),
   ('GOODS_RECEIPT_CONFIRM', 'Xác nhận phiếu nhập', 'GOODS_RECEIPT', 'CONFIRM', NOW()),
+  ('TRANSFER_VIEW', 'Xem chuyển kho', 'TRANSFER', 'VIEW', NOW()),
   ('TRANSFER_CREATE', 'Tạo chuyển kho', 'TRANSFER', 'CREATE', NOW()),
+  ('TRANSFER_SEND', 'Gửi chuyển kho', 'TRANSFER', 'SEND', NOW()),
+  ('TRANSFER_RECEIVE', 'Nhận chuyển kho', 'TRANSFER', 'RECEIVE', NOW()),
+  ('STOCKTAKE_VIEW', 'Xem kiểm kho', 'STOCKTAKE', 'VIEW', NOW()),
   ('STOCKTAKE_CREATE', 'Tạo kiểm kho', 'STOCKTAKE', 'CREATE', NOW()),
+  ('STOCKTAKE_CONFIRM', 'Xác nhận kiểm kho', 'STOCKTAKE', 'CONFIRM', NOW()),
   ('ORDER_VIEW', 'Xem đơn hàng', 'ORDER', 'VIEW', NOW()),
   ('ORDER_CREATE', 'Tạo đơn hàng', 'ORDER', 'CREATE', NOW()),
+  ('ORDER_CONFIRM', 'Xác nhận đơn hàng', 'ORDER', 'CONFIRM', NOW()),
+  ('ORDER_CANCEL', 'Hủy đơn hàng', 'ORDER', 'CANCEL', NOW()),
+  ('RETURN_VIEW', 'Xem trả hàng', 'RETURN', 'VIEW', NOW()),
   ('RETURN_CREATE', 'Tạo trả hàng', 'RETURN', 'CREATE', NOW()),
-  ('REPORT_VIEW', 'Xem báo cáo', 'REPORT', 'VIEW', NOW())
+  ('RETURN_CONFIRM', 'Xác nhận trả hàng', 'RETURN', 'CONFIRM', NOW()),
+  ('CUSTOMER_VIEW', 'Xem khách hàng', 'CUSTOMER', 'VIEW', NOW()),
+  ('CUSTOMER_CREATE', 'Tạo khách hàng', 'CUSTOMER', 'CREATE', NOW()),
+  ('CUSTOMER_UPDATE', 'Sửa khách hàng', 'CUSTOMER', 'UPDATE', NOW()),
+  ('REPORT_VIEW', 'Xem báo cáo', 'REPORT', 'VIEW', NOW()),
+  ('REPORT_VIEW_BRANCH', 'Xem báo cáo theo chi nhánh', 'REPORT', 'VIEW_BRANCH', NOW()),
+  ('AUDIT_LOG_VIEW', 'Xem nhật ký kiểm toán', 'AUDIT', 'VIEW', NOW())
 ON DUPLICATE KEY UPDATE
   permission_name = VALUES(permission_name),
   module_name = VALUES(module_name),
@@ -587,7 +704,7 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.role_id, p.permission_id
 FROM roles r
 JOIN permissions p ON 1 = 1
-WHERE r.role_code = 'ADMIN'
+WHERE r.role_code IN ('SYSTEM_ADMIN', 'ADMIN')
 ON DUPLICATE KEY UPDATE
   role_id = role_permissions.role_id,
   permission_id = role_permissions.permission_id;
@@ -596,9 +713,17 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.role_id, p.permission_id
 FROM roles r
 JOIN permissions p ON p.permission_code IN (
-  'STORE_VIEW', 'STORE_UPDATE', 'PRODUCT_VIEW', 'PRODUCT_UPDATE', 'INVENTORY_VIEW',
+  'DASHBOARD_VIEW', 'STORE_VIEW',
+  'USER_VIEW', 'USER_ASSIGN_BRANCH',
+  'BRANCH_VIEW', 'BRANCH_CREATE', 'BRANCH_UPDATE',
+  'PRODUCT_VIEW', 'PRODUCT_CREATE', 'PRODUCT_UPDATE', 'INVENTORY_VIEW', 'INVENTORY_TRANSACTION_VIEW',
   'GOODS_RECEIPT_VIEW', 'GOODS_RECEIPT_CREATE', 'GOODS_RECEIPT_CONFIRM',
-  'ORDER_VIEW', 'ORDER_CREATE', 'RETURN_CREATE', 'REPORT_VIEW'
+  'TRANSFER_VIEW', 'TRANSFER_CREATE', 'TRANSFER_SEND', 'TRANSFER_RECEIVE',
+  'STOCKTAKE_VIEW', 'STOCKTAKE_CREATE', 'STOCKTAKE_CONFIRM',
+  'ORDER_VIEW', 'ORDER_CREATE', 'ORDER_CONFIRM', 'ORDER_CANCEL',
+  'RETURN_VIEW', 'RETURN_CREATE', 'RETURN_CONFIRM',
+  'CUSTOMER_VIEW', 'CUSTOMER_CREATE', 'CUSTOMER_UPDATE',
+  'REPORT_VIEW'
 )
 WHERE r.role_code = 'STORE_MANAGER'
 ON DUPLICATE KEY UPDATE
@@ -609,7 +734,28 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.role_id, p.permission_id
 FROM roles r
 JOIN permissions p ON p.permission_code IN (
-  'STORE_VIEW', 'PRODUCT_VIEW', 'INVENTORY_VIEW', 'ORDER_VIEW', 'ORDER_CREATE', 'RETURN_CREATE'
+  'DASHBOARD_VIEW', 'STORE_VIEW', 'BRANCH_VIEW',
+  'PRODUCT_VIEW', 'INVENTORY_VIEW', 'INVENTORY_TRANSACTION_VIEW',
+  'GOODS_RECEIPT_VIEW', 'GOODS_RECEIPT_CREATE', 'GOODS_RECEIPT_CONFIRM',
+  'TRANSFER_VIEW', 'TRANSFER_CREATE', 'TRANSFER_SEND', 'TRANSFER_RECEIVE',
+  'STOCKTAKE_VIEW', 'STOCKTAKE_CREATE', 'STOCKTAKE_CONFIRM',
+  'ORDER_VIEW', 'ORDER_CREATE', 'ORDER_CONFIRM', 'ORDER_CANCEL',
+  'RETURN_VIEW', 'RETURN_CREATE', 'RETURN_CONFIRM',
+  'CUSTOMER_VIEW', 'CUSTOMER_CREATE', 'CUSTOMER_UPDATE',
+  'REPORT_VIEW_BRANCH'
+)
+WHERE r.role_code = 'BRANCH_MANAGER'
+ON DUPLICATE KEY UPDATE
+  role_id = role_permissions.role_id,
+  permission_id = role_permissions.permission_id;
+
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.role_id, p.permission_id
+FROM roles r
+JOIN permissions p ON p.permission_code IN (
+  'PRODUCT_VIEW', 'INVENTORY_VIEW',
+  'ORDER_VIEW', 'ORDER_CREATE', 'ORDER_CONFIRM',
+  'CUSTOMER_VIEW', 'CUSTOMER_CREATE'
 )
 WHERE r.role_code = 'CASHIER'
 ON DUPLICATE KEY UPDATE
@@ -620,9 +766,10 @@ INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.role_id, p.permission_id
 FROM roles r
 JOIN permissions p ON p.permission_code IN (
-  'STORE_VIEW', 'PRODUCT_VIEW', 'INVENTORY_VIEW',
+  'PRODUCT_VIEW', 'INVENTORY_VIEW', 'INVENTORY_TRANSACTION_VIEW',
   'GOODS_RECEIPT_VIEW', 'GOODS_RECEIPT_CREATE', 'GOODS_RECEIPT_CONFIRM',
-  'TRANSFER_CREATE', 'STOCKTAKE_CREATE'
+  'TRANSFER_VIEW', 'TRANSFER_CREATE', 'TRANSFER_SEND', 'TRANSFER_RECEIVE',
+  'STOCKTAKE_VIEW', 'STOCKTAKE_CREATE', 'STOCKTAKE_CONFIRM'
 )
 WHERE r.role_code = 'WAREHOUSE_STAFF'
 ON DUPLICATE KEY UPDATE

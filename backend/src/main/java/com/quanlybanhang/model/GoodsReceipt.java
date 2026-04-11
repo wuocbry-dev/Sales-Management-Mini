@@ -33,6 +33,9 @@ public class GoodsReceipt {
   @Column(name = "store_id", nullable = false)
   private Long storeId;
 
+  @Column(name = "warehouse_id", nullable = false)
+  private Long warehouseId;
+
   @Column(name = "supplier_id")
   private Long supplierId;
 

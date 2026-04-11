@@ -30,7 +30,7 @@ public class GoodsReceiptController {
   private final GoodsReceiptService goodsReceiptService;
 
   @GetMapping
-  @PreAuthorize("hasRole('ADMIN') or hasAuthority('GOODS_RECEIPT_VIEW')")
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('GOODS_RECEIPT_VIEW')")
   public Page<GoodsReceiptResponse> list(
       Pageable pageable,
       @RequestParam(required = false) Long storeId,
@@ -38,20 +38,22 @@ public class GoodsReceiptController {
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
           LocalDateTime fromReceiptDate,
       @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-          LocalDateTime toReceiptDate) {
+          LocalDateTime toReceiptDate,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
     return goodsReceiptService.list(
-        pageable, storeId, status, fromReceiptDate, toReceiptDate);
+        pageable, storeId, status, fromReceiptDate, toReceiptDate, principal);
   }
 
   @GetMapping("/{id}")
-  @PreAuthorize("hasRole('ADMIN') or hasAuthority('GOODS_RECEIPT_VIEW')")
-  public GoodsReceiptResponse get(@PathVariable Long id) {
-    return goodsReceiptService.get(id);
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('GOODS_RECEIPT_VIEW')")
+  public GoodsReceiptResponse get(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return goodsReceiptService.get(id, principal);
   }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  @PreAuthorize("hasRole('ADMIN') or hasAuthority('GOODS_RECEIPT_CREATE')")
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('GOODS_RECEIPT_CREATE')")
   public GoodsReceiptResponse create(
       @Valid @RequestBody GoodsReceiptCreateRequest req,
       @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
@@ -59,7 +61,7 @@ public class GoodsReceiptController {
   }
 
   @PostMapping("/{id}/confirm")
-  @PreAuthorize("hasRole('ADMIN') or hasAuthority('GOODS_RECEIPT_CONFIRM')")
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('GOODS_RECEIPT_CONFIRM')")
   public GoodsReceiptResponse confirm(
       @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
     return goodsReceiptService.confirm(id, principal);

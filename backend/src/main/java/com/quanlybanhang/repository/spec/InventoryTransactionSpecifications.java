@@ -12,14 +12,14 @@ public final class InventoryTransactionSpecifications {
   private InventoryTransactionSpecifications() {}
 
   public static Specification<InventoryTransaction> filter(
-      Long storeId,
+      Long warehouseId,
       String transactionType,
       Long variantId,
       LocalDateTime fromCreatedAt,
       LocalDateTime toCreatedAt) {
     return (root, query, cb) -> {
       List<Predicate> p = new ArrayList<>();
-      p.add(cb.equal(root.get("storeId"), storeId));
+      p.add(cb.equal(root.get("warehouseId"), warehouseId));
       if (transactionType != null && !transactionType.isBlank()) {
         p.add(cb.equal(root.get("transactionType"), transactionType.trim()));
       }

@@ -10,12 +10,15 @@ import com.quanlybanhang.dto.SalesOrderDtos.SalesOrderResponse;
 import com.quanlybanhang.exception.BusinessException;
 import com.quanlybanhang.exception.ResourceNotFoundException;
 import com.quanlybanhang.model.DomainConstants;
+import com.quanlybanhang.model.Branch;
 import com.quanlybanhang.model.Inventory;
 import com.quanlybanhang.model.InventoryTransaction;
 import com.quanlybanhang.model.Payment;
 import com.quanlybanhang.model.ProductVariant;
 import com.quanlybanhang.model.SalesOrder;
 import com.quanlybanhang.model.SalesOrderItem;
+import com.quanlybanhang.model.Warehouse;
+import com.quanlybanhang.repository.BranchRepository;
 import com.quanlybanhang.repository.CustomerRepository;
 import com.quanlybanhang.repository.InventoryRepository;
 import com.quanlybanhang.repository.InventoryTransactionRepository;
@@ -23,6 +26,7 @@ import com.quanlybanhang.repository.PaymentRepository;
 import com.quanlybanhang.repository.ProductVariantRepository;
 import com.quanlybanhang.repository.SalesOrderRepository;
 import com.quanlybanhang.repository.StoreRepository;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -33,6 +37,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,25 +54,35 @@ public class SalesOrderService {
   private final ProductVariantRepository variantRepository;
   private final StoreRepository storeRepository;
   private final CustomerRepository customerRepository;
+  private final StoreAccessService storeAccessService;
+  private final BranchRepository branchRepository;
+  private final WarehouseService warehouseService;
 
   private LocalDateTime now() {
     return LocalDateTime.now(ZONE);
   }
 
-  public Page<SalesOrderResponse> list(Pageable pageable) {
-    return salesOrderRepository.findAll(pageable).map(this::toSummaryResponse);
+  public Page<SalesOrderResponse> list(Pageable pageable, JwtAuthenticatedPrincipal principal) {
+    List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
+    if (scope == null) {
+      return salesOrderRepository.findAll(pageable).map(this::toSummaryResponse);
+    }
+    return salesOrderRepository.findByStoreIdIn(scope, pageable).map(this::toSummaryResponse);
   }
 
-  public SalesOrderResponse get(Long id) {
+  public SalesOrderResponse get(Long id, JwtAuthenticatedPrincipal principal) {
     SalesOrder o =
         salesOrderRepository
             .findWithItemsById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng không tồn tại: " + id));
+    assertOrderStoreAllowed(o.getStoreId(), principal);
     return toFullResponse(o);
   }
 
   @Transactional
-  public SalesOrderResponse createDraft(SalesOrderCreateRequest req, long cashierId) {
+  public SalesOrderResponse createDraft(
+      SalesOrderCreateRequest req, long cashierId, JwtAuthenticatedPrincipal principal) {
+    storeAccessService.assertCanAccessStore(req.storeId(), principal);
     if (!storeRepository.existsById(req.storeId())) {
       throw new BusinessException("Cửa hàng không tồn tại: " + req.storeId());
     }
@@ -79,10 +94,20 @@ public class SalesOrderService {
         throw new BusinessException("Biến thể không tồn tại: " + line.variantId());
       }
     }
+    if (req.branchId() != null) {
+      Branch br =
+          branchRepository
+              .findById(req.branchId())
+              .orElseThrow(() -> new BusinessException("Chi nhánh không tồn tại: " + req.branchId()));
+      if (!br.getStoreId().equals(req.storeId())) {
+        throw new BusinessException("Chi nhánh không thuộc cửa hàng của đơn.");
+      }
+    }
     LocalDateTime t = now();
     SalesOrder o = new SalesOrder();
     o.setOrderCode(nextOrderCode());
     o.setStoreId(req.storeId());
+    o.setBranchId(req.branchId());
     o.setCustomerId(req.customerId());
     o.setCashierId(cashierId);
     o.setOrderDate(req.orderDate());
@@ -110,15 +135,17 @@ public class SalesOrderService {
     o.setTotalAmount(subtotal.subtract(req.headerDiscountAmount()).max(BigDecimal.ZERO));
 
     salesOrderRepository.save(o);
-    return get(o.getId());
+    return get(o.getId(), principal);
   }
 
   @Transactional
-  public SalesOrderResponse confirm(Long orderId, SalesOrderConfirmRequest req, long userId) {
+  public SalesOrderResponse confirm(
+      Long orderId, SalesOrderConfirmRequest req, long userId, JwtAuthenticatedPrincipal principal) {
     SalesOrder o =
         salesOrderRepository
             .findWithItemsById(orderId)
             .orElseThrow(() -> new ResourceNotFoundException("Đơn hàng không tồn tại: " + orderId));
+    assertOrderStoreAllowed(o.getStoreId(), principal);
 
     if (!DomainConstants.ORDER_DRAFT.equals(o.getStatus())) {
       throw new BusinessException("Chỉ đơn trạng thái draft mới xác nhận.");
@@ -132,10 +159,13 @@ public class SalesOrderService {
 
     validatePaymentsVsTotal(o.getTotalAmount(), payments);
 
+    Warehouse fulfillWh =
+        warehouseService.resolveFulfillmentWarehouse(o.getStoreId(), o.getBranchId());
+
     for (SalesOrderItem line : o.getItems()) {
       Inventory inv =
           inventoryRepository
-              .findByStoreIdAndVariantId(o.getStoreId(), line.getVariantId())
+              .findByWarehouseIdAndVariantId(fulfillWh.getId(), line.getVariantId())
               .orElseThrow(
                   () ->
                       new BusinessException(
@@ -182,7 +212,7 @@ public class SalesOrderService {
                           "Biến thể không tồn tại: " + line.getVariantId()));
       Inventory inv =
           inventoryRepository
-              .findByStoreIdAndVariantId(o.getStoreId(), line.getVariantId())
+              .findByWarehouseIdAndVariantId(fulfillWh.getId(), line.getVariantId())
               .orElseThrow();
       BigDecimal before = inv.getQuantityOnHand();
       BigDecimal after = before.subtract(line.getQuantity());
@@ -191,7 +221,7 @@ public class SalesOrderService {
       inventoryRepository.save(inv);
 
       InventoryTransaction tx = new InventoryTransaction();
-      tx.setStoreId(o.getStoreId());
+      tx.setWarehouseId(fulfillWh.getId());
       tx.setVariantId(line.getVariantId());
       tx.setTransactionType(DomainConstants.INV_TX_SALE);
       tx.setReferenceType(DomainConstants.REF_TYPE_SALES_ORDER);
@@ -214,7 +244,7 @@ public class SalesOrderService {
     o.setUpdatedAt(t);
     salesOrderRepository.save(o);
 
-    return get(orderId);
+    return get(orderId, principal);
   }
 
   private static void validatePaymentsVsTotal(
@@ -245,16 +275,25 @@ public class SalesOrderService {
   }
 
   @Transactional
-  public SalesOrderResponse cancel(Long id) {
+  public SalesOrderResponse cancel(Long id, JwtAuthenticatedPrincipal principal) {
     SalesOrder o =
         salesOrderRepository.findById(id).orElseThrow(() -> notFound(id));
+    assertOrderStoreAllowed(o.getStoreId(), principal);
     if (!DomainConstants.ORDER_DRAFT.equals(o.getStatus())) {
       throw new BusinessException("Chỉ hủy được đơn ở trạng thái draft.");
     }
     o.setStatus(DomainConstants.ORDER_CANCELLED);
     o.setUpdatedAt(now());
     salesOrderRepository.save(o);
-    return get(id);
+    return get(id, principal);
+  }
+
+  private void assertOrderStoreAllowed(long storeId, JwtAuthenticatedPrincipal principal) {
+    try {
+      storeAccessService.assertCanAccessStore(storeId, principal);
+    } catch (AccessDeniedException e) {
+      throw new AccessDeniedException("Không có quyền thao tác đơn hàng này.");
+    }
   }
 
   private static BigDecimal lineTotal(SalesOrderLineRequest line) {
@@ -279,6 +318,7 @@ public class SalesOrderService {
         o.getId(),
         o.getOrderCode(),
         o.getStoreId(),
+        o.getBranchId(),
         o.getCustomerId(),
         o.getCashierId(),
         o.getOrderDate(),
@@ -316,6 +356,7 @@ public class SalesOrderService {
         o.getId(),
         o.getOrderCode(),
         o.getStoreId(),
+        o.getBranchId(),
         o.getCustomerId(),
         o.getCashierId(),
         o.getOrderDate(),

@@ -3,9 +3,12 @@ package com.quanlybanhang.controller;
 import com.quanlybanhang.dto.StockTransferDtos.StockTransferCreateRequest;
 import com.quanlybanhang.dto.StockTransferDtos.StockTransferResponse;
 import com.quanlybanhang.security.CurrentUserResolver;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import com.quanlybanhang.service.StockTransferService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -26,27 +29,45 @@ public class StockTransferController {
   private final StockTransferService stockTransferService;
 
   @GetMapping
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('TRANSFER_VIEW')")
   public Page<StockTransferResponse> list(
       Pageable pageable,
-      @RequestParam(required = false) Long fromStoreId,
-      @RequestParam(required = false) Long toStoreId,
-      @RequestParam(required = false) String status) {
-    return stockTransferService.list(pageable, fromStoreId, toStoreId, status);
+      @RequestParam(required = false) Long fromWarehouseId,
+      @RequestParam(required = false) Long toWarehouseId,
+      @RequestParam(required = false) String status,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return stockTransferService.list(pageable, fromWarehouseId, toWarehouseId, status, principal);
   }
 
   @GetMapping("/{id}")
-  public StockTransferResponse get(@PathVariable Long id) {
-    return stockTransferService.get(id);
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('TRANSFER_VIEW')")
+  public StockTransferResponse get(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return stockTransferService.get(id, principal);
   }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public StockTransferResponse create(@Valid @RequestBody StockTransferCreateRequest req) {
-    return stockTransferService.createDraft(req, CurrentUserResolver.requireUserId());
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('TRANSFER_CREATE')")
+  public StockTransferResponse create(
+      @Valid @RequestBody StockTransferCreateRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return stockTransferService.createDraft(
+        req, CurrentUserResolver.requireUserId(), principal);
   }
 
-  @PostMapping("/{id}/confirm")
-  public StockTransferResponse confirm(@PathVariable Long id) {
-    return stockTransferService.confirm(id, CurrentUserResolver.requireUserId());
+  @PostMapping("/{id}/send")
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('TRANSFER_SEND')")
+  public StockTransferResponse send(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return stockTransferService.send(id, CurrentUserResolver.requireUserId(), principal);
+  }
+
+  @PostMapping("/{id}/receive")
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('TRANSFER_RECEIVE')")
+  public StockTransferResponse receive(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return stockTransferService.receive(id, CurrentUserResolver.requireUserId(), principal);
   }
 }
+

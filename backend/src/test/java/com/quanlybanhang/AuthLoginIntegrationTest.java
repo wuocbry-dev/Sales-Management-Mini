@@ -44,21 +44,10 @@ class AuthLoginIntegrationTest {
   @BeforeEach
   void seedUser() {
     LocalDateTime t = LocalDateTime.now();
-    Role admin = new Role();
-    admin.setRoleCode("ADMIN");
-    admin.setRoleName("Quản trị");
-    admin.setDescription(null);
-    admin.setCreatedAt(t);
-    admin.setUpdatedAt(t);
-    roleRepository.save(admin);
-
-    Role cashier = new Role();
-    cashier.setRoleCode("CASHIER");
-    cashier.setRoleName("Thu ngân");
-    cashier.setDescription(null);
-    cashier.setCreatedAt(t);
-    cashier.setUpdatedAt(t);
-    roleRepository.save(cashier);
+    Role admin =
+        roleRepository
+            .findByRoleCode("SYSTEM_ADMIN")
+            .orElseThrow(() -> new IllegalStateException("Thiếu role SYSTEM_ADMIN (bootstrap)."));
 
     AppUser u = new AppUser();
     u.setUsername("itest_admin");
@@ -90,7 +79,7 @@ class AuthLoginIntegrationTest {
         .andExpect(jsonPath("$.tokenType").value("Bearer"))
         .andExpect(jsonPath("$.user.id").isNumber())
         .andExpect(jsonPath("$.user.username").value("itest_admin"))
-        .andExpect(jsonPath("$.roles[0]").value("ADMIN"));
+        .andExpect(jsonPath("$.roles[0]").value("SYSTEM_ADMIN"));
   }
 
   @Test
@@ -130,7 +119,7 @@ class AuthLoginIntegrationTest {
   }
 
   @Test
-  void cashier_cannotListUsers_returns403() throws Exception {
+  void registeredStoreManager_cannotListUsers_returns403() throws Exception {
     RegisterRequest reg =
         new RegisterRequest("itest_cashier", "cashier@itest.local", "secret12", "Cashier", null);
     mockMvc
@@ -163,7 +152,7 @@ class AuthLoginIntegrationTest {
   }
 
   @Test
-  void registerNewUser_returnsCashierAndToken() throws Exception {
+  void registerNewUser_returnsStoreManagerAndToken() throws Exception {
     RegisterRequest body =
         new RegisterRequest("dev_user", "dev@example.com", "secret12", "Dev User", null);
     mockMvc
@@ -174,7 +163,7 @@ class AuthLoginIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.accessToken").isString())
         .andExpect(jsonPath("$.user.username").value("dev_user"))
-        .andExpect(jsonPath("$.roles[0]").value("CASHIER"));
+        .andExpect(jsonPath("$.roles[0]").value("STORE_MANAGER"));
   }
 
   @Test
@@ -199,7 +188,7 @@ class AuthLoginIntegrationTest {
         .perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.username").value("itest_admin"))
-        .andExpect(jsonPath("$.roles[0]").value("ADMIN"));
+        .andExpect(jsonPath("$.roles[0]").value("SYSTEM_ADMIN"));
   }
 
   @Test

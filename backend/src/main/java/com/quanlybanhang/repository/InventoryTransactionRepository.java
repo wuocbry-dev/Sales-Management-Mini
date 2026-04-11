@@ -10,5 +10,5 @@ public interface InventoryTransactionRepository
     extends JpaRepository<InventoryTransaction, Long>,
         JpaSpecificationExecutor<InventoryTransaction> {
 
-  Page<InventoryTransaction> findByStoreId(Long storeId, Pageable pageable);
+  Page<InventoryTransaction> findByWarehouseId(Long warehouseId, Pageable pageable);
 }

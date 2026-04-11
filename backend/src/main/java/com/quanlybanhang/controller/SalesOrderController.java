@@ -4,9 +4,12 @@ import com.quanlybanhang.dto.SalesOrderDtos.SalesOrderConfirmRequest;
 import com.quanlybanhang.dto.SalesOrderDtos.SalesOrderCreateRequest;
 import com.quanlybanhang.dto.SalesOrderDtos.SalesOrderResponse;
 import com.quanlybanhang.security.CurrentUserResolver;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import com.quanlybanhang.service.SalesOrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -26,29 +29,43 @@ public class SalesOrderController {
   private final SalesOrderService salesOrderService;
 
   @GetMapping
-  public Page<SalesOrderResponse> list(Pageable pageable) {
-    return salesOrderService.list(pageable);
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('ORDER_VIEW')")
+  public Page<SalesOrderResponse> list(
+      Pageable pageable, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return salesOrderService.list(pageable, principal);
   }
 
   @GetMapping("/{id}")
-  public SalesOrderResponse get(@PathVariable Long id) {
-    return salesOrderService.get(id);
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('ORDER_VIEW')")
+  public SalesOrderResponse get(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return salesOrderService.get(id, principal);
   }
 
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
-  public SalesOrderResponse create(@Valid @RequestBody SalesOrderCreateRequest req) {
-    return salesOrderService.createDraft(req, CurrentUserResolver.requireUserId());
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('ORDER_CREATE')")
+  public SalesOrderResponse create(
+      @Valid @RequestBody SalesOrderCreateRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return salesOrderService.createDraft(
+        req, CurrentUserResolver.requireUserId(), principal);
   }
 
   @PostMapping("/{id}/confirm")
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('ORDER_CONFIRM')")
   public SalesOrderResponse confirm(
-      @PathVariable Long id, @Valid @RequestBody SalesOrderConfirmRequest req) {
-    return salesOrderService.confirm(id, req, CurrentUserResolver.requireUserId());
+      @PathVariable Long id,
+      @Valid @RequestBody SalesOrderConfirmRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return salesOrderService.confirm(
+        id, req, CurrentUserResolver.requireUserId(), principal);
   }
 
   @PostMapping("/{id}/cancel")
-  public SalesOrderResponse cancel(@PathVariable Long id) {
-    return salesOrderService.cancel(id);
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('ORDER_CANCEL')")
+  public SalesOrderResponse cancel(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return salesOrderService.cancel(id, principal);
   }
 }

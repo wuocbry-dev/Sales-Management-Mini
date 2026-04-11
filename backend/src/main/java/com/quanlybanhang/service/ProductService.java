@@ -44,6 +44,13 @@ public class ProductService {
     return LocalDateTime.now(ZONE);
   }
 
+  private static String normalizeActiveInactiveStatus(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return "ACTIVE";
+    }
+    return raw.trim().toUpperCase();
+  }
+
   public Page<ProductResponse> listProducts(
       Pageable pageable, String status, Long categoryId, Long brandId, String q) {
     Specification<Product> spec = ProductSpecifications.filter(status, categoryId, brandId, q);
@@ -95,7 +102,7 @@ public class ProductService {
     p.setHasVariant(req.hasVariant());
     p.setTrackInventory(req.trackInventory());
     p.setDescription(req.description());
-    p.setStatus(req.status());
+    p.setStatus(normalizeActiveInactiveStatus(req.status()));
     p.setCreatedAt(t);
     p.setUpdatedAt(t);
     productRepository.save(p);
@@ -111,7 +118,7 @@ public class ProductService {
       pv.setCostPrice(vr.costPrice());
       pv.setSellingPrice(vr.sellingPrice());
       pv.setReorderLevel(vr.reorderLevel());
-      pv.setStatus(vr.status());
+      pv.setStatus(normalizeActiveInactiveStatus(vr.status()));
       pv.setCreatedAt(t);
       pv.setUpdatedAt(t);
       variantRepository.save(pv);

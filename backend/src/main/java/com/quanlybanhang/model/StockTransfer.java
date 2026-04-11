@@ -29,11 +29,11 @@ public class StockTransfer {
   @Column(name = "transfer_code", nullable = false, length = 50)
   private String transferCode;
 
-  @Column(name = "from_store_id", nullable = false)
-  private Long fromStoreId;
+  @Column(name = "from_warehouse_id", nullable = false)
+  private Long fromWarehouseId;
 
-  @Column(name = "to_store_id", nullable = false)
-  private Long toStoreId;
+  @Column(name = "to_warehouse_id", nullable = false)
+  private Long toWarehouseId;
 
   @Column(name = "transfer_date", nullable = false)
   private LocalDateTime transferDate;

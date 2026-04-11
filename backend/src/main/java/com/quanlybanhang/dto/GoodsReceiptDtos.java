@@ -21,6 +21,8 @@ public final class GoodsReceiptDtos {
 
   public record GoodsReceiptCreateRequest(
       @NotNull Long storeId,
+      /** Null = kho tổng (CENTRAL) của store. */
+      Long warehouseId,
       Long supplierId,
       @NotNull LocalDateTime receiptDate,
       @NotNull @DecimalMin(value = "0") BigDecimal headerDiscountAmount,
@@ -39,6 +41,7 @@ public final class GoodsReceiptDtos {
       Long id,
       String receiptCode,
       Long storeId,
+      Long warehouseId,
       Long supplierId,
       LocalDateTime receiptDate,
       String status,

@@ -1,5 +1,6 @@
 package com.quanlybanhang.controller;
 
+import com.quanlybanhang.dto.UserDtos.AssignBranchesRequest;
 import com.quanlybanhang.dto.UserDtos.AssignRolesRequest;
 import com.quanlybanhang.dto.UserDtos.AssignStoresRequest;
 import com.quanlybanhang.dto.UserDtos.CreateUserRequest;
@@ -26,7 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("@authz.systemManage(authentication)")
 public class UserController {
 
   private final UserService userService;
@@ -68,5 +69,11 @@ public class UserController {
   public UserDetailResponse assignStores(
       @PathVariable Long id, @Valid @RequestBody AssignStoresRequest req) {
     return userService.assignStores(id, req);
+  }
+
+  @PutMapping("/{id}/branches")
+  public UserDetailResponse assignBranches(
+      @PathVariable Long id, @Valid @RequestBody AssignBranchesRequest req) {
+    return userService.assignBranches(id, req);
   }
 }

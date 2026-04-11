@@ -24,7 +24,7 @@ public class JwtService {
 
   /**
    * Tạo JWT stateless. Claims: {@code sub}=userId, {@code username}, {@code fullName}, {@code
-   * roles} (mã role), {@code permissions} (mã quyền), {@code storeIds}.
+   * roles} (mã role), {@code permissions} (mã quyền), {@code storeIds}, {@code branchIds}.
    */
   public String generateToken(
       long userId,
@@ -32,13 +32,15 @@ public class JwtService {
       String fullName,
       List<String> roleCodes,
       List<String> permissionCodes,
-      List<Long> storeIds) {
+      List<Long> storeIds,
+      List<Long> branchIds) {
     long now = System.currentTimeMillis();
     Date exp = new Date(now + props.getExpirationMs());
     String fn = fullName != null ? fullName : "";
     List<String> roles = roleCodes != null ? roleCodes : List.of();
     List<String> perms = permissionCodes != null ? permissionCodes : List.of();
     List<Long> stores = storeIds != null ? storeIds : List.of();
+    List<Long> branches = branchIds != null ? branchIds : List.of();
     return Jwts.builder()
         .subject(String.valueOf(userId))
         .claim("username", username)
@@ -46,6 +48,7 @@ public class JwtService {
         .claim("roles", roles)
         .claim("permissions", perms)
         .claim("storeIds", stores)
+        .claim("branchIds", branches)
         .issuedAt(new Date(now))
         .expiration(exp)
         .signWith(signingKey())

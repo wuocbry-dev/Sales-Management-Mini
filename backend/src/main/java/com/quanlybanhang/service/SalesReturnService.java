@@ -9,6 +9,7 @@ import com.quanlybanhang.exception.ResourceNotFoundException;
 import com.quanlybanhang.model.DomainConstants;
 import com.quanlybanhang.model.Inventory;
 import com.quanlybanhang.model.InventoryTransaction;
+import com.quanlybanhang.model.Warehouse;
 import com.quanlybanhang.model.ProductVariant;
 import com.quanlybanhang.model.SalesOrder;
 import com.quanlybanhang.model.SalesOrderItem;
@@ -21,6 +22,7 @@ import com.quanlybanhang.repository.SalesOrderRepository;
 import com.quanlybanhang.repository.SalesOrderItemRepository;
 import com.quanlybanhang.repository.SalesReturnRepository;
 import com.quanlybanhang.repository.StoreRepository;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -28,6 +30,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import org.springframework.security.access.AccessDeniedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -48,18 +51,31 @@ public class SalesReturnService {
   private final InventoryTransactionRepository inventoryTransactionRepository;
   private final ProductVariantRepository variantRepository;
   private final StoreRepository storeRepository;
+  private final StoreAccessService storeAccessService;
+  private final WarehouseService warehouseService;
 
   private LocalDateTime now() {
     return LocalDateTime.now(ZONE);
   }
 
   public Page<SalesReturnResponse> list(
-      Pageable pageable, Long storeId, Long orderId, String status) {
+      Pageable pageable,
+      Long storeId,
+      Long orderId,
+      String status,
+      JwtAuthenticatedPrincipal principal) {
+    List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
     Specification<SalesReturn> spec =
         (root, query, cb) -> {
           var preds = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+          if (scope != null) {
+            preds.add(root.get("storeId").in(scope));
+          }
           if (storeId != null) {
             preds.add(cb.equal(root.get("storeId"), storeId));
+            if (scope != null && !scope.contains(storeId)) {
+              throw new AccessDeniedException("Không có quyền xem cửa hàng này.");
+            }
           }
           if (orderId != null) {
             preds.add(cb.equal(root.get("orderId"), orderId));
@@ -75,16 +91,19 @@ public class SalesReturnService {
     return salesReturnRepository.findAll(spec, pageable).map(this::toSummary);
   }
 
-  public SalesReturnResponse get(Long id) {
+  public SalesReturnResponse get(Long id, JwtAuthenticatedPrincipal principal) {
     SalesReturn r =
         salesReturnRepository
             .findWithItemsById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Phiếu trả không tồn tại: " + id));
+    storeAccessService.assertCanAccessStore(r.getStoreId(), principal);
     return toFull(r);
   }
 
   @Transactional
-  public SalesReturnResponse createDraft(SalesReturnCreateRequest req, long processedByUserId) {
+  public SalesReturnResponse createDraft(
+      SalesReturnCreateRequest req, long processedByUserId, JwtAuthenticatedPrincipal principal) {
+    storeAccessService.assertCanAccessStore(req.storeId(), principal);
     if (!storeRepository.existsById(req.storeId())) {
       throw new BusinessException("Cửa hàng không tồn tại: " + req.storeId());
     }
@@ -143,15 +162,16 @@ public class SalesReturnService {
     }
     sr.setRefundAmount(refund);
     salesReturnRepository.save(sr);
-    return get(sr.getId());
+    return get(sr.getId(), principal);
   }
 
   @Transactional
-  public SalesReturnResponse confirm(Long id, long userId) {
+  public SalesReturnResponse confirm(Long id, long userId, JwtAuthenticatedPrincipal principal) {
     SalesReturn sr =
         salesReturnRepository
             .findWithItemsById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Phiếu trả không tồn tại: " + id));
+    storeAccessService.assertCanAccessStore(sr.getStoreId(), principal);
     if (!DomainConstants.RETURN_DRAFT.equals(sr.getStatus())) {
       throw new BusinessException("Chỉ xác nhận phiếu trả ở trạng thái draft.");
     }
@@ -187,6 +207,9 @@ public class SalesReturnService {
       }
     }
 
+    Warehouse wh =
+        warehouseService.resolveFulfillmentWarehouse(order.getStoreId(), order.getBranchId());
+
     LocalDateTime t = now();
     for (SalesReturnItem line : sr.getItems()) {
       ProductVariant v =
@@ -195,11 +218,11 @@ public class SalesReturnService {
               .orElseThrow(() -> new BusinessException("Biến thể không tồn tại: " + line.getVariantId()));
       Inventory inv =
           inventoryRepository
-              .findByStoreIdAndVariantId(sr.getStoreId(), line.getVariantId())
+              .findByWarehouseIdAndVariantId(wh.getId(), line.getVariantId())
               .orElseGet(
                   () -> {
                     Inventory n = new Inventory();
-                    n.setStoreId(sr.getStoreId());
+                    n.setWarehouseId(wh.getId());
                     n.setVariantId(line.getVariantId());
                     n.setQuantityOnHand(BigDecimal.ZERO);
                     n.setReservedQty(BigDecimal.ZERO);
@@ -214,7 +237,7 @@ public class SalesReturnService {
       inventoryRepository.save(inv);
 
       InventoryTransaction tx = new InventoryTransaction();
-      tx.setStoreId(sr.getStoreId());
+      tx.setWarehouseId(wh.getId());
       tx.setVariantId(line.getVariantId());
       tx.setTransactionType(DomainConstants.INV_TX_SALE_RETURN);
       tx.setReferenceType(DomainConstants.REF_TYPE_SALES_RETURN);
@@ -232,7 +255,7 @@ public class SalesReturnService {
     sr.setStatus(DomainConstants.RETURN_COMPLETED);
     sr.setProcessedBy(userId);
     salesReturnRepository.save(sr);
-    return get(id);
+    return get(id, principal);
   }
 
   private String nextReturnCode() {

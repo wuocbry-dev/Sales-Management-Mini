@@ -10,6 +10,7 @@ import com.quanlybanhang.model.DomainConstants;
 import com.quanlybanhang.model.Inventory;
 import com.quanlybanhang.model.InventoryTransaction;
 import com.quanlybanhang.model.ProductVariant;
+import com.quanlybanhang.model.Warehouse;
 import com.quanlybanhang.model.Stocktake;
 import com.quanlybanhang.model.StocktakeItem;
 import com.quanlybanhang.repository.InventoryRepository;
@@ -17,6 +18,7 @@ import com.quanlybanhang.repository.InventoryTransactionRepository;
 import com.quanlybanhang.repository.ProductVariantRepository;
 import com.quanlybanhang.repository.StocktakeRepository;
 import com.quanlybanhang.repository.StoreRepository;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -24,7 +26,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -32,7 +34,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class StocktakeService {
 
   private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
@@ -42,17 +43,44 @@ public class StocktakeService {
   private final InventoryTransactionRepository inventoryTransactionRepository;
   private final ProductVariantRepository variantRepository;
   private final StoreRepository storeRepository;
+  private final StoreAccessService storeAccessService;
+  private final WarehouseService warehouseService;
+
+  public StocktakeService(
+      StocktakeRepository stocktakeRepository,
+      InventoryRepository inventoryRepository,
+      InventoryTransactionRepository inventoryTransactionRepository,
+      ProductVariantRepository variantRepository,
+      StoreRepository storeRepository,
+      StoreAccessService storeAccessService,
+      WarehouseService warehouseSvc) {
+    this.stocktakeRepository = stocktakeRepository;
+    this.inventoryRepository = inventoryRepository;
+    this.inventoryTransactionRepository = inventoryTransactionRepository;
+    this.variantRepository = variantRepository;
+    this.storeRepository = storeRepository;
+    this.storeAccessService = storeAccessService;
+    this.warehouseService = warehouseSvc;
+  }
 
   private LocalDateTime now() {
     return LocalDateTime.now(ZONE);
   }
 
-  public Page<StocktakeResponse> list(Pageable pageable, Long storeId, String status) {
+  public Page<StocktakeResponse> list(
+      Pageable pageable, Long storeId, String status, JwtAuthenticatedPrincipal principal) {
+    List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
     Specification<Stocktake> spec =
         (root, query, cb) -> {
           var preds = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+          if (scope != null) {
+            preds.add(root.get("storeId").in(scope));
+          }
           if (storeId != null) {
             preds.add(cb.equal(root.get("storeId"), storeId));
+            if (scope != null && !scope.contains(storeId)) {
+              throw new AccessDeniedException("Không có quyền xem cửa hàng này.");
+            }
           }
           if (status != null && !status.isBlank()) {
             preds.add(cb.equal(root.get("status"), status.trim()));
@@ -65,23 +93,33 @@ public class StocktakeService {
     return stocktakeRepository.findAll(spec, pageable).map(this::toSummary);
   }
 
-  public StocktakeResponse get(Long id) {
+  public StocktakeResponse get(Long id, JwtAuthenticatedPrincipal principal) {
     Stocktake s =
         stocktakeRepository
             .findWithItemsById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Phiếu kiểm không tồn tại: " + id));
+    storeAccessService.assertCanAccessStore(s.getStoreId(), principal);
+    warehouseService.assertCanAccessWarehouse(s.getWarehouseId(), principal);
     return toFull(s);
   }
 
   @Transactional
-  public StocktakeResponse createDraft(StocktakeCreateRequest req, long userId) {
+  public StocktakeResponse createDraft(
+      StocktakeCreateRequest req, long userId, JwtAuthenticatedPrincipal principal) {
+    storeAccessService.assertCanAccessStore(req.storeId(), principal);
     if (!storeRepository.existsById(req.storeId())) {
       throw new BusinessException("Cửa hàng không tồn tại: " + req.storeId());
     }
+    Warehouse wh = warehouseService.requireById(req.warehouseId());
+    if (!wh.getStoreId().equals(req.storeId())) {
+      throw new BusinessException("Kho kiểm không thuộc cửa hàng.");
+    }
+    warehouseService.assertCanAccessWarehouse(req.warehouseId(), principal);
     LocalDateTime t = now();
     Stocktake st = new Stocktake();
     st.setStocktakeCode(nextCode());
     st.setStoreId(req.storeId());
+    st.setWarehouseId(req.warehouseId());
     st.setStocktakeDate(req.stocktakeDate());
     st.setStatus(DomainConstants.STOCKTAKE_DRAFT);
     st.setNote(req.note());
@@ -95,7 +133,7 @@ public class StocktakeService {
       }
       BigDecimal system =
           inventoryRepository
-              .findByStoreIdAndVariantId(req.storeId(), line.variantId())
+              .findByWarehouseIdAndVariantId(req.warehouseId(), line.variantId())
               .map(Inventory::getQuantityOnHand)
               .orElse(BigDecimal.ZERO);
       BigDecimal actual = line.actualQty();
@@ -109,15 +147,17 @@ public class StocktakeService {
       st.addLine(item);
     }
     stocktakeRepository.save(st);
-    return get(st.getId());
+    return get(st.getId(), principal);
   }
 
   @Transactional
-  public StocktakeResponse confirm(Long id, long userId) {
+  public StocktakeResponse confirm(Long id, long userId, JwtAuthenticatedPrincipal principal) {
     Stocktake st =
         stocktakeRepository
             .findWithItemsById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Phiếu kiểm không tồn tại: " + id));
+    storeAccessService.assertCanAccessStore(st.getStoreId(), principal);
+    warehouseService.assertCanAccessWarehouse(st.getWarehouseId(), principal);
     if (!DomainConstants.STOCKTAKE_DRAFT.equals(st.getStatus())) {
       throw new BusinessException("Chỉ xác nhận phiếu kiểm ở trạng thái draft.");
     }
@@ -132,11 +172,11 @@ public class StocktakeService {
               .orElseThrow(() -> new BusinessException("Biến thể không tồn tại: " + line.getVariantId()));
       Inventory inv =
           inventoryRepository
-              .findByStoreIdAndVariantId(st.getStoreId(), line.getVariantId())
+              .findByWarehouseIdAndVariantId(st.getWarehouseId(), line.getVariantId())
               .orElseGet(
                   () -> {
                     Inventory n = new Inventory();
-                    n.setStoreId(st.getStoreId());
+                    n.setWarehouseId(st.getWarehouseId());
                     n.setVariantId(line.getVariantId());
                     n.setQuantityOnHand(BigDecimal.ZERO);
                     n.setReservedQty(BigDecimal.ZERO);
@@ -151,7 +191,7 @@ public class StocktakeService {
       inventoryRepository.save(inv);
 
       InventoryTransaction tx = new InventoryTransaction();
-      tx.setStoreId(st.getStoreId());
+      tx.setWarehouseId(st.getWarehouseId());
       tx.setVariantId(line.getVariantId());
       tx.setTransactionType(DomainConstants.INV_TX_STOCKTAKE_ADJUST);
       tx.setReferenceType(DomainConstants.REF_TYPE_STOCKTAKE);
@@ -169,7 +209,7 @@ public class StocktakeService {
     st.setApprovedBy(userId);
     st.setUpdatedAt(t);
     stocktakeRepository.save(st);
-    return get(id);
+    return get(id, principal);
   }
 
   private String nextCode() {
@@ -188,6 +228,7 @@ public class StocktakeService {
         s.getId(),
         s.getStocktakeCode(),
         s.getStoreId(),
+        s.getWarehouseId(),
         s.getStocktakeDate(),
         s.getStatus(),
         s.getNote(),
@@ -215,6 +256,7 @@ public class StocktakeService {
         s.getId(),
         s.getStocktakeCode(),
         s.getStoreId(),
+        s.getWarehouseId(),
         s.getStocktakeDate(),
         s.getStatus(),
         s.getNote(),

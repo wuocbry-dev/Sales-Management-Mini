@@ -2,6 +2,7 @@ package com.quanlybanhang.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public final class InventoryDtos {
 
@@ -9,6 +10,7 @@ public final class InventoryDtos {
 
   public record InventoryResponse(
       Long id,
+      Long warehouseId,
       Long storeId,
       Long variantId,
       BigDecimal quantityOnHand,
@@ -17,7 +19,7 @@ public final class InventoryDtos {
 
   public record InventoryTransactionResponse(
       Long id,
-      Long storeId,
+      Long warehouseId,
       Long variantId,
       String transactionType,
       String referenceType,
@@ -29,4 +31,15 @@ public final class InventoryDtos {
       String note,
       Long createdBy,
       LocalDateTime createdAt) {}
+
+  public record InventoryLocationAvailability(
+      Long warehouseId,
+      String warehouseName,
+      String warehouseType,
+      Long branchId,
+      String branchName,
+      BigDecimal quantityOnHand) {}
+
+  public record InventoryAvailabilityResponse(
+      Long variantId, Long storeId, List<InventoryLocationAvailability> locations) {}
 }

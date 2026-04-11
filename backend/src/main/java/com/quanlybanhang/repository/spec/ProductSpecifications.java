@@ -16,7 +16,7 @@ public final class ProductSpecifications {
     return (root, query, cb) -> {
       List<Predicate> p = new ArrayList<>();
       if (status != null && !status.isBlank()) {
-        p.add(cb.equal(root.get("status"), status.trim()));
+        p.add(cb.equal(root.get("status"), status.trim().toUpperCase(Locale.ROOT)));
       }
       if (categoryId != null) {
         p.add(cb.equal(root.get("categoryId"), categoryId));

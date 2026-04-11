@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Auth JWT: register / login / me.
  *
+ * <p>Đăng ký: mọi user nhận role mặc định {@code STORE_MANAGER} (cấu hình {@code app.auth.register-default-role}).
+ *
  * <p>Hướng dẫn test nhanh (Postman / curl): xem {@code Docx/AUTH_API_TEST.md}.
  */
 @RestController

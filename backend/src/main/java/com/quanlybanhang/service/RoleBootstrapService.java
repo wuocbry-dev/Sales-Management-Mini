@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Bổ sung các role mặc định nếu DB chưa seed (tránh lỗi đăng ký user đầu cần ADMIN).
+ * Bổ sung các role mặc định nếu DB chưa seed (đăng ký công khai dùng STORE_MANAGER theo AuthService).
  * Giá trị khớp {@code Docx/sql/DataBase.sql}.
  */
 @Service
@@ -20,8 +20,10 @@ public class RoleBootstrapService {
   private final RoleRepository roleRepository;
 
   private static final Object[][] DEFAULT_ROLES = {
-    {"ADMIN", "System Admin", "Quản trị toàn hệ thống"},
+    {"SYSTEM_ADMIN", "System Admin", "Quản trị toàn hệ thống (JWT/RBAC đầy đủ)"},
+    {"ADMIN", "Admin (legacy)", "Tương đương quyền cao — giữ tương thích DB cũ"},
     {"STORE_MANAGER", "Store Manager", "Quản lý cửa hàng"},
+    {"BRANCH_MANAGER", "Branch Manager", "Quản lý chi nhánh / vận hành không tạo cửa hàng"},
     {"CASHIER", "Cashier", "Thu ngân / nhân viên bán hàng"},
     {"WAREHOUSE_STAFF", "Warehouse Staff", "Nhân viên kho"}
   };

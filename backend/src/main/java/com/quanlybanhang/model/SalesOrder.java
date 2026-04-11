@@ -33,6 +33,10 @@ public class SalesOrder {
   @Column(name = "store_id", nullable = false)
   private Long storeId;
 
+  /** Chi nhánh bán hàng — null = trừ tồn kho tổng (CENTRAL) của store. */
+  @Column(name = "branch_id")
+  private Long branchId;
+
   @Column(name = "customer_id")
   private Long customerId;
 

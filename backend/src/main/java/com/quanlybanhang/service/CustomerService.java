@@ -27,6 +27,22 @@ public class CustomerService {
     return LocalDateTime.now(ZONE);
   }
 
+  /** Khớp {@code ENUM('ACTIVE','INACTIVE')} trên MySQL. */
+  private static String normalizeActiveInactiveStatus(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return "ACTIVE";
+    }
+    return raw.trim().toUpperCase();
+  }
+
+  /** Khớp {@code ENUM('MALE','FEMALE','OTHER')} — client có thể gửi chữ thường. */
+  private static String normalizeGender(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return null;
+    }
+    return raw.trim().toUpperCase();
+  }
+
   public Page<CustomerResponse> list(Pageable pageable) {
     return customerRepository.findAll(pageable).map(this::toResponse);
   }
@@ -46,12 +62,12 @@ public class CustomerService {
     c.setFullName(req.fullName());
     c.setPhone(req.phone());
     c.setEmail(req.email());
-    c.setGender(req.gender());
+    c.setGender(normalizeGender(req.gender()));
     c.setDateOfBirth(req.dateOfBirth());
     c.setAddress(req.address());
     c.setLoyaltyPoints(0);
     c.setTotalSpent(BigDecimal.ZERO);
-    c.setStatus(req.status());
+    c.setStatus(normalizeActiveInactiveStatus(req.status()));
     c.setCreatedAt(t);
     c.setUpdatedAt(t);
     return toResponse(customerRepository.save(c));
@@ -68,10 +84,10 @@ public class CustomerService {
     c.setFullName(req.fullName());
     c.setPhone(req.phone());
     c.setEmail(req.email());
-    c.setGender(req.gender());
+    c.setGender(normalizeGender(req.gender()));
     c.setDateOfBirth(req.dateOfBirth());
     c.setAddress(req.address());
-    c.setStatus(req.status());
+    c.setStatus(normalizeActiveInactiveStatus(req.status()));
     c.setUpdatedAt(now());
     return toResponse(customerRepository.save(c));
   }

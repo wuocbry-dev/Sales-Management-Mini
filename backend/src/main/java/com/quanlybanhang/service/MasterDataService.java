@@ -22,8 +22,10 @@ import com.quanlybanhang.repository.CategoryRepository;
 import com.quanlybanhang.repository.StoreRepository;
 import com.quanlybanhang.repository.SupplierRepository;
 import com.quanlybanhang.repository.UnitRepository;
+import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,23 +39,45 @@ public class MasterDataService {
   private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
   private final StoreRepository storeRepository;
+  private final StoreAccessService storeAccessService;
   private final BrandRepository brandRepository;
   private final CategoryRepository categoryRepository;
   private final UnitRepository unitRepository;
   private final SupplierRepository supplierRepository;
+  private final WarehouseService warehouseService;
 
   private LocalDateTime now() {
     return LocalDateTime.now(ZONE);
   }
 
-  // --- Store ---
-
-  public Page<StoreResponse> listStores(Pageable pageable) {
-    return storeRepository.findAll(pageable).map(this::toStoreResponse);
+  /**
+   * MySQL {@code ENUM('ACTIVE','INACTIVE')} — chuỗi phải khớp đúng tên literal (thường IN hoa).
+   * Khớp cách xử lý trong {@link BranchService}.
+   */
+  private static String normalizeActiveInactiveStatus(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return "ACTIVE";
+    }
+    return raw.trim().toUpperCase();
   }
 
-  public StoreResponse getStore(Long id) {
-    return storeRepository.findById(id).map(this::toStoreResponse).orElseThrow(() -> notFound("Cửa hàng", id));
+  // --- Store ---
+
+  public Page<StoreResponse> listStores(Pageable pageable, JwtAuthenticatedPrincipal principal) {
+    List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
+    if (scope == null) {
+      return storeRepository.findAll(pageable).map(this::toStoreResponse);
+    }
+    return storeRepository.findByIdIn(scope, pageable).map(this::toStoreResponse);
+  }
+
+  public StoreResponse getStore(Long id, JwtAuthenticatedPrincipal principal) {
+    storeAccessService.assertCanAccessStore(id, principal);
+    Store store =
+        storeRepository
+            .findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Cửa hàng không tồn tại: " + id));
+    return toStoreResponse(store);
   }
 
   @Transactional
@@ -68,10 +92,12 @@ public class MasterDataService {
     e.setPhone(req.phone());
     e.setEmail(req.email());
     e.setAddress(req.address());
-    e.setStatus(req.status());
+    e.setStatus(normalizeActiveInactiveStatus(req.status()));
     e.setCreatedAt(t);
     e.setUpdatedAt(t);
-    return toStoreResponse(storeRepository.save(e));
+    Store saved = storeRepository.save(e);
+    warehouseService.ensureCentralWarehouse(saved.getId());
+    return toStoreResponse(saved);
   }
 
   @Transactional
@@ -85,9 +111,11 @@ public class MasterDataService {
     e.setPhone(req.phone());
     e.setEmail(req.email());
     e.setAddress(req.address());
-    e.setStatus(req.status());
+    e.setStatus(normalizeActiveInactiveStatus(req.status()));
     e.setUpdatedAt(now());
-    return toStoreResponse(storeRepository.save(e));
+    Store saved = storeRepository.save(e);
+    warehouseService.ensureCentralWarehouse(saved.getId());
+    return toStoreResponse(saved);
   }
 
   private StoreResponse toStoreResponse(Store e) {
@@ -123,7 +151,7 @@ public class MasterDataService {
     e.setBrandCode(req.brandCode());
     e.setBrandName(req.brandName());
     e.setDescription(req.description());
-    e.setStatus(req.status());
+    e.setStatus(normalizeActiveInactiveStatus(req.status()));
     e.setCreatedAt(t);
     e.setUpdatedAt(t);
     return toBrandResponse(brandRepository.save(e));
@@ -181,7 +209,7 @@ public class MasterDataService {
     e.setCategoryCode(req.categoryCode());
     e.setCategoryName(req.categoryName());
     e.setDescription(req.description());
-    e.setStatus(req.status());
+    e.setStatus(normalizeActiveInactiveStatus(req.status()));
     e.setCreatedAt(t);
     e.setUpdatedAt(t);
     return toCategoryResponse(categoryRepository.save(e));
@@ -200,7 +228,7 @@ public class MasterDataService {
     e.setCategoryCode(req.categoryCode());
     e.setCategoryName(req.categoryName());
     e.setDescription(req.description());
-    e.setStatus(req.status());
+    e.setStatus(normalizeActiveInactiveStatus(req.status()));
     e.setUpdatedAt(now());
     return toCategoryResponse(categoryRepository.save(e));
   }
@@ -282,7 +310,7 @@ public class MasterDataService {
     e.setPhone(req.phone());
     e.setEmail(req.email());
     e.setAddress(req.address());
-    e.setStatus(req.status());
+    e.setStatus(normalizeActiveInactiveStatus(req.status()));
     e.setCreatedAt(t);
     e.setUpdatedAt(t);
     return toSupplierResponse(supplierRepository.save(e));
@@ -301,7 +329,7 @@ public class MasterDataService {
     e.setPhone(req.phone());
     e.setEmail(req.email());
     e.setAddress(req.address());
-    e.setStatus(req.status());
+    e.setStatus(normalizeActiveInactiveStatus(req.status()));
     e.setUpdatedAt(now());
     return toSupplierResponse(supplierRepository.save(e));
   }

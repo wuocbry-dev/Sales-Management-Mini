@@ -30,6 +30,7 @@ public final class DomainConstants {
 
   public static final String REF_TYPE_SALES_ORDER = "sales_order";
   public static final String REF_TYPE_SALES_RETURN = "sales_return";
+  public static final String REF_TYPE_GOODS_RECEIPT = "goods_receipt";
 
   public static final String RETURN_DRAFT = "draft";
   public static final String RETURN_COMPLETED = "completed";
@@ -37,6 +38,8 @@ public final class DomainConstants {
   public static final String INV_TX_SALE_RETURN = "sale_return";
 
   public static final String TRANSFER_DRAFT = "draft";
+  /** Đã trừ kho nguồn, chờ nhận ở kho đích. */
+  public static final String TRANSFER_SENT = "sent";
   public static final String TRANSFER_COMPLETED = "completed";
   public static final String INV_TX_TRANSFER_OUT = "transfer_out";
   public static final String INV_TX_TRANSFER_IN = "transfer_in";
@@ -46,4 +49,7 @@ public final class DomainConstants {
   public static final String STOCKTAKE_COMPLETED = "completed";
   public static final String INV_TX_STOCKTAKE_ADJUST = "stocktake_adj";
   public static final String REF_TYPE_STOCKTAKE = "stocktake";
+
+  public static final String WAREHOUSE_TYPE_CENTRAL = "CENTRAL";
+  public static final String WAREHOUSE_TYPE_BRANCH = "BRANCH";
 }

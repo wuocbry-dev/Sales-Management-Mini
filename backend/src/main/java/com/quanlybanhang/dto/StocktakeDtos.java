@@ -20,6 +20,7 @@ public final class StocktakeDtos {
 
   public record StocktakeCreateRequest(
       @NotNull Long storeId,
+      @NotNull Long warehouseId,
       @NotNull LocalDateTime stocktakeDate,
       @Size(max = 500) String note,
       @NotEmpty @Valid List<StocktakeLineRequest> lines) {}
@@ -36,6 +37,7 @@ public final class StocktakeDtos {
       Long id,
       String stocktakeCode,
       Long storeId,
+      Long warehouseId,
       LocalDateTime stocktakeDate,
       String status,
       String note,

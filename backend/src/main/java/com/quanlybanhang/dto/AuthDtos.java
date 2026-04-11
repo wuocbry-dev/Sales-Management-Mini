@@ -34,7 +34,9 @@ public final class AuthDtos {
       long expiresInSeconds,
       AuthUserInfo user,
       List<String> roles,
-      List<String> permissions) {}
+      List<String> permissions,
+      List<Long> storeIds,
+      List<Long> branchIds) {}
 
   /** Thông tin user hiện tại (JWT). */
   public record MeResponse(
@@ -47,5 +49,6 @@ public final class AuthDtos {
       List<String> roles,
       List<String> permissions,
       List<Long> storeIds,
+      List<Long> branchIds,
       Long defaultStoreId) {}
 }

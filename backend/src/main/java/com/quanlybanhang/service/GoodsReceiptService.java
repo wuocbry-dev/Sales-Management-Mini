@@ -11,6 +11,7 @@ import com.quanlybanhang.model.GoodsReceipt;
 import com.quanlybanhang.model.GoodsReceiptItem;
 import com.quanlybanhang.model.Inventory;
 import com.quanlybanhang.model.InventoryTransaction;
+import com.quanlybanhang.model.Warehouse;
 import com.quanlybanhang.repository.GoodsReceiptRepository;
 import com.quanlybanhang.repository.InventoryRepository;
 import com.quanlybanhang.repository.InventoryTransactionRepository;
@@ -24,17 +25,17 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@RequiredArgsConstructor
 public class GoodsReceiptService {
 
   private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
@@ -46,6 +47,26 @@ public class GoodsReceiptService {
   private final StoreRepository storeRepository;
   private final SupplierRepository supplierRepository;
   private final StoreAccessService storeAccessService;
+  private final WarehouseService warehouseService;
+
+  public GoodsReceiptService(
+      GoodsReceiptRepository goodsReceiptRepository,
+      InventoryRepository inventoryRepository,
+      InventoryTransactionRepository inventoryTransactionRepository,
+      ProductVariantRepository variantRepository,
+      StoreRepository storeRepository,
+      SupplierRepository supplierRepository,
+      StoreAccessService storeAccessService,
+      WarehouseService warehouseSvc) {
+    this.goodsReceiptRepository = goodsReceiptRepository;
+    this.inventoryRepository = inventoryRepository;
+    this.inventoryTransactionRepository = inventoryTransactionRepository;
+    this.variantRepository = variantRepository;
+    this.storeRepository = storeRepository;
+    this.supplierRepository = supplierRepository;
+    this.storeAccessService = storeAccessService;
+    this.warehouseService = warehouseSvc;
+  }
 
   private LocalDateTime now() {
     return LocalDateTime.now(ZONE);
@@ -56,17 +77,29 @@ public class GoodsReceiptService {
       Long storeId,
       String status,
       LocalDateTime fromReceiptDate,
-      LocalDateTime toReceiptDate) {
+      LocalDateTime toReceiptDate,
+      JwtAuthenticatedPrincipal principal) {
+    java.util.List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
+    if (storeId != null && scope != null && !scope.contains(storeId)) {
+      throw new AccessDeniedException("Không có quyền xem cửa hàng này.");
+    }
     Specification<GoodsReceipt> spec =
         GoodsReceiptSpecifications.filter(storeId, status, fromReceiptDate, toReceiptDate);
+    if (scope != null) {
+      spec =
+          Specification.where(spec)
+              .and((root, query, cb) -> root.get("storeId").in(scope));
+    }
     return goodsReceiptRepository.findAll(spec, pageable).map(this::toResponseWithoutLines);
   }
 
-  public GoodsReceiptResponse get(Long id) {
+  public GoodsReceiptResponse get(Long id, JwtAuthenticatedPrincipal principal) {
     GoodsReceipt r =
         goodsReceiptRepository
             .findWithItemsById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Phiếu nhập không tồn tại: " + id));
+    storeAccessService.assertCanAccessStore(r.getStoreId(), principal);
+    warehouseService.assertCanAccessWarehouse(r.getWarehouseId(), principal);
     return toResponse(r);
   }
 
@@ -75,6 +108,7 @@ public class GoodsReceiptService {
         r.getId(),
         r.getReceiptCode(),
         r.getStoreId(),
+        r.getWarehouseId(),
         r.getSupplierId(),
         r.getReceiptDate(),
         r.getStatus(),
@@ -86,7 +120,7 @@ public class GoodsReceiptService {
         r.getApprovedBy(),
         r.getCreatedAt(),
         r.getUpdatedAt(),
-        List.of());
+        Collections.<GoodsReceiptLineResponse>emptyList());
   }
 
   @Transactional
@@ -97,6 +131,14 @@ public class GoodsReceiptService {
     if (!storeRepository.existsById(req.storeId())) {
       throw new BusinessException("Cửa hàng không tồn tại: " + req.storeId());
     }
+    Warehouse dest =
+        req.warehouseId() != null
+            ? warehouseService.requireById(req.warehouseId())
+            : warehouseService.ensureCentralWarehouse(req.storeId());
+    if (!dest.getStoreId().equals(req.storeId())) {
+      throw new BusinessException("Kho nhập không thuộc cửa hàng của phiếu.");
+    }
+    warehouseService.assertCanAccessWarehouse(dest.getId(), principal);
     if (req.supplierId() != null && !supplierRepository.existsById(req.supplierId())) {
       throw new BusinessException("Nhà cung cấp không tồn tại: " + req.supplierId());
     }
@@ -109,6 +151,7 @@ public class GoodsReceiptService {
     GoodsReceipt gr = new GoodsReceipt();
     gr.setReceiptCode(nextReceiptCode());
     gr.setStoreId(req.storeId());
+    gr.setWarehouseId(dest.getId());
     gr.setSupplierId(req.supplierId());
     gr.setReceiptDate(req.receiptDate());
     gr.setStatus(DomainConstants.RECEIPT_DRAFT);
@@ -134,7 +177,7 @@ public class GoodsReceiptService {
     gr.setTotalAmount(subtotal.subtract(req.headerDiscountAmount()).max(BigDecimal.ZERO));
 
     goodsReceiptRepository.save(gr);
-    return get(gr.getId());
+    return get(gr.getId(), principal);
   }
 
   @Transactional
@@ -144,6 +187,7 @@ public class GoodsReceiptService {
             .findWithItemsById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Phiếu nhập không tồn tại: " + id));
     storeAccessService.assertCanAccessStore(gr.getStoreId(), principal);
+    warehouseService.assertCanAccessWarehouse(gr.getWarehouseId(), principal);
     long userId = principal.userId();
     if (!DomainConstants.RECEIPT_DRAFT.equals(gr.getStatus())) {
       throw new BusinessException("Chỉ phiếu trạng thái draft mới xác nhận nhập kho.");
@@ -153,26 +197,26 @@ public class GoodsReceiptService {
     }
     LocalDateTime t = now();
     for (GoodsReceiptItem line : gr.getItems()) {
-      applyInventoryInbound(gr.getStoreId(), gr.getId(), line, userId, t);
+      applyInventoryInbound(gr.getWarehouseId(), gr.getId(), line, userId, t);
     }
     gr.setStatus(DomainConstants.RECEIPT_COMPLETED);
     gr.setApprovedBy(userId);
     gr.setUpdatedAt(t);
     goodsReceiptRepository.save(gr);
-    return get(id);
+    return get(id, principal);
   }
 
   private void applyInventoryInbound(
-      Long storeId, Long receiptId, GoodsReceiptItem line, long userId, LocalDateTime t) {
+      Long warehouseId, Long receiptId, GoodsReceiptItem line, long userId, LocalDateTime t) {
     Long variantId = line.getVariantId();
     BigDecimal qty = line.getQuantity();
     Inventory inv =
         inventoryRepository
-            .findByStoreIdAndVariantId(storeId, variantId)
+            .findByWarehouseIdAndVariantId(warehouseId, variantId)
             .orElseGet(
                 () -> {
                   Inventory n = new Inventory();
-                  n.setStoreId(storeId);
+                  n.setWarehouseId(warehouseId);
                   n.setVariantId(variantId);
                   n.setQuantityOnHand(BigDecimal.ZERO);
                   n.setReservedQty(BigDecimal.ZERO);
@@ -186,10 +230,10 @@ public class GoodsReceiptService {
     inventoryRepository.save(inv);
 
     InventoryTransaction tx = new InventoryTransaction();
-    tx.setStoreId(storeId);
+    tx.setWarehouseId(warehouseId);
     tx.setVariantId(variantId);
     tx.setTransactionType(DomainConstants.INV_TX_GOODS_RECEIPT);
-    tx.setReferenceType("goods_receipt");
+    tx.setReferenceType(DomainConstants.REF_TYPE_GOODS_RECEIPT);
     tx.setReferenceId(receiptId);
     tx.setQtyChange(qty);
     tx.setQtyBefore(before);
@@ -239,6 +283,7 @@ public class GoodsReceiptService {
         r.getId(),
         r.getReceiptCode(),
         r.getStoreId(),
+        r.getWarehouseId(),
         r.getSupplierId(),
         r.getReceiptDate(),
         r.getStatus(),
