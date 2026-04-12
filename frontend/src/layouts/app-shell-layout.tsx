@@ -1,4 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
 import { NavLink, Outlet, useMatches } from "react-router-dom";
+import { fetchBranchesForStore } from "@/api/branches-api";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -6,6 +8,7 @@ import { getSidebarSections, type AppNavItem } from "@/app/navigation";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { isSystemLevelUser } from "@/lib/access-control";
+import { roleCodeDescriptionVi } from "@/lib/role-labels";
 import { cn } from "@/lib/utils";
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useState } from "react";
@@ -80,9 +83,35 @@ export function AppShellLayout() {
 
   const currentStoreLabel = me.defaultStoreId ? getStoreName(me.defaultStoreId) : "Chưa chọn cửa hàng";
   const isAdmin = isSystemLevelUser(me);
+  const isCashier = me.roles.includes("CASHIER");
+  const isWarehouseStaff = me.roles.includes("WAREHOUSE_STAFF");
+  const isFrontlineRole = isCashier || isWarehouseStaff;
+  const currentBranchId = me.branchIds.length > 0 ? me.branchIds[0] : null;
+  const currentStoreId = me.defaultStoreId ?? (me.storeIds.length > 0 ? me.storeIds[0] : null);
+  const branchQ = useQuery({
+    queryKey: ["layout", "store-branches", currentStoreId],
+    queryFn: () => fetchBranchesForStore(Number(currentStoreId), { page: 0, size: 500 }),
+    enabled: isFrontlineRole && currentStoreId != null,
+  });
   const isStoreManager = me.roles.includes("STORE_MANAGER");
-  const roleHeadline = isAdmin ? "ADMIN" : isStoreManager ? "Quản lý cửa hàng" : "Người dùng";
-  const roleSubline = isAdmin ? "quản trị viên hệ thống" : currentStoreLabel;
+  const frontlineRoleCode = isCashier ? "CASHIER" : isWarehouseStaff ? "WAREHOUSE_STAFF" : null;
+  const roleHeadline = isAdmin
+    ? "ADMIN"
+    : frontlineRoleCode
+      ? roleCodeDescriptionVi(frontlineRoleCode)
+      : isStoreManager
+        ? "Quản lý cửa hàng"
+        : "Người dùng";
+  const currentBranchName =
+    currentBranchId == null
+      ? null
+      : (branchQ.data?.content ?? []).find((b) => b.branchId === currentBranchId)?.branchName ??
+        `Chi nhánh #${currentBranchId}`;
+  const roleSubline = isAdmin
+    ? "quản trị viên hệ thống"
+    : frontlineRoleCode
+      ? (currentBranchName ?? "Chưa gán chi nhánh")
+      : currentStoreLabel;
 
   const sidebar = (
     <aside
@@ -109,7 +138,7 @@ export function AppShellLayout() {
         </NavLink>
         {!collapsed ? (
           <div className="min-w-0 flex-1 px-2">
-            <p className="truncate text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+            <p className="truncate text-xs font-bold tracking-wide text-emerald-700 dark:text-emerald-400">
               {roleHeadline}
             </p>
             <p className="truncate text-[11px] font-medium text-muted-foreground">{roleSubline}</p>

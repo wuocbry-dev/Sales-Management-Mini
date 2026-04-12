@@ -80,6 +80,14 @@ public class StoreStaffUserController {
     return userService.softDeactivateStoreStaff(id, principal);
   }
 
+  /** Mở lại: đặt {@code users.status = ACTIVE}. */
+  @PostMapping("/{id}/activate")
+  @PreAuthorize("@authz.systemManage(authentication) or hasRole('STORE_MANAGER')")
+  public StoreStaffResponse activate(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return userService.reactivateStoreStaff(id, principal);
+  }
+
   @PutMapping("/{id}/change-branch")
   @PreAuthorize("@authz.systemManage(authentication) or hasRole('STORE_MANAGER')")
   public ChangeStoreStaffBranchResponse changeBranch(

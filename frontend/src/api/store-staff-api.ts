@@ -56,3 +56,9 @@ export async function softDeactivateStoreStaff(id: number): Promise<StoreStaffRo
   const { data } = await apiClient.post<StoreStaffRow>(`/api/users/store-staff/${id}/deactivate`);
   return data;
 }
+
+/** Mở hoạt động lại: đặt trạng thái ACTIVE. */
+export async function activateStoreStaff(id: number): Promise<StoreStaffRow> {
+  const { data } = await apiClient.post<StoreStaffRow>(`/api/users/store-staff/${id}/activate`);
+  return data;
+}

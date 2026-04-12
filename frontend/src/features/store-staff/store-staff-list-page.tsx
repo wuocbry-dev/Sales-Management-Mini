@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { fetchStoreStaffPage, softDeactivateStoreStaff } from "@/api/store-staff-api";
+import { activateStoreStaff, fetchStoreStaffPage, softDeactivateStoreStaff } from "@/api/store-staff-api";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
@@ -61,6 +61,16 @@ export function StoreStaffListPage() {
     mutationFn: (userId: number) => softDeactivateStoreStaff(userId),
     onSuccess: async () => {
       toast.success("Đã ngưng nhân viên (xóa mềm).");
+      await qc.invalidateQueries({ queryKey: ["store-staff"] });
+    },
+    onError: (e) => toast.error(formatApiError(e)),
+  });
+
+  const activateM = useMutation({
+    meta: { skipGlobalErrorToast: true },
+    mutationFn: (userId: number) => activateStoreStaff(userId),
+    onSuccess: async () => {
+      toast.success("Đã mở hoạt động cho nhân viên.");
       await qc.invalidateQueries({ queryKey: ["store-staff"] });
     },
     onError: (e) => toast.error(formatApiError(e)),
@@ -201,6 +211,23 @@ export function StoreStaffListPage() {
                               }}
                             >
                               Ngưng
+                            </Button>
+                          ) : null}
+                          {!isActiveStoreStaffStatus(row.status) && me && row.userId !== me.id ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="text-emerald-700 hover:bg-emerald-50"
+                              disabled={activateM.isPending}
+                              onClick={() => {
+                                if (!window.confirm(`Mở hoạt động lại cho tài khoản "${row.username}"?`)) {
+                                  return;
+                                }
+                                activateM.mutate(row.userId);
+                              }}
+                            >
+                              Mở
                             </Button>
                           ) : null}
                         </div>

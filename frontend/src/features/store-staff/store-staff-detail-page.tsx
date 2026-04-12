@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { fetchBranchesForStore } from "@/api/branches-api";
 import {
+  activateStoreStaff,
   changeStoreStaffBranch,
   fetchStoreStaffById,
   softDeactivateStoreStaff,
@@ -133,6 +134,17 @@ export function StoreStaffDetailPage() {
     onError: (e) => toast.error(formatApiError(e)),
   });
 
+  const activateM = useMutation({
+    meta: { skipGlobalErrorToast: true },
+    mutationFn: () => activateStoreStaff(uid),
+    onSuccess: async () => {
+      toast.success("Đã mở hoạt động cho nhân viên.");
+      await qc.invalidateQueries({ queryKey: ["store-staff"] });
+      await qc.invalidateQueries({ queryKey: ["store-staff", uid] });
+    },
+    onError: (e) => toast.error(formatApiError(e)),
+  });
+
   if (invalid) {
     return (
       <Card>
@@ -151,6 +163,7 @@ export function StoreStaffDetailPage() {
   const curBranch = branches.find((b) => b.branchId === row.branchId);
   const otherBranches = branches.filter((b) => b.branchId !== row.branchId);
   const canDeactivate = Boolean(me && row.userId !== me.id && isActiveStoreStaffStatus(row.status));
+  const canActivate = Boolean(me && row.userId !== me.id && !isActiveStoreStaffStatus(row.status));
 
   return (
     <div className="space-y-6">
@@ -355,6 +368,33 @@ export function StoreStaffDetailPage() {
               }}
             >
               {deactivateM.isPending ? "Đang xử lý…" : "Ngưng nhân viên"}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {canActivate ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Mở hoạt động nhân viên</CardTitle>
+            <CardDescription>
+              Kích hoạt lại tài khoản để nhân viên đăng nhập và thao tác bình thường.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              type="button"
+              variant="outline"
+              className="text-emerald-700 hover:bg-emerald-50"
+              disabled={activateM.isPending}
+              onClick={() => {
+                if (!window.confirm(`Mở hoạt động lại cho tài khoản "${row.username}"?`)) {
+                  return;
+                }
+                activateM.mutate();
+              }}
+            >
+              {activateM.isPending ? "Đang xử lý…" : "Mở hoạt động"}
             </Button>
           </CardContent>
         </Card>

@@ -363,6 +363,48 @@ public class UserService {
     return toStoreStaffResponseFromUser(u);
   }
 
+  /** Mở lại nhân viên cửa hàng: đặt {@code users.status = ACTIVE}. */
+  @Transactional
+  public StoreStaffResponse reactivateStoreStaff(
+      Long userId, JwtAuthenticatedPrincipal principal) {
+    if (principal != null && principal.userId() == userId) {
+      throw new AuthApiException(
+          HttpStatus.FORBIDDEN,
+          AuthErrorCodes.FORBIDDEN,
+          "Không thể tự thay đổi trạng thái tài khoản đang đăng nhập.");
+    }
+    AppUser u = loadUser(userId);
+    if (!onlyCashierOrWarehouseStaffRoles(userId)) {
+      throw new AuthApiException(
+          HttpStatus.FORBIDDEN,
+          AuthErrorCodes.INVALID_TARGET_ROLE,
+          "Chỉ được mở lại nhân viên CASHIER hoặc WAREHOUSE_STAFF.");
+    }
+    if (staffRoleCodeForUser(userId) == null) {
+      throw new ResourceNotFoundException("Không tìm thấy nhân viên.");
+    }
+    if (!storeAccessService.isFullSystemAccess()) {
+      if (principal == null) {
+        throw new AuthApiException(
+            HttpStatus.FORBIDDEN, AuthErrorCodes.FORBIDDEN, "Không có quyền.");
+      }
+      if (!userLinkedToAnyStore(userId, principal.storeIds())) {
+        throw new AuthApiException(
+            HttpStatus.FORBIDDEN,
+            AuthErrorCodes.FORBIDDEN,
+            "Không có quyền mở lại nhân viên này.");
+      }
+    }
+    if (!isInactiveUserStatus(u.getStatus())) {
+      return toStoreStaffResponseFromUser(u);
+    }
+    LocalDateTime t = LocalDateTime.now();
+    u.setStatus("ACTIVE");
+    u.setUpdatedAt(t);
+    appUserRepository.save(u);
+    return toStoreStaffResponseFromUser(u);
+  }
+
   /**
    * Điều chuyển nhân viên CASHIER / WAREHOUSE_STAFF sang chi nhánh khác trong cùng cửa hàng —
    * cập nhật bảng {@code user_branches} (một bản ghi, primary = chi nhánh mới).
