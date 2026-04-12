@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
@@ -8,6 +8,7 @@ import { useAuthStore } from "@/features/auth/auth-store";
 import { isSystemManage } from "@/features/auth/access";
 
 export function StoreScopedUsersHubPage() {
+  const location = useLocation();
   const me = useAuthStore((s) => s.me);
   const admin = Boolean(me && isSystemManage(me));
   const allowed = admin ? null : new Set(me?.storeIds ?? []);
@@ -40,7 +41,12 @@ export function StoreScopedUsersHubPage() {
                     <p className="font-mono text-xs text-muted-foreground">{s.storeCode}</p>
                   </div>
                   <Button variant="outline" size="sm" asChild>
-                    <Link to={`/app/cua-hang/${s.id}/nguoi-dung`}>Mở danh sách</Link>
+                    <Link
+                      to={`/app/cua-hang/${s.id}/nguoi-dung`}
+                      state={{ from: `${location.pathname}${location.search}` }}
+                    >
+                      Mở danh sách
+                    </Link>
                   </Button>
                 </li>
               ))}

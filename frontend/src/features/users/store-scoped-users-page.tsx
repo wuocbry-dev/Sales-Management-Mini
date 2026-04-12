@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { fetchBranchesForStore } from "@/api/branches-api";
 import { fetchStoreById } from "@/api/stores-api";
@@ -39,6 +39,7 @@ const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
 export function StoreScopedUsersPage() {
+  const location = useLocation();
   const { storeId: storeIdParam } = useParams();
   const storeId = Number(storeIdParam);
   const invalid = !Number.isFinite(storeId) || storeId <= 0;
@@ -156,12 +157,17 @@ export function StoreScopedUsersPage() {
   const st = storeQ.data;
   const data = listQ.data;
   const branchRows = branchesQ.data?.content ?? [];
+  const backTo =
+    (location.state as { from?: string } | null)?.from &&
+    (location.state as { from?: string }).from
+      ? (location.state as { from?: string }).from!
+      : "/app/nguoi-dung-cua-hang";
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" asChild>
-          <Link to={`/app/cua-hang/${storeId}`}>← Về cửa hàng</Link>
+          <Link to={backTo}>← Quay lại</Link>
         </Button>
       </div>
 

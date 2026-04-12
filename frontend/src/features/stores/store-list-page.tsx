@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { fetchStoresPage } from "@/api/stores-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -18,6 +18,7 @@ import { StoreFormDialog } from "@/features/stores/store-form-dialog";
 const DEFAULT_SIZE = 10;
 
 export function StoreListPage() {
+  const location = useLocation();
   const me = useAuthStore((s) => s.me);
   const canCreate = Boolean(me && gateStoreCreate(me));
   const [params, setParams] = useSearchParams();
@@ -88,7 +89,12 @@ export function StoreListPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" asChild>
-                          <Link to={`/app/cua-hang/${row.id}`}>Mở</Link>
+                          <Link
+                            to={`/app/cua-hang/${row.id}`}
+                            state={{ from: `${location.pathname}${location.search}` }}
+                          >
+                            Mở
+                          </Link>
                         </Button>
                       </TableCell>
                     </TableRow>

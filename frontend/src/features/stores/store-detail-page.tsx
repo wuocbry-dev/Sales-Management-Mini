@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { useState } from "react";
 import { fetchStoreById } from "@/api/stores-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -14,7 +14,7 @@ import { activeInactiveLabel } from "@/lib/entity-status-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 
 export function StoreDetailPage() {
-  const navigate = useNavigate();
+  const location = useLocation();
   const { storeId } = useParams();
   const id = Number(storeId);
   const me = useAuthStore((s) => s.me);
@@ -43,12 +43,17 @@ export function StoreDetailPage() {
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => void q.refetch()} />;
 
   const s = q.data;
+  const from =
+    (location.state as { from?: string } | null)?.from &&
+    (location.state as { from?: string }).from
+      ? (location.state as { from?: string }).from!
+      : "/app/cua-hang";
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
-          ← Quay lại
+        <Button variant="outline" size="sm" asChild>
+          <Link to={from}>← Quay lại</Link>
         </Button>
         <Button variant="outline" size="sm" asChild>
           <Link to={`/app/cua-hang/${id}/chi-nhanh`}>Chi nhánh</Link>
@@ -58,7 +63,12 @@ export function StoreDetailPage() {
         </Button>
         {canSeeStoreUsers ? (
           <Button variant="outline" size="sm" asChild>
-            <Link to={`/app/cua-hang/${id}/nguoi-dung`}>Người dùng trong cửa hàng</Link>
+            <Link
+              to={`/app/cua-hang/${id}/nguoi-dung`}
+              state={{ from: `${location.pathname}${location.search}` }}
+            >
+              Người dùng trong cửa hàng
+            </Link>
           </Button>
         ) : null}
         {canEdit ? (
