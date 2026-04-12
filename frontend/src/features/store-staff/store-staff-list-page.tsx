@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { fetchStoreStaffPage, softDeactivateStoreStaff } from "@/api/store-staff-api";
-import { fetchStoresPage } from "@/api/stores-api";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { PaginationBar } from "@/components/data-table/pagination-bar";
@@ -40,11 +40,7 @@ export function StoreStaffListPage() {
   const storeFilter = params.get("cuaHang");
   const storeId = storeFilter && storeFilter !== "" ? Number(storeFilter) : undefined;
 
-  const storesQ = useQuery({
-    queryKey: ["stores", "staff-filter"],
-    queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
-    enabled: admin && canArea,
-  });
+  const { stores, getStoreName } = useStoreNameMap({ enabled: canArea });
 
   const listQ = useQuery({
     queryKey: ["store-staff", page, size, roleCode, status, storeId],
@@ -84,8 +80,6 @@ export function StoreStaffListPage() {
     p.set("kichThuoc", String(size));
     setParams(p, { replace: true });
   };
-
-  const stores = storesQ.data?.content ?? [];
 
   if (!canArea) return null;
 
@@ -158,7 +152,7 @@ export function StoreStaffListPage() {
                   <TableHead>Tên đăng nhập</TableHead>
                   <TableHead>Họ tên</TableHead>
                   <TableHead>Vai trò</TableHead>
-                  <TableHead>Mã cửa hàng</TableHead>
+                  <TableHead>Cửa hàng</TableHead>
                   <TableHead>Trạng thái</TableHead>
                   <TableHead>Tạo lúc</TableHead>
                   <TableHead className="w-[200px]" />
@@ -177,7 +171,7 @@ export function StoreStaffListPage() {
                       <TableCell className="font-mono text-sm">{row.username}</TableCell>
                       <TableCell className="font-medium">{row.fullName}</TableCell>
                       <TableCell className="text-sm">{row.roleCode}</TableCell>
-                      <TableCell>{row.storeId}</TableCell>
+                      <TableCell>{getStoreName(row.storeId)}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">{userAccountStatusLabel(row.status)}</Badge>
                       </TableCell>

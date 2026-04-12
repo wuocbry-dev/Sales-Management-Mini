@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { fetchBranchesForStore } from "@/api/branches-api";
 import { createSalesOrderDraft } from "@/api/sales-orders-api";
-import { fetchStoresPage } from "@/api/stores-api";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { VariantSearchCombobox } from "@/components/catalog/variant-search-combobox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,11 +74,7 @@ export function SalesOrderCreatePage() {
   const navigate = useNavigate();
   const pick = Boolean(me && needStorePicker(me));
 
-  const storesQ = useQuery({
-    queryKey: ["so-create", "stores"],
-    queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
-    enabled: pick,
-  });
+  const { stores, getStoreName } = useStoreNameMap();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -127,7 +123,6 @@ export function SalesOrderCreatePage() {
   });
 
   const branches = branchesQ.data?.content ?? [];
-  const stores = storesQ.data?.content ?? [];
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -171,7 +166,7 @@ export function SalesOrderCreatePage() {
                 ) : me?.storeIds[0] ? (
                   <div className="sm:col-span-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
                     <span className="text-muted-foreground">Cửa hàng: </span>
-                    <span className="font-medium tabular-nums">{me.storeIds[0]}</span>
+                    <span className="font-medium">{getStoreName(me.storeIds[0])}</span>
                   </div>
                 ) : null}
 

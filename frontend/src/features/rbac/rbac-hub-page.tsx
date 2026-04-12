@@ -35,6 +35,7 @@ import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "react-router-dom";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import type { CreatePermissionOverrideRequestBody } from "@/types/rbac";
 
 type Tab = "roles" | "permissions" | "overrides";
@@ -53,6 +54,7 @@ function overrideTypeLabel(t: string): string {
 
 export function RbacHubPage() {
   const me = useAuthStore((s) => s.me);
+  const { getStoreName } = useStoreNameMap({ enabled: Boolean(me && gateRbacAreaRoute(me)) });
   const canArea = Boolean(me && gateRbacAreaRoute(me));
   const canRoles = Boolean(me && gateRbacRolesView(me));
   const canPerms = Boolean(me && gateRbacPermissionsView(me));
@@ -332,7 +334,7 @@ export function RbacHubPage() {
                             {o.branchId != null
                               ? `Chi nhánh ${o.branchId}`
                               : o.storeId != null
-                                ? `Cửa hàng ${o.storeId}`
+                                ? getStoreName(o.storeId)
                                 : "Toàn hệ thống"}
                           </TableCell>
                           <TableCell>

@@ -1,6 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { fetchStoresPage } from "@/api/stores-api";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { Button } from "@/components/ui/button";
@@ -13,15 +12,12 @@ export function StoreScopedUsersHubPage() {
   const admin = Boolean(me && isSystemManage(me));
   const allowed = admin ? null : new Set(me?.storeIds ?? []);
 
-  const q = useQuery({
-    queryKey: ["stores", "scoped-users-hub"],
-    queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
-  });
+  const { stores, isPending, isError, error, refetch } = useStoreNameMap();
 
-  if (q.isPending) return <PageSkeleton cards={2} />;
-  if (q.isError) return <ApiErrorState error={q.error} onRetry={() => void q.refetch()} />;
+  if (isPending) return <PageSkeleton cards={2} />;
+  if (isError) return <ApiErrorState error={error} onRetry={() => void refetch()} />;
 
-  const rows = (q.data?.content ?? []).filter((s) => (allowed == null ? true : allowed.has(s.id)));
+  const rows = stores.filter((s) => (allowed == null ? true : allowed.has(s.id)));
 
   return (
     <div className="space-y-6">

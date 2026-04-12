@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { fetchBranchesForStore } from "@/api/branches-api";
 import { createStoreStaff } from "@/api/store-staff-api";
-import { fetchStoresPage } from "@/api/stores-api";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -40,17 +40,15 @@ export function StoreStaffCreatePage() {
   const qc = useQueryClient();
   const admin = Boolean(me && isSystemManage(me));
 
-  const storesQ = useQuery({
-    queryKey: ["stores", "staff-create"],
-    queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
-    enabled: Boolean(me) && admin,
+  const { stores: adminStores, getStoreName, isPending: adminStoresPending } = useStoreNameMap({
+    enabled: Boolean(me),
   });
 
   const storeIdsForBranches = useMemo(() => {
     if (!me) return [];
-    if (admin) return (storesQ.data?.content ?? []).map((s) => s.id);
+    if (admin) return adminStores.map((s) => s.id);
     return me.storeIds ?? [];
-  }, [me, admin, storesQ.data]);
+  }, [me, admin, adminStores]);
 
   const branchesQueries = useQueries({
     queries: storeIdsForBranches.map((sid) => ({
@@ -70,7 +68,7 @@ export function StoreStaffCreatePage() {
         seen.add(b.branchId);
         rows.push({
           branchId: b.branchId,
-          label: `${b.branchName} (${b.branchCode}) — cửa hàng ${b.storeId}`,
+          label: `${b.branchName} (${b.branchCode}) — ${getStoreName(b.storeId)}`,
         });
       }
     }
@@ -256,7 +254,7 @@ export function StoreStaffCreatePage() {
                   )}
                 />
               </div>
-              {admin && storesQ.isPending ? (
+              {admin && adminStoresPending ? (
                 <p className="text-sm text-muted-foreground">Đang tải danh sách cửa hàng…</p>
               ) : null}
               {!loadingBranches && branchOptions.length === 0 ? (

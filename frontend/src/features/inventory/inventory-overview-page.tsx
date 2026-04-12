@@ -6,7 +6,7 @@ import {
   fetchInventoryAvailability,
   fetchInventoryTransactionsPage,
 } from "@/api/inventory-api";
-import { fetchStoresPage } from "@/api/stores-api";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { fetchWarehousesForStore } from "@/api/warehouses-api";
 import { VariantSearchCombobox } from "@/components/catalog/variant-search-combobox";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -90,13 +90,15 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
   const [txnFrom, setTxnFrom] = useState("");
   const [txnTo, setTxnTo] = useState("");
 
-  const storesQ = useQuery({
-    queryKey: ["inventory", "stores"],
-    queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
-    retry: false,
-  });
+  const {
+    stores: storeOptions,
+    getStoreName,
+    isPending: storesLoading,
+    isError: storesLoadError,
+    error: storesLoadErr,
+    refetch: refetchStores,
+  } = useStoreNameMap();
 
-  const storeOptions = storesQ.data?.content ?? [];
   const fallbackStoreIds = me?.storeIds ?? [];
 
   const warehousesQ = useQuery({
@@ -195,12 +197,12 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
     return canSeeTransactionsTab ? all : all.filter((t) => t.id !== "transactions");
   }, [canSeeTransactionsTab]);
 
-  if (storesQ.isPending) {
+  if (storesLoading) {
     return <PageSkeleton cards={2} />;
   }
 
-  if (storesQ.isError && fallbackStoreIds.length === 0) {
-    return <ApiErrorState error={storesQ.error} onRetry={() => void storesQ.refetch()} />;
+  if (storesLoadError && fallbackStoreIds.length === 0) {
+    return <ApiErrorState error={storesLoadErr} onRetry={() => void refetchStores()} />;
   }
 
   return (
@@ -240,7 +242,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
           <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-2">
               <Label htmlFor="inv-store">Cửa hàng</Label>
-              {!storesQ.isError ? (
+              {!storesLoadError ? (
                 <select
                   id="inv-store"
                   className={selectClass}
@@ -275,7 +277,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                   <option value="">— Chọn cửa hàng —</option>
                   {fallbackStoreIds.map((id) => (
                     <option key={id} value={id}>
-                      Cửa hàng #{id}
+                      {getStoreName(id)}
                     </option>
                   ))}
                 </select>
@@ -426,7 +428,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="av-store">Cửa hàng</Label>
-                {!storesQ.isError ? (
+                {!storesLoadError ? (
                   <select
                     id="av-store"
                     className={selectClass}
@@ -450,7 +452,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                     <option value="">— Chọn —</option>
                     {fallbackStoreIds.map((id) => (
                       <option key={id} value={id}>
-                        Cửa hàng #{id}
+                        {getStoreName(id)}
                       </option>
                     ))}
                   </select>

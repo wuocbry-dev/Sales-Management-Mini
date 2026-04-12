@@ -18,6 +18,7 @@ import { canSeeProductCreate } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { catalogStatusLabel } from "@/lib/catalog-status-labels";
 import { productTypeLabel } from "@/lib/product-type-labels";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 
 const DEFAULT_SIZE = 10;
 
@@ -76,6 +77,8 @@ export function ProductListPage() {
         ...(q ? { q } : {}),
       }),
   });
+
+  const { getStoreName } = useStoreNameMap();
 
   const setPage = (next: number) => {
     const p = new URLSearchParams(params);
@@ -229,7 +232,7 @@ export function ProductListPage() {
                       <TableCell className="font-mono text-sm">{row.productCode}</TableCell>
                       <TableCell className="font-medium">{row.productName}</TableCell>
                       <TableCell>{productTypeLabel(row.productType)}</TableCell>
-                      <TableCell className="tabular-nums text-muted-foreground">{row.storeId}</TableCell>
+                      <TableCell className="text-sm">{getStoreName(row.storeId)}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">{catalogStatusLabel(row.status)}</Badge>
                       </TableCell>

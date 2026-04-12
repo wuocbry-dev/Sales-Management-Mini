@@ -14,6 +14,7 @@ import { formatApiError } from "@/lib/api-errors";
 import { stocktakeStatusLabel } from "@/lib/document-flow-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 import { formatQty } from "@/lib/format-qty";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 
 export function StocktakeDetailPage() {
   const me = useAuthStore((s) => s.me);
@@ -27,6 +28,8 @@ export function StocktakeDetailPage() {
     queryFn: () => fetchStocktakeById(kid),
     enabled: !invalid,
   });
+
+  const { getStoreName } = useStoreNameMap();
 
   const canConfirm = Boolean(me && canSeeStocktakeConfirm(me, q.data?.status));
 
@@ -85,7 +88,7 @@ export function StocktakeDetailPage() {
         <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
           <div>
             <p className="text-xs text-muted-foreground">Cửa hàng</p>
-            <p className="font-medium tabular-nums">{s.storeId}</p>
+            <p className="font-medium">{getStoreName(s.storeId)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Kho</p>

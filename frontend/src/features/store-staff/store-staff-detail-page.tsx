@@ -25,6 +25,7 @@ import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import type { UpdateStoreStaffRequestBody } from "@/types/store-staff";
 
 const selectClass =
@@ -65,6 +66,8 @@ export function StoreStaffDetailPage() {
     queryFn: () => fetchStoreStaffById(uid),
     enabled: !invalid,
   });
+
+  const { getStoreName } = useStoreNameMap();
 
   const editForm = useForm<EditFormValues>({
     resolver: zodResolver(editSchema),
@@ -180,7 +183,7 @@ export function StoreStaffDetailPage() {
           </div>
           <div>
             <p className="text-xs font-medium text-muted-foreground">Cửa hàng</p>
-            <p className="text-sm">{row.storeId}</p>
+            <p className="text-sm">{getStoreName(row.storeId)}</p>
           </div>
           <div>
             <p className="text-xs font-medium text-muted-foreground">Chi nhánh hiện tại</p>
