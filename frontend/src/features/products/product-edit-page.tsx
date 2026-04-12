@@ -18,6 +18,7 @@ import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
 import { cn } from "@/lib/utils";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import type { ProductResponse, ProductUpdateRequestBody } from "@/types/product";
 
 const selectClass =
@@ -168,6 +169,8 @@ export function ProductEditPage() {
     queryFn: () => fetchUnitsPage({ page: 0, size: 200 }),
   });
 
+  const { getStoreName } = useStoreNameMap();
+
   const defaultVariant = useMemo(
     () => ({
       sku: "",
@@ -274,7 +277,7 @@ export function ProductEditPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
                     <span className="text-muted-foreground">Cửa hàng (cố định): </span>
-                    <span className="font-medium tabular-nums">{storeId}</span>
+                    <span className="font-medium">{getStoreName(storeId)}</span>
                   </div>
 
                   <FormField

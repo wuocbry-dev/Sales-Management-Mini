@@ -6,7 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { createGoodsReceiptDraft } from "@/api/goods-receipts-api";
-import { fetchStoresPage } from "@/api/stores-api";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { fetchSuppliersPage } from "@/api/suppliers-api";
 import { fetchWarehousesForStore } from "@/api/warehouses-api";
 import { Button } from "@/components/ui/button";
@@ -75,11 +75,7 @@ export function GoodsReceiptCreatePage() {
   const navigate = useNavigate();
   const pickStore = Boolean(me && needStorePicker(me));
 
-  const storesQ = useQuery({
-    queryKey: ["gr-create", "stores"],
-    queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
-    enabled: pickStore,
-  });
+  const { stores, getStoreName } = useStoreNameMap();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -135,7 +131,6 @@ export function GoodsReceiptCreatePage() {
 
   const whs = warehousesQ.data ?? [];
   const suppliers = suppliersQ.data?.content ?? [];
-  const stores = storesQ.data?.content ?? [];
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -179,7 +174,7 @@ export function GoodsReceiptCreatePage() {
                 ) : me && me.storeIds[0] ? (
                   <div className="sm:col-span-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
                     <span className="text-muted-foreground">Cửa hàng: </span>
-                    <span className="font-medium tabular-nums">{me.storeIds[0]}</span>
+                    <span className="font-medium">{getStoreName(me.storeIds[0])}</span>
                   </div>
                 ) : null}
 

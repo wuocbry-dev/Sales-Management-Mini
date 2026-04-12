@@ -5,7 +5,7 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
-import { fetchStoresPage } from "@/api/stores-api";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { createStockTransferDraft } from "@/api/stock-transfers-api";
 import { fetchWarehousesForStore } from "@/api/warehouses-api";
 import { VariantSearchCombobox } from "@/components/catalog/variant-search-combobox";
@@ -50,11 +50,7 @@ export function StockTransferCreatePage() {
   const navigate = useNavigate();
   const pick = Boolean(me && needStorePicker(me));
 
-  const storesQ = useQuery({
-    queryKey: ["st-create", "stores"],
-    queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
-    enabled: pick,
-  });
+  const { stores, getStoreName } = useStoreNameMap();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -140,7 +136,7 @@ export function StockTransferCreatePage() {
                       <FormControl>
                         <select {...field} className={selectClass}>
                           <option value="">— Chọn —</option>
-                          {(storesQ.data?.content ?? []).map((s) => (
+                          {stores.map((s) => (
                             <option key={s.id} value={String(s.id)}>
                               {s.storeName}
                             </option>
@@ -153,7 +149,7 @@ export function StockTransferCreatePage() {
                 />
               ) : me?.storeIds[0] ? (
                 <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-                  Cửa hàng: <span className="font-medium tabular-nums">{me.storeIds[0]}</span>
+                  Cửa hàng: <span className="font-medium">{getStoreName(me.storeIds[0])}</span>
                 </div>
               ) : null}
 

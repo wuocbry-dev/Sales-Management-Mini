@@ -8,7 +8,6 @@ import { z } from "zod";
 import { fetchBrandsPage } from "@/api/brands-api";
 import { fetchCategoriesPage } from "@/api/categories-api";
 import { createProduct } from "@/api/products-api";
-import { fetchStoresPage } from "@/api/stores-api";
 import { fetchUnitsPage } from "@/api/units-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +18,7 @@ import { useAuthStore } from "@/features/auth/auth-store";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
 import { cn } from "@/lib/utils";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import type { MeResponse } from "@/types/auth";
 import type { ProductCreateRequestBody } from "@/types/product";
 
@@ -102,11 +102,7 @@ export function ProductCreatePage() {
   const navigate = useNavigate();
   const needStorePicker = Boolean(me && (isSystemManage(me) || me.storeIds.length > 1));
 
-  const storesQ = useQuery({
-    queryKey: ["product-create", "stores"],
-    queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
-    enabled: Boolean(needStorePicker),
-  });
+  const { stores: storePickerList, getStoreName, isPending: storesPending, isError: storesError } = useStoreNameMap();
   const brandsQ = useQuery({
     queryKey: ["product-create", "brands"],
     queryFn: () => fetchBrandsPage({ page: 0, size: 200 }),
@@ -178,7 +174,7 @@ export function ProductCreatePage() {
     },
   });
 
-  const storeOptions = storesQ.data?.content ?? [];
+  const storeOptions = storePickerList;
   const brandOptions = brandsQ.data?.content ?? [];
   const categoryOptions = categoriesQ.data?.content ?? [];
   const unitOptions = unitsQ.data?.content ?? [];
@@ -213,7 +209,7 @@ export function ProductCreatePage() {
                         <FormItem className="sm:col-span-2">
                           <FormLabel>Cửa hàng</FormLabel>
                           <FormControl>
-                            <select {...field} className={selectClass} disabled={storesQ.isPending}>
+                            <select {...field} className={selectClass} disabled={storesPending}>
                               <option value="">— Chọn —</option>
                               {storeOptions.map((s) => (
                                 <option key={s.id} value={String(s.id)}>
@@ -223,7 +219,7 @@ export function ProductCreatePage() {
                             </select>
                           </FormControl>
                           <FormMessage />
-                          {storesQ.isError ? (
+                          {storesError ? (
                             <p className="text-xs text-destructive">Không tải được danh sách cửa hàng.</p>
                           ) : null}
                         </FormItem>
@@ -232,7 +228,7 @@ export function ProductCreatePage() {
                   ) : me && me.storeIds.length === 1 ? (
                     <div className="sm:col-span-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
                       <span className="text-muted-foreground">Cửa hàng áp dụng: </span>
-                      <span className="font-medium tabular-nums">{me.storeIds[0]}</span>
+                      <span className="font-medium">{getStoreName(me.storeIds[0])}</span>
                       <span className="text-muted-foreground"> (theo phạm vi đăng nhập)</span>
                     </div>
                   ) : null}

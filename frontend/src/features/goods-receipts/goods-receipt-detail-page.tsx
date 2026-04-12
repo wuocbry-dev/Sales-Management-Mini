@@ -15,6 +15,7 @@ import { goodsReceiptStatusLabel } from "@/lib/document-flow-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 import { formatQty } from "@/lib/format-qty";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 
 export function GoodsReceiptDetailPage() {
   const me = useAuthStore((s) => s.me);
@@ -28,6 +29,8 @@ export function GoodsReceiptDetailPage() {
     queryFn: () => fetchGoodsReceiptById(rid),
     enabled: !invalid,
   });
+
+  const { getStoreName } = useStoreNameMap();
 
   const canConfirm = Boolean(me && canSeeGoodsReceiptConfirm(me, q.data?.status));
 
@@ -86,7 +89,7 @@ export function GoodsReceiptDetailPage() {
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
           <div>
             <p className="text-xs text-muted-foreground">Cửa hàng</p>
-            <p className="font-medium tabular-nums">{r.storeId}</p>
+            <p className="font-medium">{getStoreName(r.storeId)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Kho nhận</p>

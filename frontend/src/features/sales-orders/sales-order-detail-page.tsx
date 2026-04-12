@@ -24,6 +24,7 @@ import { formatDateTimeVi } from "@/lib/format-datetime";
 import { formatQty } from "@/lib/format-qty";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
 import type { PaymentLineRequestBody } from "@/types/sales-order";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
@@ -49,6 +50,8 @@ export function SalesOrderDetailPage() {
     queryFn: () => fetchSalesOrderById(oid),
     enabled: !invalid,
   });
+
+  const { getStoreName } = useStoreNameMap();
 
   const orderStatus = q.data?.status;
   const canConfirm = Boolean(me && canSeeSalesOrderConfirm(me, orderStatus));
@@ -186,7 +189,7 @@ export function SalesOrderDetailPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <p className="text-xs text-muted-foreground">Cửa hàng</p>
-              <p className="font-medium tabular-nums">{o.storeId}</p>
+              <p className="font-medium">{getStoreName(o.storeId)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Chi nhánh</p>

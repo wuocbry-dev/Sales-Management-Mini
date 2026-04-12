@@ -15,6 +15,7 @@ import { salesReturnStatusLabel } from "@/lib/document-flow-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 import { formatQty } from "@/lib/format-qty";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 
 export function SalesReturnDetailPage() {
   const me = useAuthStore((s) => s.me);
@@ -28,6 +29,8 @@ export function SalesReturnDetailPage() {
     queryFn: () => fetchSalesReturnById(rid),
     enabled: !invalid,
   });
+
+  const { getStoreName } = useStoreNameMap();
 
   const canConfirm = Boolean(me && canSeeReturnConfirm(me, q.data?.status));
 
@@ -90,7 +93,7 @@ export function SalesReturnDetailPage() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Cửa hàng</p>
-            <p className="font-medium tabular-nums">{r.storeId}</p>
+            <p className="font-medium">{getStoreName(r.storeId)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Hoàn tiền</p>

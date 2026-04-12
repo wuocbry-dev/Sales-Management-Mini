@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { createSalesReturnDraft } from "@/api/sales-returns-api";
 import { fetchSalesOrderForReturn } from "@/api/sales-orders-api";
-import { fetchStoresPage } from "@/api/stores-api";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -62,11 +62,7 @@ export function SalesReturnCreatePage() {
   const qc = useQueryClient();
   const pick = Boolean(me && needStorePicker(me));
 
-  const storesQ = useQuery({
-    queryKey: ["sr-create", "stores"],
-    queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
-    enabled: pick,
-  });
+  const { stores, getStoreName } = useStoreNameMap();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -187,7 +183,7 @@ export function SalesReturnCreatePage() {
                         <FormControl>
                           <select {...field} className={selectClass}>
                             <option value="">— Chọn —</option>
-                            {(storesQ.data?.content ?? []).map((s) => (
+                            {stores.map((s) => (
                               <option key={s.id} value={String(s.id)}>
                                 {s.storeName}
                               </option>
@@ -200,7 +196,7 @@ export function SalesReturnCreatePage() {
                   />
                 ) : me?.storeIds[0] ? (
                   <div className="sm:col-span-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
-                    Cửa hàng: <span className="font-medium tabular-nums">{me.storeIds[0]}</span>
+                    Cửa hàng: <span className="font-medium">{getStoreName(me.storeIds[0])}</span>
                   </div>
                 ) : null}
 

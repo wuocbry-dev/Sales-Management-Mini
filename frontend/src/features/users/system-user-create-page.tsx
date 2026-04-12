@@ -6,7 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { fetchRbacRolesPage } from "@/api/rbac-api";
-import { fetchStoresPage } from "@/api/stores-api";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { createSystemUser } from "@/api/users-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,13 +70,9 @@ export function SystemUserCreatePage() {
     queryFn: () => fetchRbacRolesPage({ page: 0, size: 200 }),
   });
 
-  const storesQ = useQuery({
-    queryKey: ["stores", "all-create-user"],
-    queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
-  });
+  const { stores, isPending: storesPending } = useStoreNameMap();
 
   const roles = rolesQ.data?.content ?? [];
-  const stores = storesQ.data?.content ?? [];
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -278,7 +274,7 @@ export function SystemUserCreatePage() {
               <div className="space-y-2">
                 <p className="text-sm font-medium">Cửa hàng được phép truy cập</p>
                 <p className="text-xs text-muted-foreground">Có thể để trống nếu chưa cần gán cửa hàng.</p>
-                {storesQ.isPending ? (
+                {storesPending ? (
                   <p className="text-sm text-muted-foreground">Đang tải cửa hàng…</p>
                 ) : (
                   <div className="grid gap-2 rounded-md border p-3 sm:grid-cols-2">

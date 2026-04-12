@@ -13,6 +13,7 @@ import { catalogStatusLabel } from "@/lib/catalog-status-labels";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
 import { formatQty } from "@/lib/format-qty";
 import { productTypeLabel } from "@/lib/product-type-labels";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 
 export function ProductDetailPage() {
   const me = useAuthStore((s) => s.me);
@@ -26,6 +27,8 @@ export function ProductDetailPage() {
     queryFn: () => fetchProductById(pid),
     enabled: !invalid,
   });
+
+  const { getStoreName } = useStoreNameMap();
 
   if (invalid) {
     return (
@@ -78,7 +81,7 @@ export function ProductDetailPage() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Cửa hàng</p>
-            <p className="mt-1 text-sm font-medium tabular-nums">{p.storeId}</p>
+            <p className="mt-1 text-sm font-medium">{getStoreName(p.storeId)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Theo dõi tồn kho</p>

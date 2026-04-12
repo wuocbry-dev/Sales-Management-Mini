@@ -4,7 +4,6 @@ import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { fetchBranchesForStore } from "@/api/branches-api";
 import { fetchRbacRolesPage } from "@/api/rbac-api";
-import { fetchStoresPage } from "@/api/stores-api";
 import {
   assignSystemUserBranches,
   assignSystemUserRoles,
@@ -23,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { userAccountStatusLabel } from "@/lib/entity-status-labels";
 import { formatApiError } from "@/lib/api-errors";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
@@ -44,10 +44,7 @@ export function SystemUserDetailPage() {
     queryFn: () => fetchRbacRolesPage({ page: 0, size: 200 }),
   });
 
-  const storesCatalog = useQuery({
-    queryKey: ["stores", "detail-user"],
-    queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
-  });
+  const { stores: storeCatalog, getStoreName } = useStoreNameMap({ enabled: !invalid });
 
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -104,8 +101,8 @@ export function SystemUserDetailPage() {
   const branchOptions = branchesQueries.data ?? [];
 
   const selectedStores = useMemo(
-    () => (storesCatalog.data?.content ?? []).filter((s) => storeIds.includes(s.id)),
-    [storesCatalog.data, storeIds],
+    () => storeCatalog.filter((s) => storeIds.includes(s.id)),
+    [storeCatalog, storeIds],
   );
 
   const updateProfile = useMutation({
@@ -219,7 +216,7 @@ export function SystemUserDetailPage() {
 
   const d = q.data;
   const roles = rolesCatalog.data?.content ?? [];
-  const stores = storesCatalog.data?.content ?? [];
+  const stores = storeCatalog;
 
   return (
     <div className="space-y-6">
@@ -452,7 +449,7 @@ export function SystemUserDetailPage() {
                   <TableRow key={b.branchId}>
                     <TableCell>{b.branchName}</TableCell>
                     <TableCell className="font-mono text-sm">{b.branchCode}</TableCell>
-                    <TableCell>{b.storeId}</TableCell>
+                    <TableCell>{getStoreName(b.storeId)}</TableCell>
                     <TableCell>{b.primary ? "Có" : "—"}</TableCell>
                   </TableRow>
                 ))
