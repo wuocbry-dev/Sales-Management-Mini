@@ -1,6 +1,7 @@
 package com.quanlybanhang.service;
 
 import com.quanlybanhang.dto.ProductDtos.ProductCreateRequest;
+import com.quanlybanhang.dto.ProductDtos.ProductImageResponse;
 import com.quanlybanhang.dto.ProductDtos.ProductResponse;
 import com.quanlybanhang.dto.ProductDtos.ProductUpdateRequest;
 import com.quanlybanhang.dto.ProductDtos.ProductVariantOptionResponse;
@@ -10,15 +11,22 @@ import com.quanlybanhang.dto.ProductDtos.ProductVariantUpsertRequest;
 import com.quanlybanhang.exception.BusinessException;
 import com.quanlybanhang.exception.ResourceNotFoundException;
 import com.quanlybanhang.model.Product;
+import com.quanlybanhang.model.ProductImage;
 import com.quanlybanhang.model.ProductVariant;
 import com.quanlybanhang.repository.BrandRepository;
 import com.quanlybanhang.repository.CategoryRepository;
+import com.quanlybanhang.repository.ProductImageRepository;
 import com.quanlybanhang.repository.ProductRepository;
 import com.quanlybanhang.repository.ProductVariantRepository;
 import com.quanlybanhang.repository.StoreRepository;
 import com.quanlybanhang.repository.UnitRepository;
 import com.quanlybanhang.repository.spec.ProductSpecifications;
 import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Locale;
@@ -28,29 +36,42 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
 public class ProductService {
 
   private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+  private static final int MAX_IMAGES_PER_PRODUCT = 4;
+  private static final long MAX_IMAGE_BYTES = 2L * 1024L * 1024L;
 
   private final ProductRepository productRepository;
   private final ProductVariantRepository variantRepository;
+  private final ProductImageRepository productImageRepository;
   private final CategoryRepository categoryRepository;
   private final BrandRepository brandRepository;
   private final UnitRepository unitRepository;
   private final StoreRepository storeRepository;
   private final StoreAccessService storeAccessService;
+
+  @Value("${app.upload.product-images-dir:uploads/products}")
+  private String productImagesDir;
+
+  public record ProductImageFile(Resource resource, String contentType, String fileName) {}
 
   private LocalDateTime now() {
     return LocalDateTime.now(ZONE);
@@ -126,8 +147,15 @@ public class ProductService {
       return new PageImpl<>(List.of(), pageable, page.getTotalElements());
     }
     List<ProductVariant> allVar = variantRepository.findByProductIdIn(ids);
+    List<ProductImage> allImages = productImageRepository.findByProductIdInOrderByProductIdAscSortOrderAscIdAsc(ids);
     Map<Long, List<ProductVariant>> byProduct =
         allVar.stream().collect(Collectors.groupingBy(ProductVariant::getProductId));
+    Map<Long, List<ProductImageResponse>> imagesByProduct =
+      allImages.stream()
+        .collect(
+          Collectors.groupingBy(
+            ProductImage::getProductId,
+            Collectors.mapping(this::toImageResponse, Collectors.toList())));
     List<ProductResponse> content =
         page.getContent().stream()
             .map(
@@ -136,7 +164,8 @@ public class ProductService {
                         p,
                         byProduct.getOrDefault(p.getId(), List.of()).stream()
                             .map(this::toVariantResponse)
-                            .toList()))
+                .toList(),
+              imagesByProduct.getOrDefault(p.getId(), List.of())))
             .toList();
     return new PageImpl<>(content, pageable, page.getTotalElements());
   }
@@ -173,11 +202,21 @@ public class ProductService {
     storeAccessService.assertCanAccessStore(p.getStoreId(), principal);
     List<ProductVariantResponse> vars =
         variantRepository.findByProductId(id).stream().map(this::toVariantResponse).toList();
-    return toProductResponse(p, vars);
+    List<ProductImageResponse> images =
+        productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(id).stream()
+            .map(this::toImageResponse)
+            .toList();
+    return toProductResponse(p, vars, images);
   }
 
   @Transactional
   public ProductResponse createProduct(ProductCreateRequest req, JwtAuthenticatedPrincipal principal) {
+    return createProduct(req, List.of(), principal);
+  }
+
+  @Transactional
+  public ProductResponse createProduct(
+      ProductCreateRequest req, List<MultipartFile> images, JwtAuthenticatedPrincipal principal) {
     long storeId = resolveStoreIdForCreate(req, principal);
     if (productRepository.existsByProductCodeAndStoreId(req.productCode(), storeId)) {
       throw new BusinessException("Mã sản phẩm đã tồn tại trong cửa hàng: " + req.productCode());
@@ -227,7 +266,41 @@ public class ProductService {
       variantRepository.save(pv);
       varResponses.add(toVariantResponse(pv));
     }
-    return toProductResponse(p, varResponses);
+    List<ProductImageResponse> imageResponses = saveProductImages(p, images, t);
+    return toProductResponse(p, varResponses, imageResponses);
+  }
+
+  @Transactional(readOnly = true)
+  public ProductImageFile loadProductImageFile(
+      Long imageId, JwtAuthenticatedPrincipal principal) {
+    ProductImage image =
+        productImageRepository
+            .findById(imageId)
+            .orElseThrow(() -> new ResourceNotFoundException("Ảnh sản phẩm không tồn tại: " + imageId));
+    Product product =
+        productRepository
+            .findById(image.getProductId())
+            .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại: " + image.getProductId()));
+    storeAccessService.assertCanAccessStore(product.getStoreId(), principal);
+
+    Path root = Path.of(productImagesDir).toAbsolutePath().normalize();
+    Path filePath = root.resolve(String.valueOf(image.getProductId())).resolve(image.getFileName()).normalize();
+    if (!filePath.startsWith(root)) {
+      throw new BusinessException("Đường dẫn ảnh không hợp lệ.");
+    }
+    if (!Files.exists(filePath)) {
+      throw new ResourceNotFoundException("Tệp ảnh không tồn tại: " + image.getFileName());
+    }
+
+    try {
+      Resource resource = new UrlResource(filePath.toUri());
+      if (!resource.exists() || !resource.isReadable()) {
+        throw new ResourceNotFoundException("Không đọc được tệp ảnh: " + image.getFileName());
+      }
+      return new ProductImageFile(resource, image.getContentType(), image.getFileName());
+    } catch (IOException ex) {
+      throw new BusinessException("Không tải được ảnh sản phẩm.");
+    }
   }
 
   @Transactional
@@ -372,7 +445,89 @@ public class ProductService {
     }
   }
 
-  private ProductResponse toProductResponse(Product p, List<ProductVariantResponse> variants) {
+  private List<ProductImageResponse> saveProductImages(
+      Product product, List<MultipartFile> images, LocalDateTime createdAt) {
+    if (images == null || images.isEmpty()) {
+      return List.of();
+    }
+
+    List<MultipartFile> validImages =
+        images.stream().filter(Objects::nonNull).filter(f -> !f.isEmpty()).toList();
+    if (validImages.isEmpty()) {
+      return List.of();
+    }
+    if (validImages.size() > MAX_IMAGES_PER_PRODUCT) {
+      throw new BusinessException("Tối đa " + MAX_IMAGES_PER_PRODUCT + " ảnh cho một sản phẩm.");
+    }
+
+    Path root = Path.of(productImagesDir).toAbsolutePath().normalize();
+    Path productDir = root.resolve(String.valueOf(product.getId())).normalize();
+    if (!productDir.startsWith(root)) {
+      throw new BusinessException("Đường dẫn lưu ảnh không hợp lệ.");
+    }
+
+    try {
+      Files.createDirectories(productDir);
+    } catch (IOException ex) {
+      throw new BusinessException("Không thể tạo thư mục lưu ảnh sản phẩm.");
+    }
+
+    List<ProductImageResponse> saved = new ArrayList<>();
+    int index = 0;
+    for (MultipartFile file : validImages) {
+      String contentType = file.getContentType();
+      if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {
+        throw new BusinessException("Tệp không hợp lệ, chỉ chấp nhận ảnh.");
+      }
+      if (file.getSize() > MAX_IMAGE_BYTES) {
+        throw new BusinessException("Mỗi ảnh không được vượt quá 2MB.");
+      }
+
+      String ext = guessExtension(file.getOriginalFilename(), contentType);
+      String storedName = UUID.randomUUID().toString().replace("-", "") + ext;
+      Path target = productDir.resolve(storedName).normalize();
+      if (!target.startsWith(productDir)) {
+        throw new BusinessException("Tên tệp ảnh không hợp lệ.");
+      }
+
+      try (InputStream in = file.getInputStream()) {
+        Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+      } catch (IOException ex) {
+        throw new BusinessException("Không thể lưu ảnh sản phẩm.");
+      }
+
+      ProductImage row = new ProductImage();
+      row.setProductId(product.getId());
+      row.setSortOrder(index);
+      row.setContentType(contentType);
+      row.setFileName(storedName);
+      row.setCreatedAt(createdAt);
+      productImageRepository.save(row);
+      saved.add(toImageResponse(row));
+      index++;
+    }
+    return saved;
+  }
+
+  private static String guessExtension(String originalName, String contentType) {
+    if (originalName != null) {
+      int dot = originalName.lastIndexOf('.');
+      if (dot >= 0 && dot < originalName.length() - 1) {
+        String ext = originalName.substring(dot).trim().toLowerCase(Locale.ROOT);
+        if (ext.length() <= 10) {
+          return ext;
+        }
+      }
+    }
+    if ("image/jpeg".equalsIgnoreCase(contentType)) return ".jpg";
+    if ("image/png".equalsIgnoreCase(contentType)) return ".png";
+    if ("image/webp".equalsIgnoreCase(contentType)) return ".webp";
+    if ("image/gif".equalsIgnoreCase(contentType)) return ".gif";
+    return ".img";
+  }
+
+  private ProductResponse toProductResponse(
+      Product p, List<ProductVariantResponse> variants, List<ProductImageResponse> images) {
     return new ProductResponse(
         p.getId(),
         p.getStoreId(),
@@ -388,7 +543,8 @@ public class ProductService {
         p.getStatus(),
         p.getCreatedAt(),
         p.getUpdatedAt(),
-        variants);
+          variants,
+          images);
   }
 
   private ProductVariantResponse toVariantResponse(ProductVariant v) {
@@ -405,5 +561,15 @@ public class ProductService {
         v.getStatus(),
         v.getCreatedAt(),
         v.getUpdatedAt());
+  }
+
+  private ProductImageResponse toImageResponse(ProductImage i) {
+    return new ProductImageResponse(
+        i.getId(),
+        i.getSortOrder(),
+        i.getContentType(),
+        i.getFileName(),
+        "/api/products/images/" + i.getId() + "/file",
+        i.getCreatedAt());
   }
 }

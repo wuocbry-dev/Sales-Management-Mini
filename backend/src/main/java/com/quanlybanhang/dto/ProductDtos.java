@@ -89,6 +89,14 @@ public final class ProductDtos {
       LocalDateTime createdAt,
       LocalDateTime updatedAt) {}
 
+  public record ProductImageResponse(
+      Long imageId,
+      Integer sortOrder,
+      String contentType,
+      String fileName,
+      String imageUrl,
+      LocalDateTime createdAt) {}
+
   public record ProductResponse(
       Long id,
       Long storeId,
@@ -104,5 +112,6 @@ public final class ProductDtos {
       String status,
       LocalDateTime createdAt,
       LocalDateTime updatedAt,
-      List<ProductVariantResponse> variants) {}
+    List<ProductVariantResponse> variants,
+    List<ProductImageResponse> images) {}
 }

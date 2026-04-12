@@ -60,6 +60,15 @@ export type ProductVariantResponse = {
   updatedAt: string;
 };
 
+export type ProductImageResponse = {
+  imageId: number;
+  sortOrder: number | null;
+  contentType: string | null;
+  fileName: string | null;
+  imageUrl: string;
+  createdAt: string | null;
+};
+
 export type ProductResponse = {
   id: number;
   storeId: number;
@@ -76,4 +85,5 @@ export type ProductResponse = {
   createdAt: string;
   updatedAt: string;
   variants: ProductVariantResponse[];
+  images: ProductImageResponse[];
 };

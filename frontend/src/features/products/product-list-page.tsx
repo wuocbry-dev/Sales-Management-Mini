@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { fetchBrandsPage } from "@/api/brands-api";
 import { fetchCategoriesPage } from "@/api/categories-api";
-import { fetchProductsPage } from "@/api/products-api";
+import { fetchProductImageBlobUrl, fetchProductsPage } from "@/api/products-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { PaginationBar } from "@/components/data-table/pagination-bar";
@@ -78,6 +78,44 @@ export function ProductListPage() {
       }),
   });
 
+  const thumbQ = useQuery({
+    queryKey: [
+      "products",
+      "thumbs",
+      page,
+      size,
+      statusFilter,
+      categoryId,
+      brandId,
+      q,
+      listQ.data?.content.map((row) => row.images?.[0]?.imageId ?? 0).join(",") ?? "",
+    ],
+    enabled: Boolean(listQ.data?.content?.length),
+    queryFn: async () => {
+      const rows = listQ.data?.content ?? [];
+      const withImage = rows
+        .map((row) => ({ productId: row.id, imageUrl: row.images?.[0]?.imageUrl }))
+        .filter((row): row is { productId: number; imageUrl: string } => Boolean(row.imageUrl));
+
+      const settled = await Promise.allSettled(
+        withImage.map(async (row) => ({
+          productId: row.productId,
+          blobUrl: await fetchProductImageBlobUrl(row.imageUrl),
+        })),
+      );
+
+      return settled
+        .filter((item): item is PromiseFulfilledResult<{ productId: number; blobUrl: string }> => item.status === "fulfilled")
+        .map((item) => item.value);
+    },
+  });
+
+  useEffect(() => {
+    return () => {
+      thumbQ.data?.forEach((item) => URL.revokeObjectURL(item.blobUrl));
+    };
+  }, [thumbQ.data]);
+
   const { getStoreName } = useStoreNameMap();
 
   const setPage = (next: number) => {
@@ -108,6 +146,11 @@ export function ProductListPage() {
 
   const brandOptions = useMemo(() => brandsQ.data?.content ?? [], [brandsQ.data]);
   const categoryOptions = useMemo(() => categoriesQ.data?.content ?? [], [categoriesQ.data]);
+  const thumbMap = useMemo(() => {
+    const m = new Map<number, string>();
+    (thumbQ.data ?? []).forEach((t) => m.set(t.productId, t.blobUrl));
+    return m;
+  }, [thumbQ.data]);
 
   if (listQ.isPending) return <PageSkeleton cards={2} />;
   if (listQ.isError) return <ApiErrorState error={listQ.error} onRetry={() => void listQ.refetch()} />;
@@ -211,6 +254,7 @@ export function ProductListPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[72px]">Ảnh</TableHead>
                   <TableHead>Mã</TableHead>
                   <TableHead>Tên</TableHead>
                   <TableHead>Loại</TableHead>
@@ -222,13 +266,26 @@ export function ProductListPage() {
               <TableBody>
                 {data.content.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                       Không có sản phẩm phù hợp.
                     </TableCell>
                   </TableRow>
                 ) : (
                   data.content.map((row) => (
                     <TableRow key={row.id}>
+                      <TableCell>
+                        {thumbMap.has(row.id) ? (
+                          <img
+                            src={thumbMap.get(row.id)}
+                            alt={row.productName}
+                            className="h-10 w-10 rounded-md border object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-10 w-10 items-center justify-center rounded-md border bg-muted text-[10px] text-muted-foreground">
+                            No img
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="font-mono text-sm">{row.productCode}</TableCell>
                       <TableCell className="font-medium">{row.productName}</TableCell>
                       <TableCell>{productTypeLabel(row.productType)}</TableCell>

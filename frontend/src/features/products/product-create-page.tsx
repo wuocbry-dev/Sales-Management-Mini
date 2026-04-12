@@ -1,13 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { fetchBrandsPage } from "@/api/brands-api";
 import { fetchCategoriesPage } from "@/api/categories-api";
-import { createProduct } from "@/api/products-api";
+import { createProductWithImages } from "@/api/products-api";
 import { fetchUnitsPage } from "@/api/units-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,14 @@ import { cn } from "@/lib/utils";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import type { MeResponse } from "@/types/auth";
 import type { ProductCreateRequestBody } from "@/types/product";
+
+const MAX_PRODUCT_IMAGES = 4;
+
+type LocalProductImage = {
+  id: string;
+  file: File;
+  previewUrl: string;
+};
 
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
@@ -100,6 +108,8 @@ function buildBody(values: ProductCreateFormValues, me: MeResponse): ProductCrea
 export function ProductCreatePage() {
   const me = useAuthStore((s) => s.me);
   const navigate = useNavigate();
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const [images, setImages] = useState<LocalProductImage[]>([]);
   const needStorePicker = Boolean(me && (isSystemManage(me) || me.storeIds.length > 1));
 
   const { stores: storePickerList, getStoreName, isPending: storesPending, isError: storesError } = useStoreNameMap();
@@ -149,6 +159,49 @@ export function ProductCreatePage() {
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "variants" });
+  const hasVariant = form.watch("hasVariant");
+
+  useEffect(() => {
+    return () => {
+      images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+    };
+  }, [images]);
+
+  function handlePickImages(fileList: FileList | null): void {
+    if (!fileList || fileList.length === 0) return;
+
+    const fileArray = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+    if (fileArray.length === 0) {
+      toast.error("Vui lòng chọn tệp ảnh hợp lệ.");
+      return;
+    }
+
+    const remain = MAX_PRODUCT_IMAGES - images.length;
+    if (remain <= 0) {
+      toast.error(`Tối đa ${MAX_PRODUCT_IMAGES} ảnh cho một sản phẩm.`);
+      return;
+    }
+
+    const picked = fileArray.slice(0, remain).map((file) => ({
+      id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 7)}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+
+    if (fileArray.length > remain) {
+      toast.warning(`Chỉ lấy ${remain} ảnh đầu tiên do giới hạn ${MAX_PRODUCT_IMAGES} ảnh.`);
+    }
+
+    setImages((prev) => [...prev, ...picked]);
+  }
+
+  function handleRemoveImage(id: string): void {
+    setImages((prev) => {
+      const target = prev.find((img) => img.id === id);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((img) => img.id !== id);
+    });
+  }
 
   const mutation = useMutation({
     meta: { skipGlobalErrorToast: true },
@@ -162,9 +215,14 @@ export function ProductCreatePage() {
         }
       }
       const body = buildBody(values, me);
-      return createProduct(body);
+      return createProductWithImages(
+        body,
+        images.map((img) => img.file),
+      );
     },
     onSuccess: (data) => {
+      images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+      setImages([]);
       toast.success("Đã tạo sản phẩm.");
       void navigate(`/app/san-pham/${data.id}`);
     },
@@ -189,196 +247,378 @@ export function ProductCreatePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl">Thêm sản phẩm</CardTitle>
-          <CardDescription>
-            Điền thông tin chung và ít nhất một biến thể (SKU, giá, mức đặt lại hàng). Mã sản phẩm là duy nhất trong
-            phạm vi một cửa hàng.
-          </CardDescription>
+          <CardTitle className="text-xl">Tạo hàng hóa</CardTitle>
+          <CardDescription>Biểu mẫu được tối ưu theo luồng nhập nhanh và vẫn giữ payload tương thích backend.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form className="space-y-8" onSubmit={form.handleSubmit((v) => mutation.mutate(v))}>
-              <section className="space-y-4">
-                <h3 className="text-sm font-semibold text-foreground">Thông tin chung</h3>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {needStorePicker ? (
+              <section className="grid gap-4 lg:grid-cols-12">
+                <Card className="lg:col-span-9">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Thông tin</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 sm:grid-cols-2">
+                    {needStorePicker ? (
+                      <FormField
+                        control={form.control}
+                        name="storeId"
+                        render={({ field }) => (
+                          <FormItem className="sm:col-span-2">
+                            <FormLabel>Cửa hàng</FormLabel>
+                            <FormControl>
+                              <select {...field} className={selectClass} disabled={storesPending}>
+                                <option value="">— Chọn —</option>
+                                {storeOptions.map((s) => (
+                                  <option key={s.id} value={String(s.id)}>
+                                    {s.storeName} ({s.storeCode})
+                                  </option>
+                                ))}
+                              </select>
+                            </FormControl>
+                            <FormMessage />
+                            {storesError ? <p className="text-xs text-destructive">Không tải được danh sách cửa hàng.</p> : null}
+                          </FormItem>
+                        )}
+                      />
+                    ) : me && me.storeIds.length === 1 ? (
+                      <div className="sm:col-span-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                        <span className="text-muted-foreground">Cửa hàng áp dụng: </span>
+                        <span className="font-medium">{getStoreName(me.storeIds[0])}</span>
+                      </div>
+                    ) : null}
+
                     <FormField
                       control={form.control}
-                      name="storeId"
+                      name="variants.0.sku"
                       render={({ field }) => (
-                        <FormItem className="sm:col-span-2">
-                          <FormLabel>Cửa hàng</FormLabel>
+                        <FormItem>
+                          <FormLabel>Mã hàng</FormLabel>
                           <FormControl>
-                            <select {...field} className={selectClass} disabled={storesPending}>
-                              <option value="">— Chọn —</option>
-                              {storeOptions.map((s) => (
-                                <option key={s.id} value={String(s.id)}>
-                                  {s.storeName} ({s.storeCode})
+                            <Input {...field} className="font-mono" placeholder="Nhập mã SKU" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="variants.0.barcode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mã vạch</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="font-mono" placeholder="Nhập mã vạch" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="productCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mã sản phẩm</FormLabel>
+                          <FormControl>
+                            <Input {...field} autoComplete="off" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="productName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tên hàng</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Bắt buộc" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="categoryId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nhóm hàng</FormLabel>
+                          <FormControl>
+                            <select {...field} className={selectClass} disabled={categoriesQ.isError}>
+                              <option value="">Chọn nhóm hàng</option>
+                              {categoryOptions.map((c) => (
+                                <option key={c.id} value={String(c.id)}>
+                                  {c.categoryName}
                                 </option>
                               ))}
                             </select>
                           </FormControl>
                           <FormMessage />
-                          {storesError ? (
-                            <p className="text-xs text-destructive">Không tải được danh sách cửa hàng.</p>
-                          ) : null}
                         </FormItem>
                       )}
                     />
-                  ) : me && me.storeIds.length === 1 ? (
-                    <div className="sm:col-span-2 rounded-md border bg-muted/40 px-3 py-2 text-sm">
-                      <span className="text-muted-foreground">Cửa hàng áp dụng: </span>
-                      <span className="font-medium">{getStoreName(me.storeIds[0])}</span>
-                      <span className="text-muted-foreground"> (theo phạm vi đăng nhập)</span>
+                    <FormField
+                      control={form.control}
+                      name="brandId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Thương hiệu</FormLabel>
+                          <FormControl>
+                            <select {...field} className={selectClass} disabled={brandsQ.isError}>
+                              <option value="">Chọn thương hiệu</option>
+                              {brandOptions.map((b) => (
+                                <option key={b.id} value={String(b.id)}>
+                                  {b.brandName}
+                                </option>
+                              ))}
+                            </select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="unitId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Đơn vị tính</FormLabel>
+                          <FormControl>
+                            <select {...field} className={selectClass} disabled={unitsQ.isError}>
+                              <option value="">Chọn đơn vị</option>
+                              {unitOptions.map((u) => (
+                                <option key={u.id} value={String(u.id)}>
+                                  {u.unitName}
+                                </option>
+                              ))}
+                            </select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="productType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Loại hàng</FormLabel>
+                          <FormControl>
+                            <select {...field} className={selectClass}>
+                              <option value="NORMAL">Hàng hóa</option>
+                              <option value="SERVICE">Dịch vụ</option>
+                            </select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Trạng thái</FormLabel>
+                          <FormControl>
+                            <select {...field} className={selectClass}>
+                              <option value="ACTIVE">Đang hoạt động</option>
+                              <option value="INACTIVE">Ngưng hoạt động</option>
+                            </select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="variants.0.variantName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tên biến thể chính</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Ví dụ: Mặc định" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem className="sm:col-span-2">
+                          <FormLabel>Mô tả</FormLabel>
+                          <FormControl>
+                            <textarea
+                              {...field}
+                              rows={3}
+                              className={cn(
+                                "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                              )}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card className="lg:col-span-3">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Hình ảnh</CardTitle>
+                    <CardDescription>Tối đa {MAX_PRODUCT_IMAGES} ảnh</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        handlePickImages(e.target.files);
+                        e.currentTarget.value = "";
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => imageInputRef.current?.click()}
+                      disabled={images.length >= MAX_PRODUCT_IMAGES}
+                    >
+                      Thêm ảnh
+                    </Button>
+                    <p className="text-xs text-muted-foreground">Mỗi ảnh nên nhỏ hơn 2MB để tải nhanh.</p>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      {Array.from({ length: MAX_PRODUCT_IMAGES }).map((_, slotIdx) => {
+                        const img = images[slotIdx];
+                        if (!img) {
+                          return (
+                            <div
+                              key={`slot-${slotIdx}`}
+                              className="flex h-24 items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground"
+                            >
+                              Ảnh {slotIdx + 1}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div key={img.id} className="relative h-24 overflow-hidden rounded-md border">
+                            <img src={img.previewUrl} alt={img.file.name} className="h-full w-full object-cover" />
+                            <button
+                              type="button"
+                              className="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white"
+                              onClick={() => handleRemoveImage(img.id)}
+                              aria-label="Xóa ảnh"
+                            >
+                              Xóa
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ) : null}
+                  </CardContent>
+                </Card>
+              </section>
 
-                  <FormField
-                    control={form.control}
-                    name="productCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Mã sản phẩm</FormLabel>
-                        <FormControl>
-                          <Input {...field} autoComplete="off" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="productName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tên sản phẩm</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <section className="grid gap-4 lg:grid-cols-12">
+                <Card className="lg:col-span-6">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Giá vốn, giá bán</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="variants.0.costPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Giá vốn</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="number" min={0} step="0.01" inputMode="decimal" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="variants.0.sellingPrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Giá bán</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="number" min={0} step="0.01" inputMode="decimal" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
 
-                  <FormField
-                    control={form.control}
-                    name="productType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Loại hàng</FormLabel>
-                        <FormControl>
-                          <select {...field} className={selectClass}>
-                            <option value="NORMAL">Hàng hóa</option>
-                            <option value="SERVICE">Dịch vụ</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Trạng thái</FormLabel>
-                        <FormControl>
-                          <select {...field} className={selectClass}>
-                            <option value="ACTIVE">Đang hoạt động</option>
-                            <option value="INACTIVE">Ngưng hoạt động</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <Card className="lg:col-span-6">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Tồn kho</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 sm:grid-cols-2">
+                    <FormField
+                      control={form.control}
+                      name="variants.0.reorderLevel"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Định mức tồn thấp nhất</FormLabel>
+                          <FormControl>
+                            <Input {...field} type="number" min={0} step="0.001" inputMode="decimal" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="trackInventory"
+                      render={({ field }) => (
+                        <FormItem className="flex h-full flex-row items-center gap-2 space-y-0 rounded-md border px-3 py-2">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border border-input"
+                              checked={field.value}
+                              onChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormLabel className="!mt-0 font-normal">Theo dõi tồn kho</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                </Card>
+              </section>
 
-                  <FormField
-                    control={form.control}
-                    name="categoryId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nhóm hàng (tuỳ chọn)</FormLabel>
-                        <FormControl>
-                          <select {...field} className={selectClass} disabled={categoriesQ.isError}>
-                            <option value="">— Không chọn —</option>
-                            {categoryOptions.map((c) => (
-                              <option key={c.id} value={String(c.id)}>
-                                {c.categoryName}
-                              </option>
-                            ))}
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="brandId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Thương hiệu (tuỳ chọn)</FormLabel>
-                        <FormControl>
-                          <select {...field} className={selectClass} disabled={brandsQ.isError}>
-                            <option value="">— Không chọn —</option>
-                            {brandOptions.map((b) => (
-                              <option key={b.id} value={String(b.id)}>
-                                {b.brandName}
-                              </option>
-                            ))}
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="unitId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Đơn vị tính (tuỳ chọn)</FormLabel>
-                        <FormControl>
-                          <select {...field} className={selectClass} disabled={unitsQ.isError}>
-                            <option value="">— Không chọn —</option>
-                            {unitOptions.map((u) => (
-                              <option key={u.id} value={String(u.id)}>
-                                {u.unitName}
-                              </option>
-                            ))}
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem className="sm:col-span-2">
-                        <FormLabel>Mô tả (tuỳ chọn)</FormLabel>
-                        <FormControl>
-                          <textarea
-                            {...field}
-                            rows={3}
-                            className={cn(
-                              "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                            )}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
+              <section className="space-y-4 rounded-lg border p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Quản lý theo đơn vị tính và thuộc tính</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Khi bật nhiều biến thể, bạn có thể thêm các SKU phụ giống luồng mẫu.
+                    </p>
+                  </div>
                   <FormField
                     control={form.control}
                     name="hasVariant"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2 space-y-0 sm:col-span-1">
+                      <FormItem className="flex flex-row items-center gap-2 space-y-0">
                         <FormControl>
                           <input
                             type="checkbox"
@@ -391,160 +631,142 @@ export function ProductCreatePage() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="trackInventory"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center gap-2 space-y-0 sm:col-span-1">
-                        <FormControl>
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border border-input"
-                            checked={field.value}
-                            onChange={field.onChange}
-                          />
-                        </FormControl>
-                        <FormLabel className="!mt-0 font-normal">Theo dõi tồn kho</FormLabel>
-                      </FormItem>
-                    )}
-                  />
                 </div>
-              </section>
 
-              <section className="space-y-4">
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">Biến thể</h3>
-                    <p className="text-xs text-muted-foreground">Mỗi dòng là một SKU; có thể thêm nhiều dòng.</p>
+                {hasVariant ? (
+                  <div className="space-y-4">
+                    <div className="flex justify-end">
+                      <Button type="button" variant="secondary" onClick={() => append(defaultVariant)}>
+                        Thêm dòng biến thể
+                      </Button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {fields.slice(1).map((row, offset) => {
+                        const index = offset + 1;
+                        return (
+                          <Card key={row.id} className="border-dashed">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 py-3">
+                              <CardTitle className="text-sm font-medium">Biến thể phụ {index}</CardTitle>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
+                                Xóa dòng
+                              </Button>
+                            </CardHeader>
+                            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                              <FormField
+                                control={form.control}
+                                name={`variants.${index}.sku`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>SKU</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} className="font-mono" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`variants.${index}.barcode`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Mã vạch</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} className="font-mono" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`variants.${index}.variantName`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Tên hiển thị</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`variants.${index}.attributesJson`}
+                                render={({ field }) => (
+                                  <FormItem className="sm:col-span-2">
+                                    <FormLabel>Thuộc tính mở rộng</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} placeholder="Ví dụ: màu, size..." />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`variants.${index}.costPrice`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Giá vốn</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} type="number" min={0} step="0.01" inputMode="decimal" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`variants.${index}.sellingPrice`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Giá bán</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} type="number" min={0} step="0.01" inputMode="decimal" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`variants.${index}.reorderLevel`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Mức đặt lại hàng</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} type="number" min={0} step="0.001" inputMode="decimal" />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`variants.${index}.status`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Trạng thái</FormLabel>
+                                    <FormControl>
+                                      <select {...field} className={selectClass}>
+                                        <option value="ACTIVE">Đang hoạt động</option>
+                                        <option value="INACTIVE">Ngưng hoạt động</option>
+                                      </select>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <Button type="button" variant="secondary" onClick={() => append(defaultVariant)}>
-                    Thêm dòng biến thể
-                  </Button>
-                </div>
-
-                <div className="space-y-6">
-                  {fields.map((row, index) => (
-                    <Card key={row.id} className="border-dashed">
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 py-3">
-                        <CardTitle className="text-sm font-medium">Biến thể {index + 1}</CardTitle>
-                        {fields.length > 1 ? (
-                          <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
-                            Xóa dòng
-                          </Button>
-                        ) : null}
-                      </CardHeader>
-                      <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        <FormField
-                          control={form.control}
-                          name={`variants.${index}.sku`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>SKU</FormLabel>
-                              <FormControl>
-                                <Input {...field} className="font-mono" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`variants.${index}.barcode`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Mã vạch</FormLabel>
-                              <FormControl>
-                                <Input {...field} className="font-mono" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`variants.${index}.variantName`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Tên hiển thị</FormLabel>
-                              <FormControl>
-                                <Input {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`variants.${index}.attributesJson`}
-                          render={({ field }) => (
-                            <FormItem className="sm:col-span-2">
-                              <FormLabel>Thuộc tính mở rộng (tuỳ chọn)</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Ví dụ: màu, size…" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`variants.${index}.costPrice`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Giá vốn</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" min={0} step="0.01" inputMode="decimal" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`variants.${index}.sellingPrice`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Giá bán</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" min={0} step="0.01" inputMode="decimal" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`variants.${index}.reorderLevel`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Mức đặt lại hàng</FormLabel>
-                              <FormControl>
-                                <Input {...field} type="number" min={0} step="0.001" inputMode="decimal" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`variants.${index}.status`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Trạng thái</FormLabel>
-                              <FormControl>
-                                <select {...field} className={selectClass}>
-                                  <option value="ACTIVE">Đang hoạt động</option>
-                                  <option value="INACTIVE">Ngưng hoạt động</option>
-                                </select>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                ) : null}
               </section>
 
               <div className="flex flex-wrap gap-2">

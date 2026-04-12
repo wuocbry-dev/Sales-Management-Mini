@@ -49,6 +49,24 @@ export async function createProduct(body: ProductCreateRequestBody): Promise<Pro
   return data;
 }
 
+export async function createProductWithImages(
+  body: ProductCreateRequestBody,
+  images: File[],
+): Promise<ProductResponse> {
+  const form = new FormData();
+  form.append("payload", new Blob([JSON.stringify(body)], { type: "application/json" }));
+  images.forEach((file) => form.append("images", file));
+  const { data } = await apiClient.post<ProductResponse>("/api/products", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function fetchProductImageBlobUrl(imageUrl: string): Promise<string> {
+  const { data } = await apiClient.get<Blob>(imageUrl, { responseType: "blob" });
+  return URL.createObjectURL(data);
+}
+
 export async function updateProduct(id: number, body: ProductUpdateRequestBody): Promise<ProductResponse> {
   const { data } = await apiClient.put<ProductResponse>(`/api/products/${id}`, body);
   return data;

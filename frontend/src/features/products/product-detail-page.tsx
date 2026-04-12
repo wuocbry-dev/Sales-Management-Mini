@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { fetchProductById } from "@/api/products-api";
+import { fetchProductById, fetchProductImageBlobUrl } from "@/api/products-api";
 import { hasPermission } from "@/features/auth/access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -28,6 +29,29 @@ export function ProductDetailPage() {
     queryFn: () => fetchProductById(pid),
     enabled: !invalid,
   });
+
+  const imageMeta = q.data?.images ?? [];
+  const imageQ = useQuery({
+    queryKey: ["products", pid, "images", imageMeta.map((img) => img.imageId).join(",")],
+    enabled: !invalid && imageMeta.length > 0,
+    queryFn: async () => {
+      const settled = await Promise.allSettled(
+        imageMeta.map(async (img) => ({
+          imageId: img.imageId,
+          url: await fetchProductImageBlobUrl(img.imageUrl),
+        })),
+      );
+      return settled
+        .filter((item): item is PromiseFulfilledResult<{ imageId: number; url: string }> => item.status === "fulfilled")
+        .map((item) => item.value);
+    },
+  });
+
+  useEffect(() => {
+    return () => {
+      imageQ.data?.forEach((img) => URL.revokeObjectURL(img.url));
+    };
+  }, [imageQ.data]);
 
   const { getStoreName } = useStoreNameMap();
 
@@ -106,6 +130,40 @@ export function ProductDetailPage() {
               <p className="mt-1 whitespace-pre-wrap text-sm">{p.description}</p>
             </div>
           ) : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Hình ảnh sản phẩm</CardTitle>
+          <CardDescription>
+            {p.images.length > 0 ? `Đã lưu ${p.images.length} ảnh` : "Sản phẩm chưa có ảnh."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {p.images.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Chưa có ảnh được tải lên cho sản phẩm này.</p>
+          ) : imageQ.isPending ? (
+            <p className="text-sm text-muted-foreground">Đang tải ảnh...</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {(imageQ.data ?? []).map((img) => (
+                <a
+                  key={img.imageId}
+                  href={img.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group relative block overflow-hidden rounded-md border"
+                >
+                  <img
+                    src={img.url}
+                    alt={`Ảnh sản phẩm ${img.imageId}`}
+                    className="h-28 w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                  />
+                </a>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
