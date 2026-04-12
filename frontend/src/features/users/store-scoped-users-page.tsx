@@ -27,6 +27,7 @@ import { isSystemManage } from "@/features/auth/access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { userAccountStatusLabel } from "@/lib/entity-status-labels";
 import { formatApiError } from "@/lib/api-errors";
+import { formatRoleCodesForUi } from "@/lib/role-labels";
 
 const DEFAULT_SIZE = 15;
 
@@ -205,7 +206,7 @@ export function StoreScopedUsersPage() {
                       <TableCell className="font-medium">{row.fullName}</TableCell>
                       <TableCell className="text-sm">{row.email}</TableCell>
                       <TableCell className="max-w-[180px] truncate text-xs text-muted-foreground">
-                        {row.roleCodes?.length ? row.roleCodes.join(", ") : "—"}
+                        {formatRoleCodesForUi(row.roleCodes)}
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{userAccountStatusLabel(row.status)}</Badge>

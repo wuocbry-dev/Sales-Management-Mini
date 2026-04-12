@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { userAccountStatusLabel } from "@/lib/entity-status-labels";
 import { formatApiError } from "@/lib/api-errors";
+import { roleUiLabel } from "@/lib/role-labels";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 
 const selectClass =
@@ -314,10 +315,7 @@ export function SystemUserDetailPage() {
                     checked={roleIds.includes(r.id)}
                     onChange={(e) => toggleRole(r.id, e.target.checked)}
                   />
-                  <span>
-                    <span className="font-medium">{r.roleName}</span>
-                    <span className="ml-1 font-mono text-xs text-muted-foreground">({r.roleCode})</span>
-                  </span>
+                  <span className="font-medium">{roleUiLabel(r)}</span>
                 </label>
               ))}
             </div>

@@ -16,6 +16,7 @@ import { isSystemManage } from "@/features/auth/access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
+import { roleCodeDescriptionVi } from "@/lib/role-labels";
 import type { CreateStoreStaffRequestBody } from "@/types/store-staff";
 
 const selectClass =
@@ -208,8 +209,8 @@ export function StoreStaffCreatePage() {
                       <FormLabel>Vai trò</FormLabel>
                       <FormControl>
                         <select {...field} className={selectClass}>
-                          <option value="CASHIER">Thu ngân</option>
-                          <option value="WAREHOUSE_STAFF">Nhân viên kho</option>
+                          <option value="CASHIER">{roleCodeDescriptionVi("CASHIER")}</option>
+                          <option value="WAREHOUSE_STAFF">{roleCodeDescriptionVi("WAREHOUSE_STAFF")}</option>
                         </select>
                       </FormControl>
                       <FormMessage />

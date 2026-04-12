@@ -24,6 +24,7 @@ import { userAccountStatusLabel } from "@/lib/entity-status-labels";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
 import { formatDateTimeVi } from "@/lib/format-datetime";
+import { roleCodeDescriptionVi } from "@/lib/role-labels";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import type { UpdateStoreStaffRequestBody } from "@/types/store-staff";
@@ -179,7 +180,7 @@ export function StoreStaffDetailPage() {
           </div>
           <div>
             <p className="text-xs font-medium text-muted-foreground">Vai trò</p>
-            <p className="text-sm">{row.roleCode}</p>
+            <p className="text-sm">{roleCodeDescriptionVi(row.roleCode)}</p>
           </div>
           <div>
             <p className="text-xs font-medium text-muted-foreground">Cửa hàng</p>

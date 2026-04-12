@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { userAccountStatusLabel } from "@/lib/entity-status-labels";
+import { formatRoleCodesForUi } from "@/lib/role-labels";
 
 export function SettingsPage() {
   const me = useAuthStore((s) => s.me);
@@ -41,7 +42,7 @@ export function SettingsPage() {
           </div>
           <div className="sm:col-span-2">
             <p className="text-xs font-medium text-muted-foreground">Vai trò</p>
-            <p className="text-sm">{me.roles?.length ? me.roles.join(", ") : "—"}</p>
+            <p className="text-sm">{formatRoleCodesForUi(me.roles)}</p>
           </div>
         </CardContent>
       </Card>

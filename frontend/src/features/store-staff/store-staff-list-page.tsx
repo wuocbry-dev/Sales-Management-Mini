@@ -16,6 +16,7 @@ import { useAuthStore } from "@/features/auth/auth-store";
 import { userAccountStatusLabel } from "@/lib/entity-status-labels";
 import { formatApiError } from "@/lib/api-errors";
 import { formatDateTimeVi } from "@/lib/format-datetime";
+import { roleCodeDescriptionVi } from "@/lib/role-labels";
 
 const DEFAULT_SIZE = 15;
 
@@ -109,8 +110,8 @@ export function StoreStaffListPage() {
                 onChange={(e) => setFilter("vaiTro", e.target.value)}
               >
                 <option value="">Tất cả</option>
-                <option value="CASHIER">Thu ngân</option>
-                <option value="WAREHOUSE_STAFF">Nhân viên kho</option>
+                <option value="CASHIER">{roleCodeDescriptionVi("CASHIER")}</option>
+                <option value="WAREHOUSE_STAFF">{roleCodeDescriptionVi("WAREHOUSE_STAFF")}</option>
               </select>
             </div>
             <div className="space-y-1">
@@ -170,7 +171,7 @@ export function StoreStaffListPage() {
                     <TableRow key={row.userId}>
                       <TableCell className="font-mono text-sm">{row.username}</TableCell>
                       <TableCell className="font-medium">{row.fullName}</TableCell>
-                      <TableCell className="text-sm">{row.roleCode}</TableCell>
+                      <TableCell className="text-sm">{roleCodeDescriptionVi(row.roleCode)}</TableCell>
                       <TableCell>{getStoreName(row.storeId)}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">{userAccountStatusLabel(row.status)}</Badge>

@@ -36,7 +36,8 @@ import { formatApiError } from "@/lib/api-errors";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "react-router-dom";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
-import type { CreatePermissionOverrideRequestBody } from "@/types/rbac";
+import { roleUiLabel } from "@/lib/role-labels";
+import type { CreatePermissionOverrideRequestBody, RoleListRow } from "@/types/rbac";
 
 type Tab = "roles" | "permissions" | "overrides";
 
@@ -99,6 +100,16 @@ export function RbacHubPage() {
     queryFn: () => fetchRbacRolesPage({ page: 0, size: 200 }),
     enabled: canArea && canOverrides,
   });
+
+  const roleIdUiLabel = useMemo(() => {
+    const m = new Map<number, string>();
+    const add = (rows: RoleListRow[] | undefined) => {
+      for (const r of rows ?? []) m.set(r.id, roleUiLabel(r));
+    };
+    add(rolesForForm.data?.content);
+    add(rolesQ.data?.content);
+    return m;
+  }, [rolesForForm.data, rolesQ.data]);
 
   const permsForForm = useQuery({
     queryKey: ["rbac-permissions", "form"],
@@ -191,14 +202,13 @@ export function RbacHubPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Mã vai trò</TableHead>
-                      <TableHead>Tên hiển thị</TableHead>
                       <TableHead>Mô tả</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {rolesQ.data.content.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
                           Không có dữ liệu.
                         </TableCell>
                       </TableRow>
@@ -206,8 +216,7 @@ export function RbacHubPage() {
                       rolesQ.data.content.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell className="font-mono text-sm">{r.roleCode}</TableCell>
-                          <TableCell className="font-medium">{r.roleName}</TableCell>
-                          <TableCell className="max-w-md text-sm text-muted-foreground">{r.description ?? "—"}</TableCell>
+                          <TableCell className="max-w-xl text-sm font-medium">{roleUiLabel(r)}</TableCell>
                         </TableRow>
                       ))
                     )}
@@ -301,7 +310,7 @@ export function RbacHubPage() {
                     <option value="">Tất cả</option>
                     {(rolesForForm.data?.content ?? []).map((r) => (
                       <option key={r.id} value={String(r.id)}>
-                        {r.roleName} ({r.roleCode})
+                        {roleUiLabel(r)}
                       </option>
                     ))}
                   </select>
@@ -328,7 +337,9 @@ export function RbacHubPage() {
                     ) : (
                       overridesQ.data.map((o) => (
                         <TableRow key={o.overrideId}>
-                          <TableCell>{o.roleId}</TableCell>
+                          <TableCell className="text-sm">
+                            {roleIdUiLabel.get(o.roleId) ?? `Vai trò #${o.roleId}`}
+                          </TableCell>
                           <TableCell className="font-mono text-sm">{o.permissionCode}</TableCell>
                           <TableCell className="text-sm">
                             {o.branchId != null
@@ -377,7 +388,7 @@ export function RbacHubPage() {
                 <option value="">Chọn</option>
                 {(rolesForForm.data?.content ?? []).map((r) => (
                   <option key={r.id} value={String(r.id)}>
-                    {r.roleName}
+                    {roleUiLabel(r)}
                   </option>
                 ))}
               </select>

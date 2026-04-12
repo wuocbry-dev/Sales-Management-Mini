@@ -14,6 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
+import { roleUiLabel } from "@/lib/role-labels";
 import type { CreateUserRequestBody } from "@/types/user-admin";
 
 const selectClass =
@@ -257,8 +258,7 @@ export function SystemUserCreatePage() {
                           onChange={(e) => toggleRole(r.id, e.target.checked)}
                         />
                         <span>
-                          <span className="font-medium">{r.roleName}</span>
-                          <span className="ml-1 font-mono text-xs text-muted-foreground">({r.roleCode})</span>
+                          <span className="font-medium">{roleUiLabel(r)}</span>
                         </span>
                       </label>
                     ))}
