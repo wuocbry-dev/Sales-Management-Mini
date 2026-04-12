@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { fetchBranchesForStore } from "@/api/branches-api";
 import { fetchRbacRolesPage } from "@/api/rbac-api";
@@ -29,6 +29,7 @@ const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
 export function SystemUserDetailPage() {
+  const navigate = useNavigate();
   const { id } = useParams();
   const uid = Number(id);
   const invalid = !Number.isFinite(uid) || uid <= 0;
@@ -222,8 +223,8 @@ export function SystemUserDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/app/nguoi-dung">← Danh sách người dùng</Link>
+        <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+          ← Quay lại
         </Button>
         <Badge variant="secondary">{userAccountStatusLabel(d.status)}</Badge>
       </div>

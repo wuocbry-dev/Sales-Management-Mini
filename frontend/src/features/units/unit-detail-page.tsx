@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
 import { fetchUnitById } from "@/api/units-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -12,6 +12,7 @@ import { useAuthStore } from "@/features/auth/auth-store";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 
 export function UnitDetailPage() {
+  const navigate = useNavigate();
   const { id } = useParams();
   const nid = Number(id);
   const me = useAuthStore((s) => s.me);
@@ -42,8 +43,8 @@ export function UnitDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/app/don-vi">← Danh sách</Link>
+        <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+          ← Quay lại
         </Button>
         {canEdit ? (
           <Button type="button" size="sm" onClick={() => setOpen(true)}>

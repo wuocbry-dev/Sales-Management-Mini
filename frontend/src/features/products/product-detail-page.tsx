@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { fetchProductById } from "@/api/products-api";
 import { hasPermission } from "@/features/auth/access";
 import { useAuthStore } from "@/features/auth/auth-store";
@@ -16,6 +16,7 @@ import { productTypeLabel } from "@/lib/product-type-labels";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 
 export function ProductDetailPage() {
+  const navigate = useNavigate();
   const me = useAuthStore((s) => s.me);
   const canEditProduct = Boolean(me && hasPermission(me, "PRODUCT_UPDATE"));
   const { id } = useParams();
@@ -53,8 +54,8 @@ export function ProductDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/app/san-pham">← Danh sách sản phẩm</Link>
+        <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+          ← Quay lại
         </Button>
         {canEditProduct ? (
           <Button size="sm" asChild>

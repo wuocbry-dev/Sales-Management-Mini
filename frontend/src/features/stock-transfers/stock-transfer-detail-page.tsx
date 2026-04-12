@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { fetchStockTransferById, receiveStockTransfer, sendStockTransfer } from "@/api/stock-transfers-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -39,6 +39,7 @@ function formatVariantDisplay(item: StockTransferLineResponse): string {
 }
 
 export function StockTransferDetailPage() {
+  const navigate = useNavigate();
   const me = useAuthStore((s) => s.me);
   const { id } = useParams();
   const tid = Number(id);
@@ -103,8 +104,8 @@ export function StockTransferDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/app/chuyen-kho">← Danh sách</Link>
+        <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+          ← Quay lại
         </Button>
         <div className="flex flex-wrap gap-2">
           {canSend && isDraft ? (

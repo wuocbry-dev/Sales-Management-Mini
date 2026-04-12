@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { fetchWarehouse } from "@/api/warehouses-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
@@ -10,6 +10,7 @@ import { activeInactiveLabel } from "@/lib/entity-status-labels";
 import { warehouseTypeLabel } from "@/lib/warehouse-type-labels";
 
 export function WarehouseDetailPage() {
+  const navigate = useNavigate();
   const { storeId: sid, warehouseId: wid } = useParams();
   const storeId = Number(sid);
   const warehouseId = Number(wid);
@@ -38,8 +39,8 @@ export function WarehouseDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Button variant="outline" size="sm" asChild>
-        <Link to={`/app/cua-hang/${storeId}/kho`}>← Danh sách kho</Link>
+      <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+        ← Quay lại
       </Button>
       <Card>
         <CardHeader>

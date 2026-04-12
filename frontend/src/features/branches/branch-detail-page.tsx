@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
 import { fetchBranchById } from "@/api/branches-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -13,6 +13,7 @@ import { useAuthStore } from "@/features/auth/auth-store";
 import { activeInactiveLabel } from "@/lib/entity-status-labels";
 
 export function BranchDetailPage() {
+  const navigate = useNavigate();
   const { storeId: sid, branchId: bid } = useParams();
   const storeId = Number(sid);
   const branchId = Number(bid);
@@ -45,8 +46,8 @@ export function BranchDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" asChild>
-          <Link to={`/app/cua-hang/${b.storeId}/chi-nhanh`}>← Danh sách chi nhánh</Link>
+        <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+          ← Quay lại
         </Button>
         {canEdit ? (
           <Button type="button" size="sm" onClick={() => setOpen(true)}>

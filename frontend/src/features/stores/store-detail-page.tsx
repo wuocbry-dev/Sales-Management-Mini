@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
 import { fetchStoreById } from "@/api/stores-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -14,6 +14,7 @@ import { activeInactiveLabel } from "@/lib/entity-status-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 
 export function StoreDetailPage() {
+  const navigate = useNavigate();
   const { storeId } = useParams();
   const id = Number(storeId);
   const me = useAuthStore((s) => s.me);
@@ -46,8 +47,8 @@ export function StoreDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/app/cua-hang">← Danh sách cửa hàng</Link>
+        <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+          ← Quay lại
         </Button>
         <Button variant="outline" size="sm" asChild>
           <Link to={`/app/cua-hang/${id}/chi-nhanh`}>Chi nhánh</Link>

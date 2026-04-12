@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
 import { fetchCustomerById } from "@/api/customers-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -15,6 +15,7 @@ import { formatVndFromDecimal } from "@/lib/format-vnd";
 import { genderLabel } from "@/lib/gender-labels";
 
 export function CustomerDetailPage() {
+  const navigate = useNavigate();
   const me = useAuthStore((s) => s.me);
   const canUpdate = Boolean(me && canSeeCustomerUpdate(me));
   const { id } = useParams();
@@ -51,8 +52,8 @@ export function CustomerDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/app/khach-hang">← Danh sách khách hàng</Link>
+        <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+          ← Quay lại
         </Button>
         {canUpdate ? (
           <Button type="button" onClick={() => setOpen(true)}>

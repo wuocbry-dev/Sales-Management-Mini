@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { cancelSalesOrder, confirmSalesOrder, fetchSalesOrderById } from "@/api/sales-orders-api";
@@ -39,6 +39,7 @@ const PAYMENT_METHODS = [
 ];
 
 export function SalesOrderDetailPage() {
+  const navigate = useNavigate();
   const me = useAuthStore((s) => s.me);
   const { id } = useParams();
   const oid = Number(id);
@@ -148,8 +149,8 @@ export function SalesOrderDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/app/don-ban">← Danh sách đơn</Link>
+        <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+          ← Quay lại
         </Button>
         <div className="flex flex-wrap gap-2">
           {canCancel && isDraft ? (

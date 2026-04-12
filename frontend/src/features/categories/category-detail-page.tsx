@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
 import { fetchCategoryById } from "@/api/categories-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -14,6 +14,7 @@ import { activeInactiveLabel } from "@/lib/entity-status-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 
 export function CategoryDetailPage() {
+  const navigate = useNavigate();
   const { id } = useParams();
   const nid = Number(id);
   const me = useAuthStore((s) => s.me);
@@ -44,8 +45,8 @@ export function CategoryDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/app/nhom-hang">← Danh sách</Link>
+        <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+          ← Quay lại
         </Button>
         {canEdit ? (
           <Button type="button" size="sm" onClick={() => setOpen(true)}>

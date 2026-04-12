@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -55,6 +55,7 @@ function isActiveStoreStaffStatus(status: string) {
 }
 
 export function StoreStaffDetailPage() {
+  const navigate = useNavigate();
   const me = useAuthStore((s) => s.me);
   const { id } = useParams();
   const uid = Number(id);
@@ -153,8 +154,8 @@ export function StoreStaffDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Button variant="outline" size="sm" asChild>
-        <Link to="/app/nhan-vien-cua-hang">← Danh sách nhân viên</Link>
+      <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+        ← Quay lại
       </Button>
 
       <Card>

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { confirmStocktake, fetchStocktakeById } from "@/api/stocktakes-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -17,6 +17,7 @@ import { formatQty } from "@/lib/format-qty";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 
 export function StocktakeDetailPage() {
+  const navigate = useNavigate();
   const me = useAuthStore((s) => s.me);
   const { id } = useParams();
   const kid = Number(id);
@@ -67,8 +68,8 @@ export function StocktakeDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/app/kiem-kho">← Danh sách</Link>
+        <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+          ← Quay lại
         </Button>
         {canConfirm && isDraft ? (
           <Button type="button" disabled={confirmM.isPending} onClick={() => confirmM.mutate()}>
