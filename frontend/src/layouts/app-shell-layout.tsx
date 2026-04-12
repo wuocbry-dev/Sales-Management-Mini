@@ -4,6 +4,8 @@ import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { getSidebarSections, type AppNavItem } from "@/app/navigation";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
+import { isSystemLevelUser } from "@/lib/access-control";
 import { cn } from "@/lib/utils";
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useState } from "react";
@@ -69,11 +71,18 @@ export function AppShellLayout() {
   const me = useAuthStore((s) => s.me);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { getStoreName } = useStoreNameMap({ enabled: Boolean(me?.defaultStoreId) });
   const matches = useMatches();
   const leaf = matches[matches.length - 1];
   const handle = (leaf?.handle ?? {}) as AppRouteHandle;
 
   if (!me) return null;
+
+  const currentStoreLabel = me.defaultStoreId ? getStoreName(me.defaultStoreId) : "Chưa chọn cửa hàng";
+  const isAdmin = isSystemLevelUser(me);
+  const isStoreManager = me.roles.includes("STORE_MANAGER");
+  const roleHeadline = isAdmin ? "ADMIN" : isStoreManager ? "Quản lý cửa hàng" : "Người dùng";
+  const roleSubline = isAdmin ? "quản trị viên hệ thống" : currentStoreLabel;
 
   const sidebar = (
     <aside
@@ -92,14 +101,20 @@ export function AppShellLayout() {
         <NavLink
           to="/app"
           className={cn(
-            "truncate text-sm font-bold tracking-tight text-primary",
-            collapsed &&
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold",
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary",
           )}
-          title="Về trang chủ ứng dụng"
+          title={collapsed ? currentStoreLabel : "Về trang chủ ứng dụng"}
         >
-          {collapsed ? "BH" : "Bán hàng Pro"}
+          BH
         </NavLink>
+        {!collapsed ? (
+          <div className="min-w-0 flex-1 px-2">
+            <p className="truncate text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
+              {roleHeadline}
+            </p>
+            <p className="truncate text-[11px] font-medium text-muted-foreground">{roleSubline}</p>
+          </div>
+        ) : null}
         <Button
           type="button"
           variant="ghost"
