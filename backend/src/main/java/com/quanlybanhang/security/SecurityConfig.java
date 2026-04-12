@@ -63,15 +63,16 @@ public class SecurityConfig {
      * frontend vẫn có thể bị chặn nếu Origin (localhost:5174, IP LAN, file://…) không khớp.
      * Chỉ bật app.cors.allow-all-http-origins=true trên máy dev khi cần (không dùng production).
      */
+    // allow-all-http chỉ thêm http://*:*; HTTPS production vẫn cần các pattern bên dưới (tránh 403 CORS).
     List<String> patterns = new ArrayList<>();
     if (allowAllHttpOrigins) {
       patterns.add("http://*:*");
-    } else {
-      patterns.add("http://localhost:*");
-      patterns.add("http://127.0.0.1:*");
-      patterns.add("http://192.168.*:*");
-      patterns.add("http://10.*:*");
     }
+    patterns.add("http://localhost:*");
+    patterns.add("http://127.0.0.1:*");
+    patterns.add("http://192.168.*:*");
+    patterns.add("http://10.*:*");
+    patterns.add("https://sale.q2k.click");
     c.setAllowedOriginPatterns(patterns);
     c.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     c.setAllowedHeaders(List.of("*"));
