@@ -18,6 +18,8 @@ import { useAuthStore } from "@/features/auth/auth-store";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
 import { cn } from "@/lib/utils";
+import { SkuFormItem } from "@/features/products/sku-form-item";
+import { normalizeSku } from "@/features/products/sku-suggestions";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import type { MeResponse } from "@/types/auth";
 import type { ProductCreateRequestBody } from "@/types/product";
@@ -88,7 +90,7 @@ function buildBody(values: ProductCreateFormValues, me: MeResponse): ProductCrea
     description: values.description?.trim() ? values.description.trim() : null,
     status: values.status,
     variants: values.variants.map((v) => ({
-      sku: v.sku.trim(),
+      sku: normalizeSku(v.sku),
       barcode: trimOrUndef(v.barcode) ?? null,
       variantName: trimOrUndef(v.variantName) ?? null,
       attributesJson: trimOrUndef(v.attributesJson) ?? null,
@@ -160,6 +162,14 @@ export function ProductCreatePage() {
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "variants" });
   const hasVariant = form.watch("hasVariant");
+  const productCodeWatch = form.watch("productCode");
+  const selectedStoreId = needStorePicker ? Number(form.watch("storeId")) || 0 : (me?.storeIds[0] ?? 0);
+  const variantsWatch = form.watch("variants");
+
+  const currentFormSkus = useMemo(
+    () => (variantsWatch ?? []).map((v) => normalizeSku(v?.sku)).filter((v) => v.length > 0),
+    [variantsWatch],
+  );
 
   useEffect(() => {
     return () => {
@@ -292,13 +302,14 @@ export function ProductCreatePage() {
                       control={form.control}
                       name="variants.0.sku"
                       render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Mã hàng</FormLabel>
-                          <FormControl>
-                            <Input {...field} className="font-mono" placeholder="Nhập mã SKU" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
+                        <SkuFormItem
+                          field={field}
+                          storeId={selectedStoreId}
+                          currentFormSkus={currentFormSkus}
+                          productCode={productCodeWatch}
+                          variantName={variantsWatch?.[0]?.variantName ?? ""}
+                          placeholder="Nhập mã SKU"
+                        />
                       )}
                     />
                     <FormField
@@ -657,13 +668,13 @@ export function ProductCreatePage() {
                                 control={form.control}
                                 name={`variants.${index}.sku`}
                                 render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>SKU</FormLabel>
-                                    <FormControl>
-                                      <Input {...field} className="font-mono" />
-                                    </FormControl>
-                                    <FormMessage />
-                                  </FormItem>
+                                  <SkuFormItem
+                                    field={field}
+                                    storeId={selectedStoreId}
+                                    currentFormSkus={currentFormSkus}
+                                    productCode={productCodeWatch}
+                                    variantName={variantsWatch?.[index]?.variantName ?? ""}
+                                  />
                                 )}
                               />
                               <FormField

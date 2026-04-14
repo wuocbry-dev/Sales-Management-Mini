@@ -18,6 +18,8 @@ import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
 import { cn } from "@/lib/utils";
+import { SkuFormItem } from "@/features/products/sku-form-item";
+import { normalizeSku } from "@/features/products/sku-suggestions";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import type { ProductResponse, ProductUpdateRequestBody } from "@/types/product";
 
@@ -131,7 +133,7 @@ function buildUpdateBody(values: ProductEditFormValues): ProductUpdateRequestBod
     status: values.status,
     variants: values.variants.map((v) => ({
       id: typeof v.id === "number" && v.id > 0 ? v.id : null,
-      sku: v.sku.trim(),
+      sku: normalizeSku(v.sku),
       barcode: trimOrUndef(v.barcode) ?? null,
       variantName: trimOrUndef(v.variantName) ?? null,
       attributesJson: trimOrUndef(v.attributesJson) ?? null,
@@ -210,6 +212,13 @@ export function ProductEditPage() {
   }, [productQ.data, reset]);
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "variants" });
+  const selectedStoreId = productQ.data?.storeId ?? 0;
+  const productCodeWatch = form.watch("productCode");
+  const variantsWatch = form.watch("variants");
+  const currentFormSkus = useMemo(
+    () => (variantsWatch ?? []).map((v) => normalizeSku(v?.sku)).filter((v) => v.length > 0),
+    [variantsWatch],
+  );
 
   const mutation = useMutation({
     meta: { skipGlobalErrorToast: true },
@@ -487,13 +496,13 @@ export function ProductEditPage() {
                           control={form.control}
                           name={`variants.${index}.sku`}
                           render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>SKU</FormLabel>
-                              <FormControl>
-                                <Input {...field} className="font-mono" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
+                            <SkuFormItem
+                              field={field}
+                              storeId={selectedStoreId}
+                              currentFormSkus={currentFormSkus}
+                              productCode={productCodeWatch}
+                              variantName={variantsWatch?.[index]?.variantName ?? ""}
+                            />
                           )}
                         />
                         <FormField
