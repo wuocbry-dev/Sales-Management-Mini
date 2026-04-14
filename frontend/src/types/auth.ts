@@ -47,6 +47,11 @@ export type RegisterRequestBody = {
   phone?: string | null;
 };
 
+export type ChangePasswordRequestBody = {
+  currentPassword: string;
+  newPassword: string;
+};
+
 export type ApiErrorBody = {
   timestamp?: string;
   status: number;

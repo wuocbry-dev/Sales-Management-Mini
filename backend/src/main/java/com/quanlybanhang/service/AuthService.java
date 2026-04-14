@@ -2,6 +2,7 @@ package com.quanlybanhang.service;
 
 import com.quanlybanhang.dto.AuthDtos.AuthResponse;
 import com.quanlybanhang.dto.AuthDtos.AuthUserInfo;
+import com.quanlybanhang.dto.AuthDtos.ChangePasswordRequest;
 import com.quanlybanhang.dto.AuthDtos.LoginRequest;
 import com.quanlybanhang.dto.AuthDtos.MeResponse;
 import com.quanlybanhang.dto.AuthDtos.RegisterRequest;
@@ -209,6 +210,43 @@ public class AuthService {
         jp.storeIds(),
         jp.branchIds(),
         defaultStoreId);
+  }
+
+  @Transactional
+  public void changePassword(ChangePasswordRequest req) {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth == null || !auth.isAuthenticated()) {
+      throw new AuthApiException(
+          HttpStatus.UNAUTHORIZED, AuthErrorCodes.UNAUTHORIZED, "Chưa đăng nhập.");
+    }
+    Object p = auth.getPrincipal();
+    if (!(p instanceof JwtAuthenticatedPrincipal jp)) {
+      throw new AuthApiException(
+          HttpStatus.UNAUTHORIZED, AuthErrorCodes.UNAUTHORIZED, "Chưa đăng nhập.");
+    }
+
+    AppUser user =
+        appUserRepository
+            .findById(jp.userId())
+            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng."));
+
+    if (!passwordEncoder.matches(req.currentPassword(), user.getPasswordHash())) {
+      throw new AuthApiException(
+          HttpStatus.BAD_REQUEST,
+          AuthErrorCodes.INVALID_PASSWORD,
+          "Mật khẩu hiện tại không đúng.");
+    }
+
+    if (passwordEncoder.matches(req.newPassword(), user.getPasswordHash())) {
+      throw new AuthApiException(
+          HttpStatus.BAD_REQUEST,
+          AuthErrorCodes.INVALID_PASSWORD,
+          "Mật khẩu mới phải khác mật khẩu hiện tại.");
+    }
+
+    user.setPasswordHash(passwordEncoder.encode(req.newPassword()));
+    user.setUpdatedAt(LocalDateTime.now());
+    appUserRepository.save(user);
   }
 
   private void assertAccountAllowedForLogin(AppUser user) {

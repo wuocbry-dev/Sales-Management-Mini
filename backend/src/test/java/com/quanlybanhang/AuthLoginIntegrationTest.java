@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 import com.quanlybanhang.dto.AuthDtos.LoginRequest;
 import com.quanlybanhang.dto.AuthDtos.RegisterRequest;
 import com.quanlybanhang.model.AppUser;
@@ -189,6 +190,84 @@ class AuthLoginIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.username").value("itest_admin"))
         .andExpect(jsonPath("$.roles[0]").value("SYSTEM_ADMIN"));
+  }
+
+  @Test
+  void changePassword_withValidCurrentPassword_updatesPassword() throws Exception {
+    var loginRes =
+        mockMvc
+            .perform(
+                post("/api/auth/login")
+                    .contentType(APPLICATION_JSON)
+                    .content(
+                        objectMapper.writeValueAsString(
+                            new LoginRequest("itest_admin", "secret"))))
+            .andExpect(status().isOk())
+            .andReturn();
+    String token =
+        objectMapper
+            .readTree(loginRes.getResponse().getContentAsString())
+            .get("accessToken")
+            .asText();
+
+    mockMvc
+        .perform(
+            post("/api/auth/change-password")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of("currentPassword", "secret", "newPassword", "secret99"))))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post("/api/auth/login")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        new LoginRequest("itest_admin", "secret"))))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+
+    mockMvc
+        .perform(
+            post("/api/auth/login")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        new LoginRequest("itest_admin", "secret99"))))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void changePassword_withWrongCurrentPassword_returns400() throws Exception {
+    var loginRes =
+        mockMvc
+            .perform(
+                post("/api/auth/login")
+                    .contentType(APPLICATION_JSON)
+                    .content(
+                        objectMapper.writeValueAsString(
+                            new LoginRequest("itest_admin", "secret"))))
+            .andExpect(status().isOk())
+            .andReturn();
+    String token =
+        objectMapper
+            .readTree(loginRes.getResponse().getContentAsString())
+            .get("accessToken")
+            .asText();
+
+    mockMvc
+        .perform(
+            post("/api/auth/change-password")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(APPLICATION_JSON)
+                .content(
+                    objectMapper.writeValueAsString(
+                        Map.of("currentPassword", "wrong", "newPassword", "secret99"))))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_PASSWORD"));
   }
 
   @Test

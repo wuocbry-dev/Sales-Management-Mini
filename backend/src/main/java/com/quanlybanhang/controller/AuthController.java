@@ -1,6 +1,7 @@
 package com.quanlybanhang.controller;
 
 import com.quanlybanhang.dto.AuthDtos.AuthResponse;
+import com.quanlybanhang.dto.AuthDtos.ChangePasswordRequest;
 import com.quanlybanhang.dto.AuthDtos.LoginRequest;
 import com.quanlybanhang.dto.AuthDtos.MeResponse;
 import com.quanlybanhang.dto.AuthDtos.RegisterRequest;
@@ -40,5 +41,10 @@ public class AuthController {
   @GetMapping("/me")
   public MeResponse me() {
     return authService.me();
+  }
+
+  @PostMapping("/change-password")
+  public void changePassword(@Valid @RequestBody ChangePasswordRequest req) {
+    authService.changePassword(req);
   }
 }

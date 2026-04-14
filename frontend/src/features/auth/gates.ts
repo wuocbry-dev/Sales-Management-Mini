@@ -125,7 +125,8 @@ export const gateRbacOverridesManage: AccessGate = (me) =>
  */
 export const gateStoreStaffArea: AccessGate = (me) => isSystemManage(me) || hasRole(me, "STORE_MANAGER");
 
-export const gateSettingsArea: AccessGate = (me) => isSystemManage(me);
+/** Cài đặt cá nhân (profile + đổi mật khẩu) cho mọi tài khoản đã đăng nhập. */
+export const gateSettingsArea: AccessGate = () => true;
 
 /** Danh sách / chi tiết cửa hàng — khớp `@authz.masterRead` trên `GET /api/stores`. */
 export const gateStoreDataRead: AccessGate = (me) => isSystemManage(me) || hasMasterRead(me);

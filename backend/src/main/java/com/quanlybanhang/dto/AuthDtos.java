@@ -19,6 +19,11 @@ public final class AuthDtos {
   /** Trường {@code username}: tên đăng nhập hoặc email. */
   public record LoginRequest(@NotBlank String username, @NotBlank String password) {}
 
+    /** Đổi mật khẩu cho tài khoản đang đăng nhập. */
+    public record ChangePasswordRequest(
+            @NotBlank String currentPassword,
+            @NotBlank @Size(min = 6, max = 100) String newPassword) {}
+
   public record AuthUserInfo(
       Long id,
       String username,

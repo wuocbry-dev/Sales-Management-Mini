@@ -14,7 +14,7 @@ import { AUTH_ME_QUERY_KEY } from "@/app/auth-query-keys";
 import { queryClient } from "@/lib/query-client";
 import { describeSessionScope } from "@/lib/session-scope-label";
 import { cn } from "@/lib/utils";
-import { ChevronDown, LogOut, UserRound } from "lucide-react";
+import { ChevronDown, LogOut, Settings2, UserRound } from "lucide-react";
 
 function initials(name: string): string {
   const p = name.trim().split(/\s+/).filter(Boolean);
@@ -64,6 +64,11 @@ export function AccountMenu({ className }: { className?: string }) {
             {scope ? <p className="text-xs leading-relaxed text-muted-foreground">{scope}</p> : null}
           </div>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="gap-2" onClick={() => navigate("/app/cai-dat")}>
+          <Settings2 className="h-4 w-4" aria-hidden />
+          Hồ sơ & bảo mật
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="gap-2 text-destructive focus:text-destructive"

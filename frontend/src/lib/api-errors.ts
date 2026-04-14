@@ -8,6 +8,7 @@ export function messageForApiCode(code: string | undefined): string | null {
     ACCOUNT_LOCKED: "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.",
     ACCOUNT_INACTIVE: "Tài khoản chưa được kích hoạt.",
     FORBIDDEN: "Bạn không có quyền thực hiện thao tác này.",
+    INVALID_PASSWORD: "Mật khẩu không hợp lệ. Vui lòng kiểm tra lại.",
     USERNAME_ALREADY_EXISTS: "Tên đăng nhập đã được sử dụng.",
     EMAIL_ALREADY_EXISTS: "Email đã được sử dụng.",
     VALIDATION_ERROR: "Thông tin gửi lên không hợp lệ. Vui lòng kiểm tra lại các trường.",

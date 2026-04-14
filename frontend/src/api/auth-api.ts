@@ -1,5 +1,11 @@
 import { apiClient } from "@/lib/axios-client";
-import type { AuthResponse, LoginRequestBody, MeResponse, RegisterRequestBody } from "@/types/auth";
+import type {
+  AuthResponse,
+  ChangePasswordRequestBody,
+  LoginRequestBody,
+  MeResponse,
+  RegisterRequestBody,
+} from "@/types/auth";
 
 export async function postLogin(body: LoginRequestBody): Promise<AuthResponse> {
   const { data } = await apiClient.post<AuthResponse>("/api/auth/login", body);
@@ -14,4 +20,8 @@ export async function postRegister(body: RegisterRequestBody): Promise<AuthRespo
 export async function getMe(): Promise<MeResponse> {
   const { data } = await apiClient.get<MeResponse>("/api/auth/me");
   return data;
+}
+
+export async function postChangePassword(body: ChangePasswordRequestBody): Promise<void> {
+  await apiClient.post("/api/auth/change-password", body);
 }

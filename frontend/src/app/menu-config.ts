@@ -357,7 +357,7 @@ const MENU_DEFS: MenuDef[] = [
     label: "Cài đặt",
     to: "/app/cai-dat",
     icon: Settings2,
-    access: gateSystemManage,
+    access: gateSettingsArea,
   },
 ];
 
