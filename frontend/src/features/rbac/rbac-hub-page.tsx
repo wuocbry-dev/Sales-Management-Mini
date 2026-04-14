@@ -108,6 +108,14 @@ export function RbacHubPage() {
     return overridesQ.data.filter((row) => isInScope(row, scopeType, selectedStoreId, selectedBranchId));
   }, [overridesQ.data, scopeType, selectedStoreId, selectedBranchId]);
 
+  const branchNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const b of branchesQ.data?.content ?? []) {
+      map.set(b.branchId, `${b.branchName} (${b.branchCode})`);
+    }
+    return map;
+  }, [branchesQ.data]);
+
   const overrideByPermission = useMemo(() => {
     const map = new Map<number, PermissionOverrideRow[]>();
     for (const row of scopedOverrides) {
@@ -477,7 +485,11 @@ export function RbacHubPage() {
                         <Badge variant="secondary">{overrideTypeLabel(o.overrideType)}</Badge>
                       </TableCell>
                       <TableCell className="text-sm">
-                        {o.branchId != null ? `Chi nhánh ${o.branchId}` : o.storeId != null ? getStoreName(o.storeId) : "Toàn hệ thống"}
+                        {o.branchId != null
+                          ? (branchNameById.get(o.branchId) ?? `Chi nhánh #${o.branchId}`)
+                          : o.storeId != null
+                            ? getStoreName(o.storeId)
+                            : "Toàn hệ thống"}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button

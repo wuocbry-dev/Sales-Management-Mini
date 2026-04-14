@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { canSeeStocktakeConfirm } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { useVariantLabelMap } from "@/hooks/use-variant-label-map";
+import { useWarehouseNameMap } from "@/hooks/use-warehouse-name-map";
 import { formatApiError } from "@/lib/api-errors";
 import { stocktakeStatusLabel } from "@/lib/document-flow-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
@@ -31,6 +33,14 @@ export function StocktakeDetailPage() {
   });
 
   const { getStoreName } = useStoreNameMap();
+
+  const { getWarehouseName } = useWarehouseNameMap({
+    enabled: Boolean(q.data),
+    storeIds: q.data ? [q.data.storeId] : [],
+    includeStorePrefix: false,
+  });
+
+  const { getVariantLabel } = useVariantLabelMap({ enabled: Boolean(q.data) });
 
   const canConfirm = Boolean(me && canSeeStocktakeConfirm(me, q.data?.status));
 
@@ -93,7 +103,7 @@ export function StocktakeDetailPage() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Kho</p>
-            <p className="font-medium tabular-nums">{s.warehouseId}</p>
+            <p className="font-medium">{getWarehouseName(s.warehouseId)}</p>
           </div>
           {s.note ? (
             <div className="sm:col-span-2">
@@ -112,7 +122,7 @@ export function StocktakeDetailPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Mã biến thể</TableHead>
+                <TableHead>Biến thể</TableHead>
                 <TableHead className="text-right">Tồn hệ thống</TableHead>
                 <TableHead className="text-right">Thực tế</TableHead>
                 <TableHead className="text-right">Chênh lệch</TableHead>
@@ -122,7 +132,7 @@ export function StocktakeDetailPage() {
             <TableBody>
               {s.items.map((it) => (
                 <TableRow key={it.id}>
-                  <TableCell className="font-mono text-sm tabular-nums">{it.variantId}</TableCell>
+                  <TableCell className="text-sm">{getVariantLabel(it.variantId)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatQty(it.systemQty)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatQty(it.actualQty)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatQty(it.differenceQty)}</TableCell>

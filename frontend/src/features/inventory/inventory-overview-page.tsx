@@ -7,6 +7,7 @@ import {
   fetchInventoryTransactionsPage,
 } from "@/api/inventory-api";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
+import { useWarehouseNameMap } from "@/hooks/use-warehouse-name-map";
 import { fetchWarehousesForStore } from "@/api/warehouses-api";
 import { VariantSearchCombobox } from "@/components/catalog/variant-search-combobox";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -115,6 +116,12 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
       return 0;
     });
   }, [warehousesQ.data]);
+
+  const { getWarehouseName } = useWarehouseNameMap({
+    enabled: storeId > 0,
+    storeIds: storeId > 0 ? [storeId] : [],
+    includeStorePrefix: false,
+  });
 
   const invByWhQ = useQuery({
     queryKey: ["inventory", "by-warehouse", warehouseId, whPage, DEFAULT_SIZE],
@@ -401,7 +408,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                       ) : (
                         invByStoreQ.data.content.map((row) => (
                           <TableRow key={row.id}>
-                            <TableCell className="tabular-nums text-muted-foreground">{row.warehouseId}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{getWarehouseName(row.warehouseId)}</TableCell>
                             <TableCell className="text-sm">{formatInventoryVariantLabel(row)}</TableCell>
                             <TableCell className="text-right tabular-nums">{formatQty(row.quantityOnHand)}</TableCell>
                             <TableCell className="text-right tabular-nums">{formatQty(row.reservedQty)}</TableCell>

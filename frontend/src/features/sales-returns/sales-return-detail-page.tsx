@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { fetchSalesOrderById } from "@/api/sales-orders-api";
 import { confirmSalesReturn, fetchSalesReturnById } from "@/api/sales-returns-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
@@ -10,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { canSeeReturnConfirm } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { useVariantLabelMap } from "@/hooks/use-variant-label-map";
 import { formatApiError } from "@/lib/api-errors";
 import { salesReturnStatusLabel } from "@/lib/document-flow-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
@@ -31,7 +34,15 @@ export function SalesReturnDetailPage() {
     enabled: !invalid,
   });
 
+  const orderQ = useQuery({
+    queryKey: ["sales-orders", q.data?.orderId],
+    queryFn: () => fetchSalesOrderById(q.data!.orderId),
+    enabled: Boolean(q.data?.orderId),
+    retry: false,
+  });
+
   const { getStoreName } = useStoreNameMap();
+  const { getVariantLabel } = useVariantLabelMap({ enabled: Boolean(q.data) });
 
   const canConfirm = Boolean(me && canSeeReturnConfirm(me, q.data?.status));
 
@@ -66,6 +77,20 @@ export function SalesReturnDetailPage() {
   const r = q.data;
   const isDraft = r.status === "draft";
 
+  const orderItemById = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const it of orderQ.data?.items ?? []) {
+      map.set(it.id, it.variantId);
+    }
+    return map;
+  }, [orderQ.data]);
+
+  const getOrderItemDisplay = (orderItemId: number) => {
+    const variantId = orderItemById.get(orderItemId);
+    if (variantId == null) return `Dòng #${orderItemId}`;
+    return `#${orderItemId} - ${getVariantLabel(variantId)}`;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -90,7 +115,7 @@ export function SalesReturnDetailPage() {
         <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
           <div>
             <p className="text-xs text-muted-foreground">Đơn gốc</p>
-            <p className="font-medium tabular-nums">{r.orderId}</p>
+            <p className="font-medium">{orderQ.data?.orderCode ?? `Đơn #${r.orderId}`}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Cửa hàng</p>
@@ -118,7 +143,7 @@ export function SalesReturnDetailPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Dòng đơn</TableHead>
-                <TableHead>Mã biến thể</TableHead>
+                <TableHead>Biến thể</TableHead>
                 <TableHead className="text-right">Số lượng</TableHead>
                 <TableHead className="text-right">Đơn giá</TableHead>
                 <TableHead className="text-right">Thành tiền</TableHead>
@@ -128,8 +153,8 @@ export function SalesReturnDetailPage() {
             <TableBody>
               {r.items.map((it) => (
                 <TableRow key={it.id}>
-                  <TableCell className="tabular-nums">{it.orderItemId}</TableCell>
-                  <TableCell className="font-mono text-sm tabular-nums">{it.variantId}</TableCell>
+                  <TableCell className="text-sm">{getOrderItemDisplay(it.orderItemId)}</TableCell>
+                  <TableCell className="text-sm">{getVariantLabel(it.variantId)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatQty(it.quantity)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatVndFromDecimal(it.unitPrice)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatVndFromDecimal(it.lineTotal)}</TableCell>

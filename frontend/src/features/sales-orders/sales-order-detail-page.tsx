@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { fetchBranchById } from "@/api/branches-api";
+import { fetchCustomerById } from "@/api/customers-api";
 import { cancelSalesOrder, confirmSalesOrder, fetchSalesOrderById } from "@/api/sales-orders-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
@@ -13,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { canSeeSalesOrderCancel, canSeeSalesOrderConfirm } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { useVariantLabelMap } from "@/hooks/use-variant-label-map";
 import { formatApiError } from "@/lib/api-errors";
 import {
   paymentMethodLabel,
@@ -52,7 +55,25 @@ export function SalesOrderDetailPage() {
     enabled: !invalid,
   });
 
+  const branchId = q.data?.branchId ?? null;
+  const customerId = q.data?.customerId ?? null;
+
+  const branchQ = useQuery({
+    queryKey: ["branches", "detail", branchId],
+    queryFn: () => fetchBranchById(branchId!),
+    enabled: branchId != null && branchId > 0,
+    retry: false,
+  });
+
+  const customerQ = useQuery({
+    queryKey: ["customers", "detail", customerId],
+    queryFn: () => fetchCustomerById(customerId!),
+    enabled: customerId != null && customerId > 0,
+    retry: false,
+  });
+
   const { getStoreName } = useStoreNameMap();
+  const { getVariantLabel } = useVariantLabelMap({ enabled: Boolean(q.data) });
 
   const orderStatus = q.data?.status;
   const canConfirm = Boolean(me && canSeeSalesOrderConfirm(me, orderStatus));
@@ -194,11 +215,23 @@ export function SalesOrderDetailPage() {
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Chi nhánh</p>
-              <p className="font-medium tabular-nums">{o.branchId ?? "—"}</p>
+              <p className="font-medium">
+                {o.branchId == null
+                  ? "—"
+                  : branchQ.data
+                    ? `${branchQ.data.branchName} (${branchQ.data.branchCode})`
+                    : `Chi nhánh #${o.branchId}`}
+              </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Khách hàng</p>
-              <p className="font-medium tabular-nums">{o.customerId ?? "—"}</p>
+              <p className="font-medium">
+                {o.customerId == null
+                  ? "—"
+                  : customerQ.data
+                    ? `${customerQ.data.fullName} (${customerQ.data.customerCode})`
+                    : `Khách hàng #${o.customerId}`}
+              </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Thành tiền</p>
@@ -222,7 +255,7 @@ export function SalesOrderDetailPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Mã biến thể</TableHead>
+                <TableHead>Biến thể</TableHead>
                 <TableHead className="text-right">Số lượng</TableHead>
                 <TableHead className="text-right">Đơn giá</TableHead>
                 <TableHead className="text-right">Giảm giá</TableHead>
@@ -232,7 +265,7 @@ export function SalesOrderDetailPage() {
             <TableBody>
               {o.items.map((it) => (
                 <TableRow key={it.id}>
-                  <TableCell className="font-mono text-sm tabular-nums">{it.variantId}</TableCell>
+                  <TableCell className="text-sm">{getVariantLabel(it.variantId)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatQty(it.quantity)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatVndFromDecimal(it.unitPrice)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatVndFromDecimal(it.discountAmount)}</TableCell>

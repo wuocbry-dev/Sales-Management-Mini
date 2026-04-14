@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { fetchSalesOrderById } from "@/api/sales-orders-api";
 import { fetchSalesReturnsPage } from "@/api/sales-returns-api";
 import { fetchStoresPage } from "@/api/stores-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -60,6 +61,28 @@ export function SalesReturnListPage() {
         ...(statusFromUrl ? { status: statusFromUrl } : {}),
       }),
   });
+
+  const orderQueries = useQueries({
+    queries: (listQ.data?.content ?? []).map((row) => ({
+      queryKey: ["sales-orders", row.orderId],
+      queryFn: () => fetchSalesOrderById(row.orderId),
+      enabled: row.orderId > 0,
+      retry: false,
+    })),
+  });
+
+  const orderCodeById = useMemo(() => {
+    const map = new Map<number, string>();
+    const rows = listQ.data?.content ?? [];
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const order = orderQueries[i]?.data;
+      if (order?.orderCode) {
+        map.set(row.orderId, order.orderCode);
+      }
+    }
+    return map;
+  }, [listQ.data, orderQueries]);
 
   const apply = () => {
     const p = new URLSearchParams();
@@ -153,7 +176,7 @@ export function SalesReturnListPage() {
                   data.content.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell className="font-mono text-sm">{row.returnCode}</TableCell>
-                      <TableCell className="tabular-nums">{row.orderId}</TableCell>
+                      <TableCell className="text-sm">{orderCodeById.get(row.orderId) ?? `Đơn #${row.orderId}`}</TableCell>
                       <TableCell className="text-sm">{formatDateTimeVi(row.returnDate)}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">{salesReturnStatusLabel(row.status)}</Badge>

@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { fetchBrandById } from "@/api/brands-api";
+import { fetchCategoryById } from "@/api/categories-api";
 import { fetchProductById, fetchProductImageBlobUrl } from "@/api/products-api";
+import { fetchUnitById } from "@/api/units-api";
 import { hasPermission } from "@/features/auth/access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
@@ -28,6 +31,31 @@ export function ProductDetailPage() {
     queryKey: ["products", pid],
     queryFn: () => fetchProductById(pid),
     enabled: !invalid,
+  });
+
+  const categoryId = q.data?.categoryId ?? null;
+  const brandId = q.data?.brandId ?? null;
+  const unitId = q.data?.unitId ?? null;
+
+  const categoryQ = useQuery({
+    queryKey: ["categories", categoryId],
+    queryFn: () => fetchCategoryById(categoryId!),
+    enabled: categoryId != null && categoryId > 0,
+    retry: false,
+  });
+
+  const brandQ = useQuery({
+    queryKey: ["brands", brandId],
+    queryFn: () => fetchBrandById(brandId!),
+    enabled: brandId != null && brandId > 0,
+    retry: false,
+  });
+
+  const unitQ = useQuery({
+    queryKey: ["units", unitId],
+    queryFn: () => fetchUnitById(unitId!),
+    enabled: unitId != null && unitId > 0,
+    retry: false,
   });
 
   const imageMeta = q.data?.images ?? [];
@@ -119,7 +147,17 @@ export function ProductDetailPage() {
           <div>
             <p className="text-xs text-muted-foreground">Tham chiếu nhóm / thương hiệu / đơn vị</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {[p.categoryId != null ? `Nhóm: ${p.categoryId}` : null, p.brandId != null ? `Thương hiệu: ${p.brandId}` : null, p.unitId != null ? `Đơn vị: ${p.unitId}` : null]
+              {[
+                p.categoryId != null
+                  ? `Nhóm: ${categoryQ.data?.categoryName ?? `#${p.categoryId}`}`
+                  : null,
+                p.brandId != null
+                  ? `Thương hiệu: ${brandQ.data?.brandName ?? `#${p.brandId}`}`
+                  : null,
+                p.unitId != null
+                  ? `Đơn vị: ${unitQ.data?.unitName ?? `#${p.unitId}`}`
+                  : null,
+              ]
                 .filter(Boolean)
                 .join(" · ") || "—"}
             </p>

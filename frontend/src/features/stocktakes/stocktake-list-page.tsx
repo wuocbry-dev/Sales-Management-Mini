@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { gateStocktakeCreate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { useWarehouseNameMap } from "@/hooks/use-warehouse-name-map";
 import { stocktakeStatusLabel } from "@/lib/document-flow-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 
@@ -41,6 +42,12 @@ export function StocktakeListPage() {
     queryKey: ["stk-list", "stores"],
     queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
     retry: false,
+  });
+
+  const { getWarehouseName } = useWarehouseNameMap({
+    enabled: Boolean(me),
+    fallbackStoreIds: me?.storeIds ?? [],
+    includeStorePrefix: true,
   });
 
   const listQ = useQuery({
@@ -141,7 +148,7 @@ export function StocktakeListPage() {
                     <TableRow key={row.id}>
                       <TableCell className="font-mono text-sm">{row.stocktakeCode}</TableCell>
                       <TableCell className="text-sm">{formatDateTimeVi(row.stocktakeDate)}</TableCell>
-                      <TableCell className="tabular-nums">{row.warehouseId}</TableCell>
+                      <TableCell className="text-sm">{getWarehouseName(row.warehouseId)}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">{stocktakeStatusLabel(row.status)}</Badge>
                       </TableCell>

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { confirmGoodsReceipt, fetchGoodsReceiptById } from "@/api/goods-receipts-api";
+import { fetchSupplierById } from "@/api/suppliers-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { canSeeGoodsReceiptConfirm } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { useVariantLabelMap } from "@/hooks/use-variant-label-map";
+import { useWarehouseNameMap } from "@/hooks/use-warehouse-name-map";
 import { formatApiError } from "@/lib/api-errors";
 import { goodsReceiptStatusLabel } from "@/lib/document-flow-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
@@ -31,7 +34,24 @@ export function GoodsReceiptDetailPage() {
     enabled: !invalid,
   });
 
+  const supplierId = q.data?.supplierId ?? null;
+
+  const supplierQ = useQuery({
+    queryKey: ["suppliers", "detail", supplierId],
+    queryFn: () => fetchSupplierById(supplierId!),
+    enabled: supplierId != null && supplierId > 0,
+    retry: false,
+  });
+
   const { getStoreName } = useStoreNameMap();
+
+  const { getWarehouseName } = useWarehouseNameMap({
+    enabled: Boolean(q.data),
+    storeIds: q.data ? [q.data.storeId] : [],
+    includeStorePrefix: false,
+  });
+
+  const { getVariantLabel } = useVariantLabelMap({ enabled: Boolean(q.data) });
 
   const canConfirm = Boolean(me && canSeeGoodsReceiptConfirm(me, q.data?.status));
 
@@ -94,11 +114,17 @@ export function GoodsReceiptDetailPage() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Kho nhận</p>
-            <p className="font-medium tabular-nums">{r.warehouseId}</p>
+            <p className="font-medium">{getWarehouseName(r.warehouseId)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Nhà cung cấp</p>
-            <p className="font-medium tabular-nums">{r.supplierId ?? "—"}</p>
+            <p className="font-medium">
+              {r.supplierId == null
+                ? "—"
+                : supplierQ.data
+                  ? `${supplierQ.data.supplierName} (${supplierQ.data.supplierCode})`
+                  : `Nhà cung cấp #${r.supplierId}`}
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Tạm tính</p>
@@ -129,7 +155,7 @@ export function GoodsReceiptDetailPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Mã biến thể</TableHead>
+                <TableHead>Biến thể</TableHead>
                 <TableHead className="text-right">Số lượng</TableHead>
                 <TableHead className="text-right">Đơn giá</TableHead>
                 <TableHead className="text-right">Giảm giá dòng</TableHead>
@@ -146,7 +172,7 @@ export function GoodsReceiptDetailPage() {
               ) : (
                 r.lines.map((line) => (
                   <TableRow key={line.id}>
-                    <TableCell className="font-mono text-sm tabular-nums">{line.variantId}</TableCell>
+                    <TableCell className="text-sm">{getVariantLabel(line.variantId)}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatQty(line.quantity)}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatVndFromDecimal(line.unitCost)}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatVndFromDecimal(line.discountAmount)}</TableCell>

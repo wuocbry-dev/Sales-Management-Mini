@@ -1,9 +1,7 @@
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchStockTransfersPage } from "@/api/stock-transfers-api";
-import { fetchStoresPage } from "@/api/stores-api";
-import { fetchWarehousesForStore } from "@/api/warehouses-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { PaginationBar } from "@/components/data-table/pagination-bar";
@@ -14,33 +12,26 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { gateTransferCreate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { useWarehouseNameMap } from "@/hooks/use-warehouse-name-map";
 import { stockTransferStatusLabel } from "@/lib/document-flow-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
-import type { WarehouseResponse } from "@/types/warehouse";
 
 const DEFAULT_SIZE = 10;
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
-function mergeWarehouseOptions(
-  storeIds: number[],
-  perStore: WarehouseResponse[][],
-  storeNameById: Map<number, string>,
-): { warehouseId: number; label: string }[] {
-  const labelByWhId = new Map<number, string>();
-  for (let i = 0; i < storeIds.length; i++) {
-    const sid = storeIds[i];
-    const list = perStore[i] ?? [];
-    const prefix = storeIds.length > 1 ? `${storeNameById.get(sid) ?? `CH ${sid}`} — ` : "";
-    for (const w of list) {
-      if (!labelByWhId.has(w.warehouseId)) {
-        labelByWhId.set(w.warehouseId, `${prefix}${w.warehouseName} (${w.warehouseCode})`);
-      }
-    }
-  }
-  return [...labelByWhId.entries()]
-    .map(([warehouseId, label]) => ({ warehouseId, label }))
-    .sort((a, b) => a.label.localeCompare(b.label, "vi"));
+function formatWarehouseDisplay(
+  warehouseId: number,
+  warehouseCode: string | null | undefined,
+  warehouseName: string | null | undefined,
+  getWarehouseName: (id: number) => string,
+): string {
+  const code = warehouseCode?.trim();
+  const name = warehouseName?.trim();
+  if (name && code) return `${name} (${code})`;
+  if (name) return name;
+  if (code) return code;
+  return getWarehouseName(warehouseId);
 }
 
 export function StockTransferListPage() {
@@ -75,40 +66,11 @@ export function StockTransferListPage() {
       }),
   });
 
-  const storeIds = me?.storeIds ?? [];
-  const storesQ = useQuery({
-    queryKey: ["stock-transfer-list", "stores"],
-    queryFn: () => fetchStoresPage({ page: 0, size: 200 }),
-    enabled: Boolean(me) && storeIds.length > 1,
+  const { warehouseOptions, getWarehouseName, isPending: whLoading } = useWarehouseNameMap({
+    enabled: Boolean(me),
+    fallbackStoreIds: me?.storeIds ?? [],
+    includeStorePrefix: true,
   });
-
-  const whQueries = useQueries({
-    queries: storeIds.map((storeId) => ({
-      queryKey: ["stock-transfer-list", "warehouses", storeId],
-      queryFn: () => fetchWarehousesForStore(storeId),
-      enabled: Boolean(me) && storeId > 0,
-    })),
-  });
-
-  const warehouseOptions = useMemo(() => {
-    const storeNameById = new Map<number, string>();
-    const content = storesQ.data?.content;
-    if (content) {
-      for (const s of content) {
-        if (storeIds.includes(s.id)) storeNameById.set(s.id, s.storeName);
-      }
-    }
-    const perStore = whQueries.map((q) => q.data ?? []);
-    return mergeWarehouseOptions(storeIds, perStore, storeNameById);
-  }, [storeIds, storesQ.data, whQueries]);
-
-  const whLabelById = useMemo(() => {
-    const m = new Map<number, string>();
-    for (const o of warehouseOptions) m.set(o.warehouseId, o.label);
-    return m;
-  }, [warehouseOptions]);
-
-  const whLoading = whQueries.some((q) => q.isPending);
 
   const apply = () => {
     const p = new URLSearchParams();
@@ -158,7 +120,7 @@ export function StockTransferListPage() {
               {dFrom &&
               !warehouseOptions.some((o) => String(o.warehouseId) === dFrom) &&
               Number(dFrom) > 0 ? (
-                <option value={dFrom}>Kho #{dFrom} (không trong danh sách)</option>
+                <option value={dFrom}>{getWarehouseName(Number(dFrom))} (không trong danh sách)</option>
               ) : null}
               {warehouseOptions.map((o) => (
                 <option key={o.warehouseId} value={String(o.warehouseId)}>
@@ -179,7 +141,7 @@ export function StockTransferListPage() {
               {dTo &&
               !warehouseOptions.some((o) => String(o.warehouseId) === dTo) &&
               Number(dTo) > 0 ? (
-                <option value={dTo}>Kho #{dTo} (không trong danh sách)</option>
+                <option value={dTo}>{getWarehouseName(Number(dTo))} (không trong danh sách)</option>
               ) : null}
               {warehouseOptions.map((o) => (
                 <option key={`to-${o.warehouseId}`} value={String(o.warehouseId)}>
@@ -232,13 +194,19 @@ export function StockTransferListPage() {
                       <TableCell className="font-mono text-sm">{row.transferCode}</TableCell>
                       <TableCell className="text-sm">{formatDateTimeVi(row.transferDate)}</TableCell>
                       <TableCell className="text-sm">
-                        {whLabelById.get(row.fromWarehouseId) ?? (
-                          <span className="tabular-nums">{row.fromWarehouseId}</span>
+                        {formatWarehouseDisplay(
+                          row.fromWarehouseId,
+                          row.fromWarehouseCode,
+                          row.fromWarehouseName,
+                          getWarehouseName,
                         )}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {whLabelById.get(row.toWarehouseId) ?? (
-                          <span className="tabular-nums">{row.toWarehouseId}</span>
+                        {formatWarehouseDisplay(
+                          row.toWarehouseId,
+                          row.toWarehouseCode,
+                          row.toWarehouseName,
+                          getWarehouseName,
                         )}
                       </TableCell>
                       <TableCell>
