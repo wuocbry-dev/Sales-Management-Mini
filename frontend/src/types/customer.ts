@@ -1,6 +1,7 @@
 /** Khớp backend `CustomerDtos` (JSON camelCase). */
 
 export type CustomerRequestBody = {
+  storeId?: number | null;
   customerCode: string;
   fullName: string;
   phone?: string | null;
@@ -13,6 +14,7 @@ export type CustomerRequestBody = {
 
 export type CustomerResponse = {
   id: number;
+  storeId: number;
   customerCode: string;
   fullName: string;
   phone: string | null;

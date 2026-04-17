@@ -24,3 +24,7 @@ export async function updateUnit(id: number, body: UnitRequest): Promise<UnitRes
   const { data } = await apiClient.put<UnitResponse>(`/api/units/${id}`, body);
   return data;
 }
+
+export async function deleteUnit(id: number): Promise<void> {
+  await apiClient.delete(`/api/units/${id}`);
+}

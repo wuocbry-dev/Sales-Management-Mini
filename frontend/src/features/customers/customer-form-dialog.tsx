@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useAuthStore } from "@/features/auth/auth-store";
+import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
 import { cn } from "@/lib/utils";
@@ -18,6 +20,7 @@ const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
 const schema = z.object({
+  storeId: z.string().optional(),
   customerCode: z.string().min(1, "Bắt buộc").max(50),
   fullName: z.string().min(1, "Bắt buộc").max(150),
   phone: z.string().max(20).optional(),
@@ -36,8 +39,11 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-function toReq(v: FormValues): CustomerRequestBody {
+function toReq(v: FormValues, fallbackStoreId: number | null): CustomerRequestBody {
+  const sid = v.storeId?.trim();
+  const parsed = sid && Number(sid) > 0 ? Number(sid) : null;
   return {
+    storeId: parsed ?? fallbackStoreId,
     customerCode: v.customerCode.trim(),
     fullName: v.fullName.trim(),
     phone: v.phone?.trim() ? v.phone.trim() : null,
@@ -59,9 +65,27 @@ type Props = {
 
 export function CustomerFormDialog({ mode, customer, open, onOpenChange, onSuccess }: Props) {
   const qc = useQueryClient();
+  const me = useAuthStore((s) => s.me);
+  const { stores: scopedStores, getStoreName } = useStoreNameMap({ enabled: mode === "create" && open });
+
+  const storeOptions = useMemo(() => {
+    if (scopedStores.length > 0) {
+      return scopedStores.map((s) => ({ id: s.id, name: s.storeName }));
+    }
+    return (me?.storeIds ?? []).map((id) => ({ id, name: getStoreName(id) }));
+  }, [scopedStores, me?.storeIds, getStoreName]);
+
+  const inferredCreateStoreId = useMemo(() => {
+    if (mode !== "create") return null;
+    if (me?.defaultStoreId != null && me.defaultStoreId > 0) return me.defaultStoreId;
+    if (storeOptions.length === 1) return storeOptions[0].id;
+    return null;
+  }, [mode, me?.defaultStoreId, storeOptions]);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
+      storeId: "",
       customerCode: "",
       fullName: "",
       phone: "",
@@ -77,6 +101,7 @@ export function CustomerFormDialog({ mode, customer, open, onOpenChange, onSucce
     if (!open) return;
     if (mode === "edit" && customer) {
       form.reset({
+        storeId: String(customer.storeId),
         customerCode: customer.customerCode,
         fullName: customer.fullName,
         phone: customer.phone ?? "",
@@ -88,6 +113,7 @@ export function CustomerFormDialog({ mode, customer, open, onOpenChange, onSucce
       });
     } else {
       form.reset({
+        storeId: inferredCreateStoreId != null ? String(inferredCreateStoreId) : "",
         customerCode: "",
         fullName: "",
         phone: "",
@@ -98,12 +124,24 @@ export function CustomerFormDialog({ mode, customer, open, onOpenChange, onSucce
         status: "ACTIVE",
       });
     }
-  }, [open, mode, customer, form]);
+  }, [open, mode, customer, form, inferredCreateStoreId]);
+
+  const onSubmit = (v: FormValues) => {
+    if (mode === "create") {
+      const sid = v.storeId?.trim();
+      const selected = sid && Number(sid) > 0 ? Number(sid) : null;
+      if (selected == null && inferredCreateStoreId == null) {
+        form.setError("storeId", { type: "manual", message: "Vui lòng chọn cửa hàng." });
+        return;
+      }
+    }
+    mutation.mutate(v);
+  };
 
   const mutation = useMutation({
     meta: { skipGlobalErrorToast: true },
     mutationFn: async (v: FormValues) => {
-      const body = toReq(v);
+      const body = toReq(v, mode === "edit" ? (customer?.storeId ?? null) : inferredCreateStoreId);
       if (mode === "create") return createCustomer(body);
       if (!customer) throw new Error("Thiếu khách hàng");
       return updateCustomer(customer.id, body);
@@ -128,7 +166,29 @@ export function CustomerFormDialog({ mode, customer, open, onOpenChange, onSucce
           <DialogDescription>Nhập thông tin theo quy định nghiệp vụ.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form className="space-y-4" onSubmit={form.handleSubmit((v) => mutation.mutate(v))}>
+          <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+            {mode === "create" ? (
+              <FormField
+                control={form.control}
+                name="storeId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cửa hàng</FormLabel>
+                    <FormControl>
+                      <select {...field} className={selectClass}>
+                        <option value="">— Chọn cửa hàng —</option>
+                        {storeOptions.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : null}
             <FormField
               control={form.control}
               name="customerCode"

@@ -24,3 +24,7 @@ export async function updateSupplier(id: number, body: SupplierRequest): Promise
   const { data } = await apiClient.put<SupplierResponse>(`/api/suppliers/${id}`, body);
   return data;
 }
+
+export async function deleteSupplier(id: number): Promise<void> {
+  await apiClient.delete(`/api/suppliers/${id}`);
+}

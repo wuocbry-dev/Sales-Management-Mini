@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { fetchBrandById } from "@/api/brands-api";
 import { fetchCategoryById } from "@/api/categories-api";
 import { fetchProductById, fetchProductImageBlobUrl } from "@/api/products-api";
@@ -21,11 +21,17 @@ import { useStoreNameMap } from "@/hooks/use-store-name-map";
 
 export function ProductDetailPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const me = useAuthStore((s) => s.me);
   const canEditProduct = Boolean(me && hasPermission(me, "PRODUCT_UPDATE"));
   const { id } = useParams();
   const pid = Number(id);
   const invalid = !Number.isFinite(pid) || pid <= 0;
+  const backFromState =
+    typeof (location.state as { from?: unknown } | null)?.from === "string"
+      ? (location.state as { from: string }).from
+      : null;
+  const backTo = backFromState && backFromState.startsWith("/") ? backFromState : "/app/san-pham";
 
   const q = useQuery({
     queryKey: ["products", pid],
@@ -106,12 +112,14 @@ export function ProductDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
+        <Button variant="outline" size="sm" type="button" onClick={() => navigate(backTo)}>
           ← Quay lại
         </Button>
         {canEditProduct ? (
           <Button size="sm" asChild>
-            <Link to={`/app/san-pham/${pid}/sua`}>Chỉnh sửa</Link>
+            <Link to={`/app/san-pham/${pid}/sua`} state={{ from: backTo }}>
+              Chỉnh sửa
+            </Link>
           </Button>
         ) : null}
       </div>

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { fetchBrandsPage } from "@/api/brands-api";
 import { fetchCategoriesPage } from "@/api/categories-api";
@@ -36,6 +36,7 @@ function parseOptionalLong(raw: string | null): number | undefined {
 export function ProductListPage() {
   const me = useAuthStore((s) => s.me);
   const queryClient = useQueryClient();
+  const location = useLocation();
   const canCreate = Boolean(me && canSeeProductCreate(me));
   const canEdit = Boolean(me && hasPermission(me, "PRODUCT_UPDATE"));
   const canDelete = canEdit;
@@ -168,6 +169,7 @@ export function ProductListPage() {
     (thumbQ.data ?? []).forEach((t) => m.set(t.productId, t.blobUrl));
     return m;
   }, [thumbQ.data]);
+  const returnTo = `${location.pathname}${location.search}`;
 
   if (listQ.isPending) return <PageSkeleton cards={2} />;
   if (listQ.isError) return <ApiErrorState error={listQ.error} onRetry={() => void listQ.refetch()} />;
@@ -313,11 +315,15 @@ export function ProductListPage() {
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-1">
                           <Button variant="outline" size="sm" asChild>
-                            <Link to={`/app/san-pham/${row.id}`}>Mở</Link>
+                            <Link to={`/app/san-pham/${row.id}`} state={{ from: returnTo }}>
+                              Mở
+                            </Link>
                           </Button>
                           {canEdit ? (
                             <Button variant="secondary" size="sm" asChild>
-                              <Link to={`/app/san-pham/${row.id}/sua`}>Sửa</Link>
+                              <Link to={`/app/san-pham/${row.id}/sua`} state={{ from: returnTo }}>
+                                Sửa
+                              </Link>
                             </Button>
                           ) : null}
                           {canDelete ? (

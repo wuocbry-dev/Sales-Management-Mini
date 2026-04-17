@@ -59,7 +59,7 @@ const TXN_TYPES = [
 type TabId = "by_wh" | "by_store" | "availability" | "transactions";
 
 export type InventoryOverviewPageProps = {
-  /** Mở thẳng tab biến động (trang `/app/bien-dong-kho`). */
+  /** Mở thẳng tab biến động cho điều hướng nội bộ. */
   initialTab?: TabId;
 };
 

@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { fetchBrandsPage } from "@/api/brands-api";
@@ -151,9 +151,15 @@ export function ProductEditPage() {
   const { id } = useParams();
   const pid = Number(id);
   const invalid = !Number.isFinite(pid) || pid <= 0;
+  const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const backFromState =
+    typeof (location.state as { from?: unknown } | null)?.from === "string"
+      ? (location.state as { from: string }).from
+      : null;
+  const backTo = backFromState && backFromState.startsWith("/") ? backFromState : "/app/san-pham";
 
   const productQ = useQuery({
     queryKey: ["products", pid],
@@ -266,7 +272,7 @@ export function ProductEditPage() {
       toast.success("Đã cập nhật sản phẩm.");
       void queryClient.invalidateQueries({ queryKey: ["products", pid] });
       void queryClient.invalidateQueries({ queryKey: ["products"] });
-      void navigate(`/app/san-pham/${data.id}`);
+      void navigate(`/app/san-pham/${data.id}`, { state: { from: backTo } });
     },
     onError: (err) => {
       if (!applyApiFieldErrors(err, form.setError)) toast.error(formatApiError(err));
@@ -358,7 +364,7 @@ export function ProductEditPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button variant="outline" size="sm" asChild>
-          <Link to={`/app/san-pham/${pid}`}>← Chi tiết sản phẩm</Link>
+          <Link to={backTo}>← Quay lại</Link>
         </Button>
       </div>
 
@@ -769,7 +775,7 @@ export function ProductEditPage() {
                   {mutation.isPending ? "Đang lưu…" : "Lưu thay đổi"}
                 </Button>
                 <Button type="button" variant="outline" asChild>
-                  <Link to={`/app/san-pham/${pid}`}>Huỷ</Link>
+                  <Link to={backTo}>Huỷ</Link>
                 </Button>
               </div>
             </form>

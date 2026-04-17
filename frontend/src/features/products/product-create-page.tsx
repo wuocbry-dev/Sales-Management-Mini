@@ -732,7 +732,7 @@ export function ProductCreatePage() {
                         <FormItem className="sm:col-span-2 lg:col-span-3">
                           <FormLabel>Thuộc tính mở rộng (tùy chọn)</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder='Ví dụ: "color":"red","size":"M"' />
+                            <Input {...field} placeholder='Ví dụ: "màu sắc":"đỏ","size":"M"' />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

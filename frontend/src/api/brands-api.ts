@@ -24,3 +24,7 @@ export async function updateBrand(id: number, body: BrandRequest): Promise<Brand
   const { data } = await apiClient.put<BrandResponse>(`/api/brands/${id}`, body);
   return data;
 }
+
+export async function deleteBrand(id: number): Promise<void> {
+  await apiClient.delete(`/api/brands/${id}`);
+}

@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
-import { fetchCategoryById } from "@/api/categories-api";
+import { deleteCategory, fetchCategoryById } from "@/api/categories-api";
+import { toast } from "sonner";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -10,16 +11,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CategoryFormDialog } from "@/features/categories/category-form-dialog";
 import { gateProductCatalogMutate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { formatApiError } from "@/lib/api-errors";
 import { activeInactiveLabel } from "@/lib/entity-status-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 
 export function CategoryDetailPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id } = useParams();
   const nid = Number(id);
   const me = useAuthStore((s) => s.me);
   const canEdit = Boolean(me && gateProductCatalogMutate(me));
   const [open, setOpen] = useState(false);
+
+  const deleteM = useMutation({
+    mutationFn: async () => deleteCategory(nid),
+    onSuccess: async () => {
+      toast.success("Đã xóa nhóm hàng.");
+      await queryClient.invalidateQueries({ queryKey: ["categories"] });
+      navigate("/app/nhom-hang", { replace: true });
+    },
+    onError: (err) => {
+      toast.error(formatApiError(err));
+    },
+  });
 
   const q = useQuery({
     queryKey: ["categories", nid],
@@ -51,6 +66,23 @@ export function CategoryDetailPage() {
         {canEdit ? (
           <Button type="button" size="sm" onClick={() => setOpen(true)}>
             Sửa thông tin
+          </Button>
+        ) : null}
+        {canEdit ? (
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            className="text-red-600 hover:text-red-700"
+            disabled={deleteM.isPending}
+            onClick={() => {
+              if (!window.confirm(`Xóa nhóm hàng \"${c.categoryName}\"?`)) {
+                return;
+              }
+              deleteM.mutate();
+            }}
+          >
+            {deleteM.isPending ? "Đang xóa..." : "Xóa"}
           </Button>
         ) : null}
       </div>

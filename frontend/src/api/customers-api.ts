@@ -3,7 +3,11 @@ import type { PageQuery } from "@/lib/spring-pagination";
 import type { CustomerRequestBody, CustomerResponse } from "@/types/customer";
 import type { SpringPage } from "@/types/spring-page";
 
-export async function fetchCustomersPage(q: PageQuery): Promise<SpringPage<CustomerResponse>> {
+export type CustomerPageQuery = PageQuery & {
+  storeId?: number;
+};
+
+export async function fetchCustomersPage(q: CustomerPageQuery): Promise<SpringPage<CustomerResponse>> {
   const { data } = await apiClient.get<SpringPage<CustomerResponse>>("/api/customers", { params: q });
   return data;
 }

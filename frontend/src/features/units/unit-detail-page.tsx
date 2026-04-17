@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
-import { fetchUnitById } from "@/api/units-api";
+import { deleteUnit, fetchUnitById } from "@/api/units-api";
+import { toast } from "sonner";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { Button } from "@/components/ui/button";
@@ -9,15 +10,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { UnitFormDialog } from "@/features/units/unit-form-dialog";
 import { gateProductCatalogMutate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { formatApiError } from "@/lib/api-errors";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 
 export function UnitDetailPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id } = useParams();
   const nid = Number(id);
   const me = useAuthStore((s) => s.me);
   const canEdit = Boolean(me && gateProductCatalogMutate(me));
   const [open, setOpen] = useState(false);
+
+  const deleteM = useMutation({
+    mutationFn: async () => deleteUnit(nid),
+    onSuccess: async () => {
+      toast.success("Đã xóa đơn vị tính.");
+      await queryClient.invalidateQueries({ queryKey: ["units"] });
+      navigate("/app/don-vi", { replace: true });
+    },
+    onError: (err) => {
+      toast.error(formatApiError(err));
+    },
+  });
 
   const q = useQuery({
     queryKey: ["units", nid],
@@ -49,6 +64,23 @@ export function UnitDetailPage() {
         {canEdit ? (
           <Button type="button" size="sm" onClick={() => setOpen(true)}>
             Sửa thông tin
+          </Button>
+        ) : null}
+        {canEdit ? (
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            className="text-red-600 hover:text-red-700"
+            disabled={deleteM.isPending}
+            onClick={() => {
+              if (!window.confirm(`Xóa đơn vị tính \"${u.unitName}\"?`)) {
+                return;
+              }
+              deleteM.mutate();
+            }}
+          >
+            {deleteM.isPending ? "Đang xóa..." : "Xóa"}
           </Button>
         ) : null}
       </div>

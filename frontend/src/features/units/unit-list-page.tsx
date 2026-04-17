@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { useState } from "react";
-import { fetchUnitsPage } from "@/api/units-api";
+import { deleteUnit, fetchUnitsPage } from "@/api/units-api";
+import { toast } from "sonner";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { PaginationBar } from "@/components/data-table/pagination-bar";
@@ -11,18 +12,34 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { UnitFormDialog } from "@/features/units/unit-form-dialog";
 import { gateProductCatalogMutate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { formatApiError } from "@/lib/api-errors";
 import { formatDateTimeVi } from "@/lib/format-datetime";
+import type { UnitResponse } from "@/types/master-data";
 
 const DEFAULT_SIZE = 10;
 
 export function UnitListPage() {
   const me = useAuthStore((s) => s.me);
+  const queryClient = useQueryClient();
   const canMutate = Boolean(me && gateProductCatalogMutate(me));
   const preferredStoreId = me?.defaultStoreId ?? me?.storeIds[0];
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get("trang") ?? "0") || 0);
   const size = Math.min(100, Math.max(1, Number(params.get("kichThuoc") ?? String(DEFAULT_SIZE)) || DEFAULT_SIZE));
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<UnitResponse | null>(null);
+
+  const deleteM = useMutation({
+    mutationFn: async (unitId: number) => deleteUnit(unitId),
+    onSuccess: async () => {
+      toast.success("Đã xóa đơn vị tính.");
+      await queryClient.invalidateQueries({ queryKey: ["units"] });
+    },
+    onError: (err) => {
+      toast.error(formatApiError(err));
+    },
+  });
+  const deletingUnitId = deleteM.isPending ? deleteM.variables : null;
 
   const q = useQuery({
     queryKey: ["units", page, size],
@@ -62,7 +79,7 @@ export function UnitListPage() {
                   <TableHead>Mã</TableHead>
                   <TableHead>Tên</TableHead>
                   <TableHead className="hidden sm:table-cell">Tạo lúc</TableHead>
-                  <TableHead className="w-[90px]" />
+                  <TableHead className="w-[220px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -81,9 +98,33 @@ export function UnitListPage() {
                         {formatDateTimeVi(row.createdAt)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link to={`/app/don-vi/${row.id}`}>Mở</Link>
-                        </Button>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/app/don-vi/${row.id}`}>Mở</Link>
+                          </Button>
+                          {canMutate ? (
+                            <Button variant="secondary" size="sm" type="button" onClick={() => setEditing(row)}>
+                              Sửa
+                            </Button>
+                          ) : null}
+                          {canMutate ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="button"
+                              className="text-red-600 hover:text-red-700"
+                              disabled={deletingUnitId === row.id}
+                              onClick={() => {
+                                if (!window.confirm(`Xóa đơn vị tính \"${row.unitName}\"?`)) {
+                                  return;
+                                }
+                                deleteM.mutate(row.id);
+                              }}
+                            >
+                              {deletingUnitId === row.id ? "Đang xóa..." : "Xóa"}
+                            </Button>
+                          ) : null}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -100,6 +141,17 @@ export function UnitListPage() {
           open={open}
           onOpenChange={setOpen}
           storeId={preferredStoreId}
+          onSuccess={() => void q.refetch()}
+        />
+      ) : null}
+      {canMutate && editing ? (
+        <UnitFormDialog
+          mode="edit"
+          unit={editing}
+          open={Boolean(editing)}
+          onOpenChange={(next) => {
+            if (!next) setEditing(null);
+          }}
           onSuccess={() => void q.refetch()}
         />
       ) : null}

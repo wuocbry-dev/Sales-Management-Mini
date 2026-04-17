@@ -24,3 +24,7 @@ export async function updateCategory(id: number, body: CategoryRequest): Promise
   const { data } = await apiClient.put<CategoryResponse>(`/api/categories/${id}`, body);
   return data;
 }
+
+export async function deleteCategory(id: number): Promise<void> {
+  await apiClient.delete(`/api/categories/${id}`);
+}

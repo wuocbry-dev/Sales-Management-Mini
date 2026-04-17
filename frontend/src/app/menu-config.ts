@@ -7,7 +7,6 @@ import {
   ClipboardList,
   FolderTree,
   Handshake,
-  History,
   LayoutDashboard,
   Package,
   Receipt,
@@ -30,7 +29,6 @@ import {
   gateCustomerView,
   gateDashboard,
   gateGoodsReceiptView,
-  gateInventoryTransactionView,
   gateInventoryView,
   gateMasterCatalogManagementPages,
   gateOrderCreate,
@@ -63,7 +61,6 @@ export type NavMenuKey =
   | "cua-hang"
   | "san-pham"
   | "ton-kho"
-  | "bien-dong-kho"
   | "phieu-nhap"
   | "don-ban"
   | "tra-hang"
@@ -161,16 +158,6 @@ const MENU_DEFS: MenuDef[] = [
     to: "/app/ton-kho",
     icon: Warehouse,
     access: gateInventoryView,
-  },
-  {
-    key: "bien-dong-kho",
-    section: "main",
-    order: 45,
-    label: "Biến động kho",
-    to: "/app/bien-dong-kho",
-    icon: History,
-    access: gateInventoryTransactionView,
-    sidebarVisible: (me) => !isFrontlineCashierNav(me),
   },
   {
     key: "phieu-nhap",

@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { useState } from "react";
-import { fetchCategoriesPage } from "@/api/categories-api";
+import { deleteCategory, fetchCategoriesPage } from "@/api/categories-api";
+import { toast } from "sonner";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { PaginationBar } from "@/components/data-table/pagination-bar";
@@ -12,18 +13,34 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CategoryFormDialog } from "@/features/categories/category-form-dialog";
 import { gateProductCatalogMutate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { formatApiError } from "@/lib/api-errors";
 import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import type { CategoryResponse } from "@/types/master-data";
 
 const DEFAULT_SIZE = 10;
 
 export function CategoryListPage() {
   const me = useAuthStore((s) => s.me);
+  const queryClient = useQueryClient();
   const canMutate = Boolean(me && gateProductCatalogMutate(me));
   const preferredStoreId = me?.defaultStoreId ?? me?.storeIds[0];
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get("trang") ?? "0") || 0);
   const size = Math.min(100, Math.max(1, Number(params.get("kichThuoc") ?? String(DEFAULT_SIZE)) || DEFAULT_SIZE));
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<CategoryResponse | null>(null);
+
+  const deleteM = useMutation({
+    mutationFn: async (categoryId: number) => deleteCategory(categoryId),
+    onSuccess: async () => {
+      toast.success("Đã xóa nhóm hàng.");
+      await queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
+    onError: (err) => {
+      toast.error(formatApiError(err));
+    },
+  });
+  const deletingCategoryId = deleteM.isPending ? deleteM.variables : null;
 
   const q = useQuery({
     queryKey: ["categories", page, size],
@@ -64,7 +81,7 @@ export function CategoryListPage() {
                   <TableHead>Tên</TableHead>
                   <TableHead className="hidden md:table-cell">Cấp trên</TableHead>
                   <TableHead>Trạng thái</TableHead>
-                  <TableHead className="w-[90px]" />
+                  <TableHead className="w-[220px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -86,9 +103,33 @@ export function CategoryListPage() {
                         <Badge variant="secondary">{activeInactiveLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" asChild>
-                          <Link to={`/app/nhom-hang/${row.id}`}>Mở</Link>
-                        </Button>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/app/nhom-hang/${row.id}`}>Mở</Link>
+                          </Button>
+                          {canMutate ? (
+                            <Button variant="secondary" size="sm" type="button" onClick={() => setEditing(row)}>
+                              Sửa
+                            </Button>
+                          ) : null}
+                          {canMutate ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="button"
+                              className="text-red-600 hover:text-red-700"
+                              disabled={deletingCategoryId === row.id}
+                              onClick={() => {
+                                if (!window.confirm(`Xóa nhóm hàng \"${row.categoryName}\"?`)) {
+                                  return;
+                                }
+                                deleteM.mutate(row.id);
+                              }}
+                            >
+                              {deletingCategoryId === row.id ? "Đang xóa..." : "Xóa"}
+                            </Button>
+                          ) : null}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -105,6 +146,17 @@ export function CategoryListPage() {
           open={open}
           onOpenChange={setOpen}
           storeId={preferredStoreId}
+          onSuccess={() => void q.refetch()}
+        />
+      ) : null}
+      {canMutate && editing ? (
+        <CategoryFormDialog
+          mode="edit"
+          category={editing}
+          open={Boolean(editing)}
+          onOpenChange={(next) => {
+            if (!next) setEditing(null);
+          }}
           onSuccess={() => void q.refetch()}
         />
       ) : null}
