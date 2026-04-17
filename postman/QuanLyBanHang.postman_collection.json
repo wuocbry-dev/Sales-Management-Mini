@@ -402,6 +402,15 @@
             "url": "{{baseUrl}}/products",
             "description": "**Dùng để:** tạo mới sản phẩm; bắt buộc có ít nhất một `variants` (SKU). **`storeId`**: cửa hàng sở hữu catalog — bắt buộc với **SYSTEM_ADMIN/ADMIN**; user theo cửa hàng có thể bỏ qua nếu JWT chỉ một `storeId`. `productType` trong DB: **NORMAL** hoặc **SERVICE** (không dùng `simple`). `status` / variant `status`: ENUM **ACTIVE**/**INACTIVE** (API cũng chấp nhận chữ thường và chuẩn hóa). `variantId` sau này dùng cho tồn kho, bán hàng, phiếu nhập."
           }
+        },
+        {
+          "name": "DELETE product — xoá sản phẩm",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "**Dùng để:** xoá một sản phẩm theo `productId`. Thành công trả về **204 No Content**. Nếu biến thể của sản phẩm đã phát sinh dữ liệu liên quan (đơn hàng, phiếu kho hoặc tồn kho) API trả lỗi nghiệp vụ và không cho xoá."
+          }
         }
       ]
     },

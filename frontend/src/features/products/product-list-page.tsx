@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { fetchBrandsPage } from "@/api/brands-api";
 import { fetchCategoriesPage } from "@/api/categories-api";
-import { fetchProductImageBlobUrl, fetchProductsPage } from "@/api/products-api";
+import { deleteProduct, fetchProductImageBlobUrl, fetchProductsPage } from "@/api/products-api";
+import { toast } from "sonner";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { PaginationBar } from "@/components/data-table/pagination-bar";
@@ -16,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { hasPermission } from "@/features/auth/access";
 import { canSeeProductCreate } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { formatApiError } from "@/lib/api-errors";
 import { catalogStatusLabel } from "@/lib/catalog-status-labels";
 import { productTypeLabel } from "@/lib/product-type-labels";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
@@ -33,8 +35,10 @@ function parseOptionalLong(raw: string | null): number | undefined {
 
 export function ProductListPage() {
   const me = useAuthStore((s) => s.me);
+  const queryClient = useQueryClient();
   const canCreate = Boolean(me && canSeeProductCreate(me));
   const canEdit = Boolean(me && hasPermission(me, "PRODUCT_UPDATE"));
+  const canDelete = canEdit;
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get("trang") ?? "0") || 0);
   const size = Math.min(100, Math.max(1, Number(params.get("kichThuoc") ?? String(DEFAULT_SIZE)) || DEFAULT_SIZE));
@@ -77,6 +81,19 @@ export function ProductListPage() {
         ...(q ? { q } : {}),
       }),
   });
+
+  const deleteM = useMutation({
+    mutationFn: async (productId: number) => deleteProduct(productId),
+    onSuccess: async () => {
+      toast.success("Đã xóa sản phẩm.");
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+    onError: (err) => {
+      toast.error(formatApiError(err));
+    },
+  });
+
+  const deletingProductId = deleteM.isPending ? deleteM.variables : null;
 
   const thumbQ = useQuery({
     queryKey: [
@@ -301,6 +318,27 @@ export function ProductListPage() {
                           {canEdit ? (
                             <Button variant="secondary" size="sm" asChild>
                               <Link to={`/app/san-pham/${row.id}/sua`}>Sửa</Link>
+                            </Button>
+                          ) : null}
+                          {canDelete ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="button"
+                              className="text-red-600 hover:text-red-700"
+                              disabled={deletingProductId === row.id}
+                              onClick={() => {
+                                if (
+                                  !window.confirm(
+                                    `Xóa sản phẩm \"${row.productName}\"? Hành động này không thể hoàn tác.`,
+                                  )
+                                ) {
+                                  return;
+                                }
+                                deleteM.mutate(row.id);
+                              }}
+                            >
+                              {deletingProductId === row.id ? "Đang xóa..." : "Xóa"}
                             </Button>
                           ) : null}
                         </div>

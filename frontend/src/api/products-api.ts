@@ -71,3 +71,7 @@ export async function updateProduct(id: number, body: ProductUpdateRequestBody):
   const { data } = await apiClient.put<ProductResponse>(`/api/products/${id}`, body);
   return data;
 }
+
+export async function deleteProduct(id: number): Promise<void> {
+  await apiClient.delete(`/api/products/${id}`);
+}

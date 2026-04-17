@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Locale;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -54,6 +57,8 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 @RequiredArgsConstructor
 public class ProductService {
+
+  private static final Logger log = LoggerFactory.getLogger(ProductService.class);
 
   private static final ZoneId ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
   private static final int MAX_IMAGES_PER_PRODUCT = 4;
@@ -431,6 +436,64 @@ public class ProductService {
     }
 
     return getProduct(productId, principal);
+  }
+
+  @Transactional
+  public void deleteProduct(Long productId, JwtAuthenticatedPrincipal principal) {
+    Product p =
+        productRepository
+            .findById(productId)
+            .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại: " + productId));
+    storeAccessService.assertCanAccessStore(p.getStoreId(), principal);
+
+    List<ProductVariant> variants = variantRepository.findByProductId(productId);
+    for (ProductVariant v : variants) {
+      if (variantRepository.countReferencesByVariantId(v.getId()) > 0) {
+        throw new BusinessException(
+            "Không xóa được sản phẩm "
+                + p.getProductCode()
+                + ": biến thể SKU "
+                + v.getSku()
+                + " đã có trên đơn hàng, phiếu kho hoặc tồn kho.");
+      }
+    }
+
+    productImageRepository.deleteByProductId(productId);
+    if (!variants.isEmpty()) {
+      variantRepository.deleteAll(variants);
+      variantRepository.flush();
+    }
+
+    productRepository.delete(p);
+    productRepository.flush();
+
+    deleteProductImageFiles(productId);
+  }
+
+  private void deleteProductImageFiles(Long productId) {
+    Path root = Path.of(productImagesDir).toAbsolutePath().normalize();
+    Path productDir = root.resolve(String.valueOf(productId)).normalize();
+    if (!productDir.startsWith(root)) {
+      log.warn("Skip deleting product image directory because path is invalid: {}", productDir);
+      return;
+    }
+    if (!Files.exists(productDir)) {
+      return;
+    }
+
+    try (var walk = Files.walk(productDir)) {
+      walk.sorted(Comparator.reverseOrder())
+          .forEach(
+              path -> {
+                try {
+                  Files.deleteIfExists(path);
+                } catch (IOException ex) {
+                  log.warn("Cannot delete product image path {}", path, ex);
+                }
+              });
+    } catch (IOException ex) {
+      log.warn("Cannot traverse product image directory {}", productDir, ex);
+    }
   }
 
   private void validateProductFks(Long categoryId, Long brandId, Long unitId) {
