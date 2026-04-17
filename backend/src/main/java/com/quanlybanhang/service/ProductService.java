@@ -439,6 +439,52 @@ public class ProductService {
   }
 
   @Transactional
+  public ProductResponse addProductImages(
+      Long productId, List<MultipartFile> images, JwtAuthenticatedPrincipal principal) {
+    Product p =
+        productRepository
+            .findById(productId)
+            .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại: " + productId));
+    storeAccessService.assertCanAccessStore(p.getStoreId(), principal);
+
+    List<ProductImage> existing = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(productId);
+    List<MultipartFile> validImages =
+        images == null ? List.of() : images.stream().filter(Objects::nonNull).filter(f -> !f.isEmpty()).toList();
+    if (validImages.isEmpty()) {
+      throw new BusinessException("Vui lòng chọn ít nhất một ảnh.");
+    }
+    if (existing.size() + validImages.size() > MAX_IMAGES_PER_PRODUCT) {
+      throw new BusinessException("Tối đa " + MAX_IMAGES_PER_PRODUCT + " ảnh cho một sản phẩm.");
+    }
+
+    saveProductImages(p, validImages, now(), existing.size());
+    return getProduct(productId, principal);
+  }
+
+  @Transactional
+  public void deleteProductImage(
+      Long productId, Long imageId, JwtAuthenticatedPrincipal principal) {
+    Product p =
+        productRepository
+            .findById(productId)
+            .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại: " + productId));
+    storeAccessService.assertCanAccessStore(p.getStoreId(), principal);
+
+    ProductImage image =
+        productImageRepository
+            .findById(imageId)
+            .orElseThrow(() -> new ResourceNotFoundException("Ảnh sản phẩm không tồn tại: " + imageId));
+    if (!Objects.equals(image.getProductId(), productId)) {
+      throw new BusinessException("Ảnh không thuộc sản phẩm: " + imageId);
+    }
+
+    productImageRepository.delete(image);
+    productImageRepository.flush();
+    deleteProductImageFile(productId, image.getFileName());
+    normalizeProductImageSortOrder(productId);
+  }
+
+  @Transactional
   public void deleteProduct(Long productId, JwtAuthenticatedPrincipal principal) {
     Product p =
         productRepository
@@ -496,6 +542,41 @@ public class ProductService {
     }
   }
 
+  private void deleteProductImageFile(Long productId, String fileName) {
+    if (fileName == null || fileName.isBlank()) {
+      return;
+    }
+
+    Path root = Path.of(productImagesDir).toAbsolutePath().normalize();
+    Path filePath = root.resolve(String.valueOf(productId)).resolve(fileName).normalize();
+    if (!filePath.startsWith(root)) {
+      log.warn("Skip deleting product image file because path is invalid: {}", filePath);
+      return;
+    }
+
+    try {
+      Files.deleteIfExists(filePath);
+    } catch (IOException ex) {
+      log.warn("Cannot delete product image file {}", filePath, ex);
+    }
+  }
+
+  private void normalizeProductImageSortOrder(Long productId) {
+    List<ProductImage> rows = productImageRepository.findByProductIdOrderBySortOrderAscIdAsc(productId);
+    boolean changed = false;
+    for (int i = 0; i < rows.size(); i++) {
+      ProductImage row = rows.get(i);
+      if (!Objects.equals(row.getSortOrder(), i)) {
+        row.setSortOrder(i);
+        changed = true;
+      }
+    }
+    if (changed) {
+      productImageRepository.saveAll(rows);
+      productImageRepository.flush();
+    }
+  }
+
   private void validateProductFks(Long categoryId, Long brandId, Long unitId) {
     if (categoryId != null && !categoryRepository.existsById(categoryId)) {
       throw new BusinessException("Danh mục không tồn tại: " + categoryId);
@@ -510,6 +591,11 @@ public class ProductService {
 
   private List<ProductImageResponse> saveProductImages(
       Product product, List<MultipartFile> images, LocalDateTime createdAt) {
+    return saveProductImages(product, images, createdAt, 0);
+  }
+
+  private List<ProductImageResponse> saveProductImages(
+      Product product, List<MultipartFile> images, LocalDateTime createdAt, int startSortOrder) {
     if (images == null || images.isEmpty()) {
       return List.of();
     }
@@ -519,7 +605,7 @@ public class ProductService {
     if (validImages.isEmpty()) {
       return List.of();
     }
-    if (validImages.size() > MAX_IMAGES_PER_PRODUCT) {
+    if (startSortOrder + validImages.size() > MAX_IMAGES_PER_PRODUCT) {
       throw new BusinessException("Tối đa " + MAX_IMAGES_PER_PRODUCT + " ảnh cho một sản phẩm.");
     }
 
@@ -536,7 +622,7 @@ public class ProductService {
     }
 
     List<ProductImageResponse> saved = new ArrayList<>();
-    int index = 0;
+    int index = Math.max(startSortOrder, 0);
     for (MultipartFile file : validImages) {
       String contentType = file.getContentType();
       if (contentType == null || !contentType.toLowerCase(Locale.ROOT).startsWith("image/")) {

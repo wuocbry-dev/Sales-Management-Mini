@@ -36,7 +36,7 @@ type Props = {
   brand?: BrandResponse | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (saved?: BrandResponse) => void;
 };
 
 export function BrandFormDialog({ mode, brand, open, onOpenChange, onSuccess }: Props) {
@@ -68,12 +68,12 @@ export function BrandFormDialog({ mode, brand, open, onOpenChange, onSuccess }: 
       if (!brand) throw new Error("Thiếu thương hiệu");
       return updateBrand(brand.id, body);
     },
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
       toast.success(mode === "create" ? "Đã tạo thương hiệu." : "Đã cập nhật thương hiệu.");
       onOpenChange(false);
       await qc.invalidateQueries({ queryKey: ["brands"] });
       if (brand) await qc.invalidateQueries({ queryKey: ["brands", brand.id] });
-      onSuccess?.();
+      onSuccess?.(saved);
     },
     onError: (err) => {
       if (!applyApiFieldErrors(err, form.setError, {})) toast.error(formatApiError(err));

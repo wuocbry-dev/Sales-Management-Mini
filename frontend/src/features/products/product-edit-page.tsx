@@ -1,13 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { fetchBrandsPage } from "@/api/brands-api";
 import { fetchCategoriesPage } from "@/api/categories-api";
-import { fetchProductById, updateProduct } from "@/api/products-api";
+import { addProductImages, deleteProductImage, fetchProductById, fetchProductImageBlobUrl, updateProduct } from "@/api/products-api";
 import { fetchUnitsPage } from "@/api/units-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,8 @@ import { SkuFormItem } from "@/features/products/sku-form-item";
 import { normalizeSku } from "@/features/products/sku-suggestions";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import type { ProductResponse, ProductUpdateRequestBody } from "@/types/product";
+
+const MAX_PRODUCT_IMAGES = 4;
 
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
@@ -151,6 +153,7 @@ export function ProductEditPage() {
   const invalid = !Number.isFinite(pid) || pid <= 0;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   const productQ = useQuery({
     queryKey: ["products", pid],
@@ -170,6 +173,34 @@ export function ProductEditPage() {
     queryKey: ["product-edit", "units"],
     queryFn: () => fetchUnitsPage({ page: 0, size: 200 }),
   });
+
+  const imageMeta = productQ.data?.images ?? [];
+  const imageQ = useQuery({
+    queryKey: ["products", pid, "images", imageMeta.map((img) => img.imageId).join(",")],
+    enabled: !invalid && imageMeta.length > 0,
+    queryFn: async () => {
+      const settled = await Promise.allSettled(
+        imageMeta.map(async (img) => ({
+          imageId: img.imageId,
+          url: await fetchProductImageBlobUrl(img.imageUrl),
+        })),
+      );
+      return settled
+        .filter((item): item is PromiseFulfilledResult<{ imageId: number; url: string }> => item.status === "fulfilled")
+        .map((item) => item.value);
+    },
+  });
+
+  useEffect(() => {
+    return () => {
+      imageQ.data?.forEach((img) => URL.revokeObjectURL(img.url));
+    };
+  }, [imageQ.data]);
+
+  const imageUrlMap = useMemo(
+    () => new Map((imageQ.data ?? []).map((img) => [img.imageId, img.url] as const)),
+    [imageQ.data],
+  );
 
   const { getStoreName } = useStoreNameMap();
 
@@ -237,6 +268,62 @@ export function ProductEditPage() {
     },
   });
 
+  const addImagesM = useMutation({
+    meta: { skipGlobalErrorToast: true },
+    mutationFn: async (files: File[]) => {
+      if (invalid) throw new Error("invalid");
+      return addProductImages(pid, files);
+    },
+    onSuccess: async () => {
+      toast.success("Đã thêm ảnh sản phẩm.");
+      await queryClient.invalidateQueries({ queryKey: ["products", pid] });
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+    onError: (err) => {
+      toast.error(formatApiError(err));
+    },
+  });
+
+  const deleteImageM = useMutation({
+    meta: { skipGlobalErrorToast: true },
+    mutationFn: async (imageId: number) => {
+      if (invalid) throw new Error("invalid");
+      await deleteProductImage(pid, imageId);
+    },
+    onSuccess: async () => {
+      toast.success("Đã xóa ảnh sản phẩm.");
+      await queryClient.invalidateQueries({ queryKey: ["products", pid] });
+      await queryClient.invalidateQueries({ queryKey: ["products"] });
+    },
+    onError: (err) => {
+      toast.error(formatApiError(err));
+    },
+  });
+
+  const deletingImageId = deleteImageM.isPending ? deleteImageM.variables : null;
+
+  function handlePickImages(fileList: FileList | null): void {
+    if (!fileList || fileList.length === 0) return;
+
+    const imageFiles = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+    if (imageFiles.length === 0) {
+      toast.error("Vui lòng chọn tệp ảnh hợp lệ.");
+      return;
+    }
+
+    const remain = MAX_PRODUCT_IMAGES - imageMeta.length;
+    if (remain <= 0) {
+      toast.error(`Tối đa ${MAX_PRODUCT_IMAGES} ảnh cho một sản phẩm.`);
+      return;
+    }
+
+    const picked = imageFiles.slice(0, remain);
+    if (imageFiles.length > remain) {
+      toast.warning(`Chỉ lấy ${remain} ảnh đầu tiên do giới hạn ${MAX_PRODUCT_IMAGES} ảnh.`);
+    }
+    addImagesM.mutate(picked);
+  }
+
   const brandOptions = brandsQ.data?.content ?? [];
   const categoryOptions = categoriesQ.data?.content ?? [];
   const unitOptions = unitsQ.data?.content ?? [];
@@ -274,8 +361,8 @@ export function ProductEditPage() {
         <CardHeader>
           <CardTitle className="text-xl">Sửa sản phẩm</CardTitle>
           <CardDescription>
-            Cập nhật thông tin chung và biến thể (SKU). Có thể thêm biến thể mới (dòng không có mã nội bộ). Xóa dòng
-            biến thể chỉ thực hiện được khi SKU đó chưa phát sinh đơn hàng, phiếu kho hoặc tồn kho.
+            Cập nhật thông tin chung, ảnh sản phẩm và biến thể (SKU). Có thể thêm biến thể mới (dòng không có mã nội
+            bộ). Xóa dòng biến thể chỉ thực hiện được khi SKU đó chưa phát sinh đơn hàng, phiếu kho hoặc tồn kho.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -465,6 +552,73 @@ export function ProductEditPage() {
                     )}
                   />
                 </div>
+              </section>
+
+              <section className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Hình ảnh sản phẩm</h3>
+                    <p className="text-xs text-muted-foreground">Tối đa {MAX_PRODUCT_IMAGES} ảnh, mỗi ảnh không quá 2MB.</p>
+                  </div>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      handlePickImages(e.target.files);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={addImagesM.isPending || imageMeta.length >= MAX_PRODUCT_IMAGES}
+                  >
+                    {addImagesM.isPending ? "Đang tải ảnh..." : "Thêm ảnh"}
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {Array.from({ length: MAX_PRODUCT_IMAGES }).map((_, slotIdx) => {
+                    const image = imageMeta[slotIdx];
+                    if (!image) {
+                      return (
+                        <div
+                          key={`slot-${slotIdx}`}
+                          className="flex h-28 items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground"
+                        >
+                          Ảnh {slotIdx + 1}
+                        </div>
+                      );
+                    }
+
+                    const previewUrl = imageUrlMap.get(image.imageId);
+                    return (
+                      <div key={image.imageId} className="relative h-28 overflow-hidden rounded-md border">
+                        {previewUrl ? (
+                          <img src={previewUrl} alt={`Ảnh sản phẩm ${image.imageId}`} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Đang tải ảnh...</div>
+                        )}
+                        <button
+                          type="button"
+                          className="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white"
+                          disabled={deletingImageId === image.imageId}
+                          onClick={() => {
+                            if (!window.confirm("Xóa ảnh này khỏi sản phẩm?")) return;
+                            deleteImageM.mutate(image.imageId);
+                          }}
+                        >
+                          {deletingImageId === image.imageId ? "..." : "Xóa"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {imageQ.isError ? <p className="text-xs text-destructive">Không tải được ảnh hiện có của sản phẩm.</p> : null}
               </section>
 
               <section className="space-y-4">

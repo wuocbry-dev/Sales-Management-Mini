@@ -14,12 +14,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { isSystemManage } from "@/features/auth/access";
+import { gateProductCatalogMutate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { BrandFormDialog } from "@/features/brands/brand-form-dialog";
+import { CategoryFormDialog } from "@/features/categories/category-form-dialog";
+import { LocalOptionCombobox } from "@/components/catalog/local-option-combobox";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
 import { cn } from "@/lib/utils";
 import { SkuFormItem } from "@/features/products/sku-form-item";
 import { normalizeSku } from "@/features/products/sku-suggestions";
+import { UnitFormDialog } from "@/features/units/unit-form-dialog";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import type { MeResponse } from "@/types/auth";
 import type { ProductCreateRequestBody } from "@/types/product";
@@ -113,6 +118,10 @@ export function ProductCreatePage() {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const [images, setImages] = useState<LocalProductImage[]>([]);
   const needStorePicker = Boolean(me && (isSystemManage(me) || me.storeIds.length > 1));
+  const canCreateCatalogMaster = Boolean(me && gateProductCatalogMutate(me));
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [brandDialogOpen, setBrandDialogOpen] = useState(false);
+  const [unitDialogOpen, setUnitDialogOpen] = useState(false);
 
   const { stores: storePickerList, getStoreName, isPending: storesPending, isError: storesError } = useStoreNameMap();
   const brandsQ = useQuery({
@@ -165,6 +174,14 @@ export function ProductCreatePage() {
   const productCodeWatch = form.watch("productCode");
   const selectedStoreId = needStorePicker ? Number(form.watch("storeId")) || 0 : (me?.storeIds[0] ?? 0);
   const variantsWatch = form.watch("variants");
+
+  useEffect(() => {
+    if (hasVariant || fields.length <= 1) {
+      return;
+    }
+    const firstVariant = form.getValues("variants.0") ?? defaultVariant;
+    form.setValue("variants", [firstVariant], { shouldDirty: true, shouldValidate: true });
+  }, [defaultVariant, fields.length, form, hasVariant]);
 
   const currentFormSkus = useMemo(
     () => (variantsWatch ?? []).map((v) => normalizeSku(v?.sku)).filter((v) => v.length > 0),
@@ -258,15 +275,23 @@ export function ProductCreatePage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Tạo hàng hóa</CardTitle>
-          <CardDescription>Biểu mẫu được tối ưu theo luồng nhập nhanh và vẫn giữ payload tương thích backend.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form className="space-y-8" onSubmit={form.handleSubmit((v) => mutation.mutate(v))}>
+            <form className="space-y-6" onSubmit={form.handleSubmit((v) => mutation.mutate(v))}>
+              <section className="rounded-lg border bg-muted/30 p-4">
+                <h3 className="text-sm font-semibold text-foreground">Hướng dẫn nhanh</h3>
+                <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                  <li>Nhập thông tin sản phẩm ở phần Thông tin sản phẩm.</li>
+                  <li>Nhập SKU và giá ở phần Biến thể mặc định.</li>
+                  <li>Nếu có nhiều màu hoặc size, bật tùy chọn nhiều biến thể rồi thêm dòng.</li>
+                </ol>
+              </section>
+
               <section className="grid gap-4 lg:grid-cols-12">
-                <Card className="lg:col-span-9">
+                <Card className="lg:col-span-8">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Thông tin</CardTitle>
+                    <CardTitle className="text-base">Thông tin sản phẩm</CardTitle>
                   </CardHeader>
                   <CardContent className="grid gap-4 sm:grid-cols-2">
                     {needStorePicker ? (
@@ -300,32 +325,17 @@ export function ProductCreatePage() {
 
                     <FormField
                       control={form.control}
-                      name="variants.0.sku"
-                      render={({ field }) => (
-                        <SkuFormItem
-                          field={field}
-                          storeId={selectedStoreId}
-                          currentFormSkus={currentFormSkus}
-                          productCode={productCodeWatch}
-                          variantName={variantsWatch?.[0]?.variantName ?? ""}
-                          placeholder="Nhập mã SKU"
-                        />
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="variants.0.barcode"
+                      name="productName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Mã vạch</FormLabel>
+                          <FormLabel>Tên hàng</FormLabel>
                           <FormControl>
-                            <Input {...field} className="font-mono" placeholder="Nhập mã vạch" />
+                            <Input {...field} placeholder="Ví dụ: Nước ngọt lon 330ml" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-
                     <FormField
                       control={form.control}
                       name="productCode"
@@ -333,20 +343,7 @@ export function ProductCreatePage() {
                         <FormItem>
                           <FormLabel>Mã sản phẩm</FormLabel>
                           <FormControl>
-                            <Input {...field} autoComplete="off" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="productName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tên hàng</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Bắt buộc" />
+                            <Input {...field} autoComplete="off" placeholder="Ví dụ: SP001" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -358,16 +355,28 @@ export function ProductCreatePage() {
                       name="categoryId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Nhóm hàng</FormLabel>
+                          <div className="flex items-center justify-between gap-2">
+                            <FormLabel>Nhóm hàng (tùy chọn)</FormLabel>
+                            {canCreateCatalogMaster ? (
+                              <button
+                                type="button"
+                                className="text-xs font-medium text-primary hover:underline"
+                                onClick={() => setCategoryDialogOpen(true)}
+                              >
+                                Khác
+                              </button>
+                            ) : null}
+                          </div>
                           <FormControl>
-                            <select {...field} className={selectClass} disabled={categoriesQ.isError}>
-                              <option value="">Chọn nhóm hàng</option>
-                              {categoryOptions.map((c) => (
-                                <option key={c.id} value={String(c.id)}>
-                                  {c.categoryName}
-                                </option>
-                              ))}
-                            </select>
+                            <LocalOptionCombobox
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              options={categoryOptions.map((c) => ({ id: c.id, label: c.categoryName }))}
+                              placeholder="Chọn nhóm hàng"
+                              disabled={categoriesQ.isError || categoriesQ.isPending}
+                              noResultsText="Không có nhóm hàng phù hợp."
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -378,16 +387,28 @@ export function ProductCreatePage() {
                       name="brandId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Thương hiệu</FormLabel>
+                          <div className="flex items-center justify-between gap-2">
+                            <FormLabel>Thương hiệu (tùy chọn)</FormLabel>
+                            {canCreateCatalogMaster ? (
+                              <button
+                                type="button"
+                                className="text-xs font-medium text-primary hover:underline"
+                                onClick={() => setBrandDialogOpen(true)}
+                              >
+                                Khác
+                              </button>
+                            ) : null}
+                          </div>
                           <FormControl>
-                            <select {...field} className={selectClass} disabled={brandsQ.isError}>
-                              <option value="">Chọn thương hiệu</option>
-                              {brandOptions.map((b) => (
-                                <option key={b.id} value={String(b.id)}>
-                                  {b.brandName}
-                                </option>
-                              ))}
-                            </select>
+                            <LocalOptionCombobox
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              options={brandOptions.map((b) => ({ id: b.id, label: b.brandName }))}
+                              placeholder="Chọn thương hiệu"
+                              disabled={brandsQ.isError || brandsQ.isPending}
+                              noResultsText="Không có thương hiệu phù hợp."
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -399,16 +420,28 @@ export function ProductCreatePage() {
                       name="unitId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Đơn vị tính</FormLabel>
+                          <div className="flex items-center justify-between gap-2">
+                            <FormLabel>Đơn vị tính (tùy chọn)</FormLabel>
+                            {canCreateCatalogMaster ? (
+                              <button
+                                type="button"
+                                className="text-xs font-medium text-primary hover:underline"
+                                onClick={() => setUnitDialogOpen(true)}
+                              >
+                                Khác
+                              </button>
+                            ) : null}
+                          </div>
                           <FormControl>
-                            <select {...field} className={selectClass} disabled={unitsQ.isError}>
-                              <option value="">Chọn đơn vị</option>
-                              {unitOptions.map((u) => (
-                                <option key={u.id} value={String(u.id)}>
-                                  {u.unitName}
-                                </option>
-                              ))}
-                            </select>
+                            <LocalOptionCombobox
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              options={unitOptions.map((u) => ({ id: u.id, label: u.unitName }))}
+                              placeholder="Chọn đơn vị"
+                              disabled={unitsQ.isError || unitsQ.isPending}
+                              noResultsText="Không có đơn vị phù hợp."
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -447,26 +480,13 @@ export function ProductCreatePage() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={form.control}
-                      name="variants.0.variantName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Tên biến thể chính</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Ví dụ: Mặc định" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
 
                     <FormField
                       control={form.control}
                       name="description"
                       render={({ field }) => (
                         <FormItem className="sm:col-span-2">
-                          <FormLabel>Mô tả</FormLabel>
+                          <FormLabel>Mô tả (tùy chọn)</FormLabel>
                           <FormControl>
                             <textarea
                               {...field}
@@ -483,7 +503,7 @@ export function ProductCreatePage() {
                   </CardContent>
                 </Card>
 
-                <Card className="lg:col-span-3">
+                <Card className="lg:col-span-4">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Hình ảnh</CardTitle>
                     <CardDescription>Tối đa {MAX_PRODUCT_IMAGES} ảnh</CardDescription>
@@ -543,12 +563,56 @@ export function ProductCreatePage() {
                 </Card>
               </section>
 
-              <section className="grid gap-4 lg:grid-cols-12">
-                <Card className="lg:col-span-6">
+              <section>
+                <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Giá vốn, giá bán</CardTitle>
+                    <CardTitle className="text-base">Biến thể mặc định</CardTitle>
+                    <CardDescription>
+                      Bắt buộc phải có.
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent className="grid gap-4 sm:grid-cols-2">
+                  <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <FormField
+                      control={form.control}
+                      name="variants.0.sku"
+                      render={({ field }) => (
+                        <SkuFormItem
+                          field={field}
+                          storeId={selectedStoreId}
+                          currentFormSkus={currentFormSkus}
+                          productCode={productCodeWatch}
+                          variantName={variantsWatch?.[0]?.variantName ?? ""}
+                          placeholder="Ví dụ: SP001-MACDINH"
+                        />
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="variants.0.variantName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tên biến thể (tùy chọn)</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Ví dụ: Mặc định" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="variants.0.barcode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Mã vạch (tùy chọn)</FormLabel>
+                          <FormControl>
+                            <Input {...field} className="font-mono" placeholder="Nhập mã vạch" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <FormField
                       control={form.control}
                       name="variants.0.costPrice"
@@ -575,27 +639,21 @@ export function ProductCreatePage() {
                         </FormItem>
                       )}
                     />
-                  </CardContent>
-                </Card>
-
-                <Card className="lg:col-span-6">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Tồn kho</CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid gap-4 sm:grid-cols-2">
                     <FormField
                       control={form.control}
                       name="variants.0.reorderLevel"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Định mức tồn thấp nhất</FormLabel>
+                          <FormLabel>Mức tồn tối thiểu</FormLabel>
                           <FormControl>
                             <Input {...field} type="number" min={0} step="0.001" inputMode="decimal" />
                           </FormControl>
+                          <p className="text-xs text-muted-foreground">Không theo dõi tồn kho thì để 0.</p>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+
                     <FormField
                       control={form.control}
                       name="trackInventory"
@@ -613,6 +671,36 @@ export function ProductCreatePage() {
                         </FormItem>
                       )}
                     />
+                    <FormField
+                      control={form.control}
+                      name="variants.0.status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Trạng thái biến thể</FormLabel>
+                          <FormControl>
+                            <select {...field} className={selectClass}>
+                              <option value="ACTIVE">Đang hoạt động</option>
+                              <option value="INACTIVE">Ngưng hoạt động</option>
+                            </select>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="variants.0.attributesJson"
+                      render={({ field }) => (
+                        <FormItem className="sm:col-span-2 lg:col-span-3">
+                          <FormLabel>Thuộc tính mở rộng (tùy chọn)</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder='Ví dụ: "color":"red","size":"M"' />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </CardContent>
                 </Card>
               </section>
@@ -620,9 +708,9 @@ export function ProductCreatePage() {
               <section className="space-y-4 rounded-lg border p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-semibold text-foreground">Quản lý theo đơn vị tính và thuộc tính</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Nhiều biến thể</h3>
                     <p className="text-xs text-muted-foreground">
-                      Khi bật nhiều biến thể, bạn có thể thêm các SKU phụ giống luồng mẫu.
+                      Bật mục này khi sản phẩm có thêm màu hoặc size. Biến thể mặc định ở trên luôn được giữ lại.
                     </p>
                   </div>
                   <FormField
@@ -708,7 +796,7 @@ export function ProductCreatePage() {
                                 name={`variants.${index}.attributesJson`}
                                 render={({ field }) => (
                                   <FormItem className="sm:col-span-2">
-                                    <FormLabel>Thuộc tính mở rộng</FormLabel>
+                                    <FormLabel>Thuộc tính mở rộng (tùy chọn)</FormLabel>
                                     <FormControl>
                                       <Input {...field} placeholder="Ví dụ: màu, size..." />
                                     </FormControl>
@@ -792,6 +880,44 @@ export function ProductCreatePage() {
           </Form>
         </CardContent>
       </Card>
+
+      {canCreateCatalogMaster ? (
+        <>
+          <CategoryFormDialog
+            mode="create"
+            open={categoryDialogOpen}
+            onOpenChange={setCategoryDialogOpen}
+            onSuccess={(saved) => {
+              void categoriesQ.refetch();
+              if (saved?.id) {
+                form.setValue("categoryId", String(saved.id), { shouldDirty: true, shouldValidate: true });
+              }
+            }}
+          />
+          <BrandFormDialog
+            mode="create"
+            open={brandDialogOpen}
+            onOpenChange={setBrandDialogOpen}
+            onSuccess={(saved) => {
+              void brandsQ.refetch();
+              if (saved?.id) {
+                form.setValue("brandId", String(saved.id), { shouldDirty: true, shouldValidate: true });
+              }
+            }}
+          />
+          <UnitFormDialog
+            mode="create"
+            open={unitDialogOpen}
+            onOpenChange={setUnitDialogOpen}
+            onSuccess={(saved) => {
+              void unitsQ.refetch();
+              if (saved?.id) {
+                form.setValue("unitId", String(saved.id), { shouldDirty: true, shouldValidate: true });
+              }
+            }}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

@@ -40,7 +40,7 @@ type Props = {
   category?: CategoryResponse | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (saved?: CategoryResponse) => void;
 };
 
 export function CategoryFormDialog({ mode, category, open, onOpenChange, onSuccess }: Props) {
@@ -73,12 +73,12 @@ export function CategoryFormDialog({ mode, category, open, onOpenChange, onSucce
       if (!category) throw new Error("Thiếu nhóm hàng");
       return updateCategory(category.id, body);
     },
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
       toast.success(mode === "create" ? "Đã tạo nhóm hàng." : "Đã cập nhật nhóm hàng.");
       onOpenChange(false);
       await qc.invalidateQueries({ queryKey: ["categories"] });
       if (category) await qc.invalidateQueries({ queryKey: ["categories", category.id] });
-      onSuccess?.();
+      onSuccess?.(saved);
     },
     onError: (err) => {
       if (!applyApiFieldErrors(err, form.setError, {})) toast.error(formatApiError(err));

@@ -34,7 +34,7 @@ type Props = {
   unit?: UnitResponse | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (saved?: UnitResponse) => void;
 };
 
 export function UnitFormDialog({ mode, unit, open, onOpenChange, onSuccess }: Props) {
@@ -65,12 +65,12 @@ export function UnitFormDialog({ mode, unit, open, onOpenChange, onSuccess }: Pr
       if (!unit) throw new Error("Thiếu đơn vị");
       return updateUnit(unit.id, body);
     },
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
       toast.success(mode === "create" ? "Đã tạo đơn vị tính." : "Đã cập nhật đơn vị tính.");
       onOpenChange(false);
       await qc.invalidateQueries({ queryKey: ["units"] });
       if (unit) await qc.invalidateQueries({ queryKey: ["units", unit.id] });
-      onSuccess?.();
+      onSuccess?.(saved);
     },
     onError: (err) => {
       if (!applyApiFieldErrors(err, form.setError, {})) toast.error(formatApiError(err));

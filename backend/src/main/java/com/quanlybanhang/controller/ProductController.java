@@ -116,6 +116,25 @@ public class ProductController {
     return productService.updateProduct(id, req, principal);
   }
 
+  @PostMapping(value = "/{id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")
+  public ProductResponse addImages(
+      @PathVariable Long id,
+      @RequestPart(value = "images", required = false) List<MultipartFile> images,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return productService.addProductImages(id, images == null ? List.of() : images, principal);
+  }
+
+  @DeleteMapping("/{id}/images/{imageId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")
+  public void deleteImage(
+      @PathVariable Long id,
+      @PathVariable Long imageId,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    productService.deleteProductImage(id, imageId, principal);
+  }
+
   @DeleteMapping("/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")

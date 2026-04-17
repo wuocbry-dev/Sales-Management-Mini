@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -14,8 +14,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { isSystemManage } from "@/features/auth/access";
+import { gateSupplierMutate } from "@/features/auth/gates";
 import { VariantSearchCombobox } from "@/components/catalog/variant-search-combobox";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { SupplierFormDialog } from "@/features/suppliers/supplier-form-dialog";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
 import { datetimeLocalToBackend } from "@/lib/datetime-local-to-backend";
@@ -74,6 +76,8 @@ export function GoodsReceiptCreatePage() {
   const me = useAuthStore((s) => s.me);
   const navigate = useNavigate();
   const pickStore = Boolean(me && needStorePicker(me));
+  const canCreateSupplier = Boolean(me && gateSupplierMutate(me));
+  const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
 
   const { stores, getStoreName } = useStoreNameMap();
 
@@ -204,9 +208,20 @@ export function GoodsReceiptCreatePage() {
                   name="supplierId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nhà cung cấp (tuỳ chọn)</FormLabel>
+                      <div className="flex items-center justify-between gap-2">
+                        <FormLabel>Nhà cung cấp (tuỳ chọn)</FormLabel>
+                        {canCreateSupplier ? (
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => setSupplierDialogOpen(true)}
+                          >
+                            Khác
+                          </button>
+                        ) : null}
+                      </div>
                       <FormControl>
-                        <select {...field} className={selectClass}>
+                        <select {...field} className={selectClass} disabled={suppliersQ.isPending}>
                           <option value="">— Không chọn —</option>
                           {suppliers.map((s) => (
                             <option key={s.id} value={String(s.id)}>
@@ -215,6 +230,9 @@ export function GoodsReceiptCreatePage() {
                           ))}
                         </select>
                       </FormControl>
+                      {suppliersQ.isError ? (
+                        <p className="text-xs text-destructive">Không tải được danh sách nhà cung cấp. Vui lòng tải lại trang.</p>
+                      ) : null}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -366,6 +384,20 @@ export function GoodsReceiptCreatePage() {
           </Form>
         </CardContent>
       </Card>
+
+      {canCreateSupplier ? (
+        <SupplierFormDialog
+          mode="create"
+          open={supplierDialogOpen}
+          onOpenChange={setSupplierDialogOpen}
+          onSuccess={(saved) => {
+            void suppliersQ.refetch();
+            if (saved?.id) {
+              form.setValue("supplierId", String(saved.id), { shouldDirty: true, shouldValidate: true });
+            }
+          }}
+        />
+      ) : null}
     </div>
   );
 }

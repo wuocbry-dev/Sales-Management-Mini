@@ -42,7 +42,7 @@ type Props = {
   supplier?: SupplierResponse | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (saved?: SupplierResponse) => void;
 };
 
 export function SupplierFormDialog({ mode, supplier, open, onOpenChange, onSuccess }: Props) {
@@ -93,12 +93,12 @@ export function SupplierFormDialog({ mode, supplier, open, onOpenChange, onSucce
       if (!supplier) throw new Error("Thiếu nhà cung cấp");
       return updateSupplier(supplier.id, body);
     },
-    onSuccess: async () => {
+    onSuccess: async (saved) => {
       toast.success(mode === "create" ? "Đã tạo nhà cung cấp." : "Đã cập nhật nhà cung cấp.");
       onOpenChange(false);
       await qc.invalidateQueries({ queryKey: ["suppliers"] });
       if (supplier) await qc.invalidateQueries({ queryKey: ["suppliers", supplier.id] });
-      onSuccess?.();
+      onSuccess?.(saved);
     },
     onError: (err) => {
       if (!applyApiFieldErrors(err, form.setError, {})) toast.error(formatApiError(err));

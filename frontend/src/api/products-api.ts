@@ -72,6 +72,19 @@ export async function updateProduct(id: number, body: ProductUpdateRequestBody):
   return data;
 }
 
+export async function addProductImages(id: number, images: File[]): Promise<ProductResponse> {
+  const form = new FormData();
+  images.forEach((file) => form.append("images", file));
+  const { data } = await apiClient.post<ProductResponse>(`/api/products/${id}/images`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function deleteProductImage(id: number, imageId: number): Promise<void> {
+  await apiClient.delete(`/api/products/${id}/images/${imageId}`);
+}
+
 export async function deleteProduct(id: number): Promise<void> {
   await apiClient.delete(`/api/products/${id}`);
 }
