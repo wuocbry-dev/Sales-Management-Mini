@@ -12,6 +12,8 @@ public interface GoodsReceiptRepository
 
   boolean existsByReceiptCode(String receiptCode);
 
+  boolean existsBySupplierIdAndStoreId(Long supplierId, Long storeId);
+
   @Query(
       "select distinct r from GoodsReceipt r left join fetch r.items where r.id = :id")
   Optional<GoodsReceipt> findWithItemsById(@Param("id") Long id);

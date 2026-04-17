@@ -124,6 +124,7 @@ class SalesOrderIntegrationTest {
 
     ProductVariant v = new ProductVariant();
     v.setProductId(p.getId());
+    v.setStoreId(storeId);
     v.setSku("SKU-IT-1");
     v.setBarcode(null);
     v.setVariantName("Mặc định");
@@ -345,6 +346,7 @@ class SalesOrderIntegrationTest {
 
     ProductVariant vOther = new ProductVariant();
     vOther.setProductId(pOther.getId());
+    vOther.setStoreId(other.getId());
     vOther.setSku("SKU-OTHER-STORE");
     vOther.setVariantName("Mặc định");
     vOther.setCostPrice(new BigDecimal("1.0000"));

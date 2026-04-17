@@ -11,6 +11,7 @@ public final class CustomerDtos {
   private CustomerDtos() {}
 
   public record CustomerRequest(
+      Long storeId,
       @NotBlank @Size(max = 50) String customerCode,
       @NotBlank @Size(max = 150) String fullName,
       @Size(max = 20) String phone,
@@ -22,6 +23,7 @@ public final class CustomerDtos {
 
   public record CustomerResponse(
       Long id,
+      Long storeId,
       String customerCode,
       String fullName,
       String phone,

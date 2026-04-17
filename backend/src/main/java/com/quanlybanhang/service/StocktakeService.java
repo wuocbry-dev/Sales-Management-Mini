@@ -15,6 +15,7 @@ import com.quanlybanhang.model.Stocktake;
 import com.quanlybanhang.model.StocktakeItem;
 import com.quanlybanhang.repository.InventoryRepository;
 import com.quanlybanhang.repository.InventoryTransactionRepository;
+import com.quanlybanhang.repository.ProductRepository;
 import com.quanlybanhang.repository.ProductVariantRepository;
 import com.quanlybanhang.repository.StocktakeRepository;
 import com.quanlybanhang.repository.StoreRepository;
@@ -41,6 +42,7 @@ public class StocktakeService {
   private final StocktakeRepository stocktakeRepository;
   private final InventoryRepository inventoryRepository;
   private final InventoryTransactionRepository inventoryTransactionRepository;
+  private final ProductRepository productRepository;
   private final ProductVariantRepository variantRepository;
   private final StoreRepository storeRepository;
   private final StoreAccessService storeAccessService;
@@ -50,6 +52,7 @@ public class StocktakeService {
       StocktakeRepository stocktakeRepository,
       InventoryRepository inventoryRepository,
       InventoryTransactionRepository inventoryTransactionRepository,
+      ProductRepository productRepository,
       ProductVariantRepository variantRepository,
       StoreRepository storeRepository,
       StoreAccessService storeAccessService,
@@ -57,6 +60,7 @@ public class StocktakeService {
     this.stocktakeRepository = stocktakeRepository;
     this.inventoryRepository = inventoryRepository;
     this.inventoryTransactionRepository = inventoryTransactionRepository;
+    this.productRepository = productRepository;
     this.variantRepository = variantRepository;
     this.storeRepository = storeRepository;
     this.storeAccessService = storeAccessService;
@@ -128,6 +132,14 @@ public class StocktakeService {
     st.setUpdatedAt(t);
 
     for (StocktakeLineRequest line : req.lines()) {
+      Long variantStoreId =
+          productRepository
+              .findStoreIdByVariantId(line.variantId())
+              .orElseThrow(
+                  () -> new BusinessException("Biến thể không tồn tại: " + line.variantId()));
+      if (!variantStoreId.equals(req.storeId())) {
+        throw new BusinessException("Biến thể không thuộc cửa hàng kiểm kho.");
+      }
       if (!variantRepository.existsById(line.variantId())) {
         throw new BusinessException("Biến thể không tồn tại: " + line.variantId());
       }
@@ -166,6 +178,14 @@ public class StocktakeService {
     }
     LocalDateTime t = now();
     for (StocktakeItem line : st.getItems()) {
+      Long variantStoreId =
+          productRepository
+              .findStoreIdByVariantId(line.getVariantId())
+              .orElseThrow(
+                  () -> new BusinessException("Biến thể không tồn tại: " + line.getVariantId()));
+      if (!variantStoreId.equals(st.getStoreId())) {
+        throw new BusinessException("Biến thể không thuộc cửa hàng kiểm kho.");
+      }
       ProductVariant v =
           variantRepository
               .findById(line.getVariantId())

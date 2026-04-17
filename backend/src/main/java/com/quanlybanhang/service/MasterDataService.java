@@ -19,6 +19,8 @@ import com.quanlybanhang.model.Supplier;
 import com.quanlybanhang.model.Unit;
 import com.quanlybanhang.repository.BrandRepository;
 import com.quanlybanhang.repository.CategoryRepository;
+import com.quanlybanhang.repository.GoodsReceiptRepository;
+import com.quanlybanhang.repository.ProductRepository;
 import com.quanlybanhang.repository.StoreRepository;
 import com.quanlybanhang.repository.SupplierRepository;
 import com.quanlybanhang.repository.UnitRepository;
@@ -45,6 +47,8 @@ public class MasterDataService {
   private final CategoryRepository categoryRepository;
   private final UnitRepository unitRepository;
   private final SupplierRepository supplierRepository;
+  private final ProductRepository productRepository;
+  private final GoodsReceiptRepository goodsReceiptRepository;
   private final WarehouseService warehouseService;
 
   private LocalDateTime now() {
@@ -196,6 +200,20 @@ public class MasterDataService {
     return toBrandResponse(brandRepository.save(e));
   }
 
+  @Transactional
+  public void deleteBrand(Long id, JwtAuthenticatedPrincipal principal) {
+    Brand e = brandRepository.findById(id).orElseThrow(() -> notFound("Thương hiệu", id));
+    storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
+    if (productRepository.existsByBrandIdAndStoreId(id, e.getStoreId())) {
+      throw new BusinessException(
+          "Không thể xóa thương hiệu "
+              + e.getBrandCode()
+              + ": đã có sản phẩm đang sử dụng thương hiệu này.");
+    }
+    brandRepository.delete(e);
+    brandRepository.flush();
+  }
+
   private BrandResponse toBrandResponse(Brand e) {
     return new BrandResponse(
         e.getId(),
@@ -292,6 +310,26 @@ public class MasterDataService {
     return toCategoryResponse(categoryRepository.save(e));
   }
 
+  @Transactional
+  public void deleteCategory(Long id, JwtAuthenticatedPrincipal principal) {
+    Category e = categoryRepository.findById(id).orElseThrow(() -> notFound("Danh mục", id));
+    storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
+    if (categoryRepository.existsByParentIdAndStoreId(id, e.getStoreId())) {
+      throw new BusinessException(
+          "Không thể xóa nhóm hàng "
+              + e.getCategoryCode()
+              + ": vẫn còn nhóm hàng con.");
+    }
+    if (productRepository.existsByCategoryIdAndStoreId(id, e.getStoreId())) {
+      throw new BusinessException(
+          "Không thể xóa nhóm hàng "
+              + e.getCategoryCode()
+              + ": đã có sản phẩm đang sử dụng nhóm hàng này.");
+    }
+    categoryRepository.delete(e);
+    categoryRepository.flush();
+  }
+
   private CategoryResponse toCategoryResponse(Category e) {
     return new CategoryResponse(
         e.getId(),
@@ -359,6 +397,20 @@ public class MasterDataService {
     e.setUnitName(req.unitName());
     e.setDescription(req.description());
     return toUnitResponse(unitRepository.save(e));
+  }
+
+  @Transactional
+  public void deleteUnit(Long id, JwtAuthenticatedPrincipal principal) {
+    Unit e = unitRepository.findById(id).orElseThrow(() -> notFound("Đơn vị tính", id));
+    storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
+    if (productRepository.existsByUnitIdAndStoreId(id, e.getStoreId())) {
+      throw new BusinessException(
+          "Không thể xóa đơn vị tính "
+              + e.getUnitCode()
+              + ": đã có sản phẩm đang sử dụng đơn vị này.");
+    }
+    unitRepository.delete(e);
+    unitRepository.flush();
   }
 
   private UnitResponse toUnitResponse(Unit e) {
@@ -432,6 +484,20 @@ public class MasterDataService {
     e.setStatus(normalizeActiveInactiveStatus(req.status()));
     e.setUpdatedAt(now());
     return toSupplierResponse(supplierRepository.save(e));
+  }
+
+  @Transactional
+  public void deleteSupplier(Long id, JwtAuthenticatedPrincipal principal) {
+    Supplier e = supplierRepository.findById(id).orElseThrow(() -> notFound("Nhà cung cấp", id));
+    storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
+    if (goodsReceiptRepository.existsBySupplierIdAndStoreId(id, e.getStoreId())) {
+      throw new BusinessException(
+          "Không thể xóa nhà cung cấp "
+              + e.getSupplierCode()
+              + ": đã phát sinh phiếu nhập hàng.");
+    }
+    supplierRepository.delete(e);
+    supplierRepository.flush();
   }
 
   private SupplierResponse toSupplierResponse(Supplier e) {

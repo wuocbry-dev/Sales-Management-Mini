@@ -127,8 +127,13 @@ public class StockTransferService {
       throw new BusinessException("Kho nguồn và kho đích phải khác nhau.");
     }
     for (StockTransferLineRequest line : req.lines()) {
-      if (!variantRepository.existsById(line.variantId())) {
-        throw new BusinessException("Biến thể không tồn tại: " + line.variantId());
+      Long variantStoreId =
+          productRepository
+              .findStoreIdByVariantId(line.variantId())
+              .orElseThrow(
+                  () -> new BusinessException("Biến thể không tồn tại: " + line.variantId()));
+      if (!variantStoreId.equals(from.getStoreId())) {
+        throw new BusinessException("Biến thể không thuộc cửa hàng chuyển kho.");
       }
     }
     LocalDateTime t = now();
@@ -172,6 +177,14 @@ public class StockTransferService {
     long fromWh = st.getFromWarehouseId();
     long fromStoreId = warehouseRepository.findById(fromWh).orElseThrow().getStoreId();
     for (StockTransferItem line : st.getItems()) {
+      Long variantStoreId =
+          productRepository
+              .findStoreIdByVariantId(line.getVariantId())
+              .orElseThrow(
+                  () -> new BusinessException("Biến thể không tồn tại: " + line.getVariantId()));
+      if (!variantStoreId.equals(st.getFromStoreId())) {
+        throw new BusinessException("Biến thể không thuộc cửa hàng chuyển kho.");
+      }
       ProductVariant v =
           variantRepository
               .findById(line.getVariantId())
@@ -231,6 +244,14 @@ public class StockTransferService {
     long toWh = st.getToWarehouseId();
     long toStoreId = warehouseRepository.findById(toWh).orElseThrow().getStoreId();
     for (StockTransferItem line : st.getItems()) {
+      Long variantStoreId =
+          productRepository
+              .findStoreIdByVariantId(line.getVariantId())
+              .orElseThrow(
+                  () -> new BusinessException("Biến thể không tồn tại: " + line.getVariantId()));
+      if (!variantStoreId.equals(st.getToStoreId())) {
+        throw new BusinessException("Biến thể không thuộc cửa hàng chuyển kho.");
+      }
       ProductVariant v =
           variantRepository
               .findById(line.getVariantId())

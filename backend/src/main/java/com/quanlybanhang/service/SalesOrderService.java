@@ -102,8 +102,10 @@ public class SalesOrderService {
     if (!storeRepository.existsById(req.storeId())) {
       throw new BusinessException("Cửa hàng không tồn tại: " + req.storeId());
     }
-    if (req.customerId() != null && !customerRepository.existsById(req.customerId())) {
-      throw new BusinessException("Khách hàng không tồn tại: " + req.customerId());
+    if (req.customerId() != null
+        && !customerRepository.existsByIdAndStoreId(req.customerId(), req.storeId())) {
+      throw new BusinessException(
+          "Khách hàng không thuộc cửa hàng của đơn: " + req.customerId());
     }
     for (SalesOrderLineRequest line : req.lines()) {
       if (!variantRepository.existsById(line.variantId())) {

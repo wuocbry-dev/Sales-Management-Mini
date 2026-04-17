@@ -38,6 +38,7 @@ public class DashboardService {
     List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
 
     long storeCount;
+    long customerCount;
     long orderCount;
     long completedCount;
     BigDecimal rev;
@@ -46,6 +47,7 @@ public class DashboardService {
 
     if (scope == null) {
       storeCount = storeRepository.count();
+      customerCount = customerRepository.count();
       orderCount = salesOrderRepository.count();
       completedCount = salesOrderRepository.countByStatus(DomainConstants.ORDER_COMPLETED);
       rev = salesOrderRepository.sumTotalAmountByStatus(DomainConstants.ORDER_COMPLETED);
@@ -53,6 +55,7 @@ public class DashboardService {
       returnCount = salesReturnRepository.count();
     } else {
       storeCount = scope.size();
+      customerCount = customerRepository.countByStoreIdIn(scope);
       orderCount = salesOrderRepository.countByStoreIdIn(scope);
       completedCount =
           salesOrderRepository.countByStatusAndStoreIdIn(
@@ -82,7 +85,7 @@ public class DashboardService {
         productCount,
         variantCount,
         storeCount,
-        customerRepository.count(),
+      customerCount,
         orderCount,
         completedCount,
         rev.setScale(0, RoundingMode.HALF_UP).toPlainString(),

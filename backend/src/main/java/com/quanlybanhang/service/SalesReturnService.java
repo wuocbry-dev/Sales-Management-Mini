@@ -15,6 +15,7 @@ import com.quanlybanhang.model.SalesOrder;
 import com.quanlybanhang.model.SalesOrderItem;
 import com.quanlybanhang.model.SalesReturn;
 import com.quanlybanhang.model.SalesReturnItem;
+import com.quanlybanhang.repository.CustomerRepository;
 import com.quanlybanhang.repository.InventoryRepository;
 import com.quanlybanhang.repository.InventoryTransactionRepository;
 import com.quanlybanhang.repository.ProductVariantRepository;
@@ -47,6 +48,7 @@ public class SalesReturnService {
   private final SalesReturnRepository salesReturnRepository;
   private final SalesOrderRepository salesOrderRepository;
   private final SalesOrderItemRepository salesOrderItemRepository;
+  private final CustomerRepository customerRepository;
   private final InventoryRepository inventoryRepository;
   private final InventoryTransactionRepository inventoryTransactionRepository;
   private final ProductVariantRepository variantRepository;
@@ -118,6 +120,12 @@ public class SalesReturnService {
       throw new BusinessException("Cửa hàng không khớp với đơn gốc.");
     }
     Long customerId = req.customerId() != null ? req.customerId() : order.getCustomerId();
+    if (customerId != null && !customerRepository.existsByIdAndStoreId(customerId, req.storeId())) {
+      throw new BusinessException("Khách hàng không thuộc cửa hàng của phiếu trả: " + customerId);
+    }
+    if (order.getCustomerId() != null && !order.getCustomerId().equals(customerId)) {
+      throw new BusinessException("Khách hàng trả hàng phải khớp khách hàng của đơn gốc.");
+    }
 
     LocalDateTime t = now();
     SalesReturn sr = new SalesReturn();

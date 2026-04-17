@@ -193,6 +193,7 @@ UNLOCK TABLES;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `customers` (
   `customer_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `store_id` bigint unsigned NOT NULL,
   `customer_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `full_name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `phone` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -206,8 +207,11 @@ CREATE TABLE `customers` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`customer_id`),
-  UNIQUE KEY `customer_code` (`customer_code`),
-  KEY `idx_customers_phone` (`phone`)
+  UNIQUE KEY `uk_customers_store_code` (`store_id`,`customer_code`),
+  KEY `idx_customers_phone` (`phone`),
+  KEY `idx_customers_id_store` (`customer_id`,`store_id`),
+  KEY `fk_customers_store` (`store_id`),
+  CONSTRAINT `fk_customers_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -475,6 +479,7 @@ UNLOCK TABLES;
 CREATE TABLE `product_variants` (
   `variant_id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `product_id` bigint unsigned NOT NULL,
+  `store_id` bigint unsigned NOT NULL,
   `sku` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `barcode` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `variant_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -486,10 +491,12 @@ CREATE TABLE `product_variants` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`variant_id`),
-  UNIQUE KEY `sku` (`sku`),
-  UNIQUE KEY `barcode` (`barcode`),
-  KEY `fk_product_variants_product` (`product_id`),
-  CONSTRAINT `fk_product_variants_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`product_id`)
+  UNIQUE KEY `uk_product_variants_store_sku` (`store_id`,`sku`),
+  UNIQUE KEY `uk_product_variants_store_barcode` (`store_id`,`barcode`),
+  KEY `idx_product_variants_product_store` (`product_id`,`store_id`),
+  KEY `fk_product_variants_store` (`store_id`),
+  CONSTRAINT `fk_product_variants_product_store` FOREIGN KEY (`product_id`, `store_id`) REFERENCES `products` (`product_id`, `store_id`),
+  CONSTRAINT `fk_product_variants_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -524,11 +531,12 @@ CREATE TABLE `products` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`product_id`),
-  UNIQUE KEY `product_code` (`product_code`),
+  UNIQUE KEY `uk_products_store_code` (`store_id`,`product_code`),
   KEY `fk_products_category` (`category_id`),
   KEY `fk_products_brand` (`brand_id`),
   KEY `fk_products_unit` (`unit_id`),
   KEY `idx_products_store_id` (`store_id`),
+  KEY `idx_products_id_store` (`product_id`,`store_id`),
   CONSTRAINT `fk_products_brand` FOREIGN KEY (`brand_id`) REFERENCES `brands` (`brand_id`),
   CONSTRAINT `fk_products_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`category_id`),
   CONSTRAINT `fk_products_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`),
@@ -692,9 +700,9 @@ CREATE TABLE `sales_orders` (
   UNIQUE KEY `order_code` (`order_code`),
   KEY `fk_sales_orders_cashier` (`cashier_id`),
   KEY `idx_sales_orders_store_date` (`store_id`,`order_date`),
-  KEY `idx_sales_orders_customer` (`customer_id`),
+  KEY `idx_sales_orders_customer_store` (`customer_id`,`store_id`),
   CONSTRAINT `fk_sales_orders_cashier` FOREIGN KEY (`cashier_id`) REFERENCES `users` (`user_id`),
-  CONSTRAINT `fk_sales_orders_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`),
+  CONSTRAINT `fk_sales_orders_customer` FOREIGN KEY (`customer_id`, `store_id`) REFERENCES `customers` (`customer_id`, `store_id`),
   CONSTRAINT `fk_sales_orders_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -763,10 +771,10 @@ CREATE TABLE `sales_returns` (
   PRIMARY KEY (`return_id`),
   UNIQUE KEY `return_code` (`return_code`),
   KEY `fk_sales_returns_order` (`order_id`),
-  KEY `fk_sales_returns_customer` (`customer_id`),
+  KEY `idx_sales_returns_customer_store` (`customer_id`,`store_id`),
   KEY `fk_sales_returns_processed_by` (`processed_by`),
   KEY `idx_sales_returns_store_date` (`store_id`,`return_date`),
-  CONSTRAINT `fk_sales_returns_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`),
+  CONSTRAINT `fk_sales_returns_customer` FOREIGN KEY (`customer_id`, `store_id`) REFERENCES `customers` (`customer_id`, `store_id`),
   CONSTRAINT `fk_sales_returns_order` FOREIGN KEY (`order_id`) REFERENCES `sales_orders` (`order_id`),
   CONSTRAINT `fk_sales_returns_processed_by` FOREIGN KEY (`processed_by`) REFERENCES `users` (`user_id`),
   CONSTRAINT `fk_sales_returns_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`)

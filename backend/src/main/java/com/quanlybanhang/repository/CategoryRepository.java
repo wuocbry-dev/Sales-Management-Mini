@@ -13,6 +13,8 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
   boolean existsByCategoryCodeAndStoreId(String categoryCode, Long storeId);
 
+  boolean existsByParentIdAndStoreId(Long parentId, Long storeId);
+
   boolean existsByIdAndStoreId(Long id, Long storeId);
 
   Optional<Category> findByIdAndStoreId(Long id, Long storeId);

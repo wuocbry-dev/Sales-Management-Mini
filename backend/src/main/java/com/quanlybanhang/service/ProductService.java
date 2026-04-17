@@ -89,6 +89,14 @@ public class ProductService {
     return raw.trim().toUpperCase();
   }
 
+  private static String normalizeNullableText(String raw) {
+    if (raw == null) {
+      return null;
+    }
+    String t = raw.trim();
+    return t.isEmpty() ? null : t;
+  }
+
   /**
    * MySQL {@code products.product_type} thường là ENUM {@code NORMAL}, {@code SERVICE}
    * (xem {@code Docx/sql/DataBase.sql}). Form cũ gửi {@code simple} / {@code variant} → cần
@@ -228,6 +236,7 @@ public class ProductService {
     }
     validateProductFks(req.categoryId(), req.brandId(), req.unitId(), storeId);
     Set<String> skusInRequest = new HashSet<>();
+    Set<String> barcodesInRequest = new HashSet<>();
     for (ProductVariantRequest v : req.variants()) {
       String sku = v.sku().trim();
       if (!skusInRequest.add(sku)) {
@@ -235,6 +244,15 @@ public class ProductService {
       }
       if (variantRepository.existsBySkuAndProductStoreId(sku, storeId)) {
         throw new BusinessException("SKU đã tồn tại trong cửa hàng: " + sku);
+      }
+      String barcode = normalizeNullableText(v.barcode());
+      if (barcode != null) {
+        if (!barcodesInRequest.add(barcode)) {
+          throw new BusinessException("Trùng barcode trong cùng yêu cầu: " + barcode);
+        }
+        if (variantRepository.existsByBarcodeAndStoreId(barcode, storeId)) {
+          throw new BusinessException("Barcode đã tồn tại trong cửa hàng: " + barcode);
+        }
       }
     }
     LocalDateTime t = now();
@@ -258,8 +276,9 @@ public class ProductService {
     for (ProductVariantRequest vr : req.variants()) {
       ProductVariant pv = new ProductVariant();
       pv.setProductId(p.getId());
+      pv.setStoreId(storeId);
       pv.setSku(vr.sku());
-      pv.setBarcode(vr.barcode());
+      pv.setBarcode(normalizeNullableText(vr.barcode()));
       pv.setVariantName(vr.variantName());
       pv.setAttributesJson(vr.attributesJson());
       pv.setCostPrice(vr.costPrice());
@@ -326,6 +345,7 @@ public class ProductService {
     }
 
     Set<String> skusInRequest = new HashSet<>();
+    Set<String> barcodesInRequest = new HashSet<>();
     Set<Long> requestedVariantIds =
         req.variants().stream()
             .map(ProductVariantUpsertRequest::id)
@@ -348,6 +368,16 @@ public class ProductService {
       if (v.id() != null) {
         if (variantRepository.existsBySkuInStoreExcludingVariant(sku, storeId, v.id())) {
           throw new BusinessException("SKU đã tồn tại trong cửa hàng: " + sku);
+        }
+      }
+      String barcode = normalizeNullableText(v.barcode());
+      if (barcode != null) {
+        if (!barcodesInRequest.add(barcode)) {
+          throw new BusinessException("Trùng barcode trong cùng yêu cầu: " + barcode);
+        }
+        if (v.id() != null
+            && variantRepository.existsByBarcodeInStoreExcludingVariant(barcode, storeId, v.id())) {
+          throw new BusinessException("Barcode đã tồn tại trong cửa hàng: " + barcode);
         }
       }
     }
@@ -382,6 +412,10 @@ public class ProductService {
         if (variantRepository.existsBySkuAndProductStoreId(sku, storeId)) {
           throw new BusinessException("SKU đã tồn tại trong cửa hàng: " + sku);
         }
+        String barcode = normalizeNullableText(v.barcode());
+        if (barcode != null && variantRepository.existsByBarcodeAndStoreId(barcode, storeId)) {
+          throw new BusinessException("Barcode đã tồn tại trong cửa hàng: " + barcode);
+        }
       }
     }
 
@@ -403,8 +437,9 @@ public class ProductService {
       if (vr.id() == null) {
         ProductVariant pv = new ProductVariant();
         pv.setProductId(productId);
+        pv.setStoreId(storeId);
         pv.setSku(vr.sku().trim());
-        pv.setBarcode(vr.barcode());
+        pv.setBarcode(normalizeNullableText(vr.barcode()));
         pv.setVariantName(vr.variantName());
         pv.setAttributesJson(vr.attributesJson());
         pv.setCostPrice(vr.costPrice());
@@ -422,8 +457,13 @@ public class ProductService {
         if (!pv.getProductId().equals(productId)) {
           throw new BusinessException("Biến thể không thuộc sản phẩm: " + vr.id());
         }
+        if (pv.getStoreId() == null) {
+          pv.setStoreId(storeId);
+        } else if (!pv.getStoreId().equals(storeId)) {
+          throw new BusinessException("Biến thể không thuộc cửa hàng của sản phẩm.");
+        }
         pv.setSku(vr.sku().trim());
-        pv.setBarcode(vr.barcode());
+        pv.setBarcode(normalizeNullableText(vr.barcode()));
         pv.setVariantName(vr.variantName());
         pv.setAttributesJson(vr.attributesJson());
         pv.setCostPrice(vr.costPrice());

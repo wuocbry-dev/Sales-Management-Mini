@@ -25,6 +25,9 @@ public class ProductVariant {
   @Column(name = "product_id", nullable = false)
   private Long productId;
 
+  @Column(name = "store_id", nullable = false)
+  private Long storeId;
+
   @Column(nullable = false, length = 100)
   private String sku;
 

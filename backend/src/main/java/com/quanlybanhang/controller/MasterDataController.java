@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -97,6 +98,14 @@ public class MasterDataController {
     return masterDataService.updateBrand(id, req, principal);
   }
 
+  @DeleteMapping("/brands/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")
+  public void deleteBrand(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    masterDataService.deleteBrand(id, principal);
+  }
+
   @GetMapping("/categories")
   @PreAuthorize("@authz.masterRead(authentication)")
   public Page<CategoryResponse> listCategories(
@@ -129,6 +138,14 @@ public class MasterDataController {
       @Valid @RequestBody CategoryRequest req,
       @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
     return masterDataService.updateCategory(id, req, principal);
+  }
+
+  @DeleteMapping("/categories/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")
+  public void deleteCategory(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    masterDataService.deleteCategory(id, principal);
   }
 
   @GetMapping("/units")
@@ -165,6 +182,14 @@ public class MasterDataController {
     return masterDataService.updateUnit(id, req, principal);
   }
 
+  @DeleteMapping("/units/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")
+  public void deleteUnit(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    masterDataService.deleteUnit(id, principal);
+  }
+
   @GetMapping("/suppliers")
   @PreAuthorize("@authz.masterRead(authentication)")
   public Page<SupplierResponse> listSuppliers(
@@ -199,5 +224,14 @@ public class MasterDataController {
       @Valid @RequestBody SupplierRequest req,
       @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
     return masterDataService.updateSupplier(id, req, principal);
+  }
+
+  @DeleteMapping("/suppliers/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @PreAuthorize(
+      "@authz.systemManage(authentication) or @authz.hasAnyAuthority(authentication, 'GOODS_RECEIPT_CREATE', 'PRODUCT_UPDATE')")
+  public void deleteSupplier(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    masterDataService.deleteSupplier(id, principal);
   }
 }

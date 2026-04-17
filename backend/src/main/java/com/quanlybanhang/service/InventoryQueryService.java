@@ -4,6 +4,7 @@ import com.quanlybanhang.dto.InventoryDtos.InventoryAvailabilityResponse;
 import com.quanlybanhang.dto.InventoryDtos.InventoryLocationAvailability;
 import com.quanlybanhang.dto.InventoryDtos.InventoryResponse;
 import com.quanlybanhang.dto.InventoryDtos.InventoryTransactionResponse;
+import com.quanlybanhang.exception.BusinessException;
 import com.quanlybanhang.model.Branch;
 import com.quanlybanhang.model.Inventory;
 import com.quanlybanhang.model.InventoryTransaction;
@@ -12,6 +13,7 @@ import com.quanlybanhang.model.Warehouse;
 import com.quanlybanhang.repository.BranchRepository;
 import com.quanlybanhang.repository.InventoryRepository;
 import com.quanlybanhang.repository.InventoryTransactionRepository;
+import com.quanlybanhang.repository.ProductRepository;
 import com.quanlybanhang.repository.ProductVariantRepository;
 import com.quanlybanhang.repository.spec.InventoryTransactionSpecifications;
 import com.quanlybanhang.security.JwtAuthenticatedPrincipal;
@@ -34,6 +36,7 @@ public class InventoryQueryService {
 
   private final InventoryRepository inventoryRepository;
   private final InventoryTransactionRepository inventoryTransactionRepository;
+  private final ProductRepository productRepository;
   private final ProductVariantRepository variantRepository;
   private final WarehouseService warehouseService;
   private final BranchRepository branchRepository;
@@ -67,9 +70,14 @@ public class InventoryQueryService {
       Pageable pageable,
       JwtAuthenticatedPrincipal principal) {
     warehouseService.assertCanAccessWarehouse(warehouseId, principal);
+    Warehouse warehouse = warehouseService.requireById(warehouseId);
+    if (variantId != null) {
+      assertVariantInStore(variantId, warehouse.getStoreId());
+    }
+    String normalizedType = normalizeTransactionTypeFilter(transactionType);
     Specification<InventoryTransaction> spec =
         InventoryTransactionSpecifications.filter(
-            warehouseId, transactionType, variantId, fromCreatedAt, toCreatedAt);
+            warehouseId, normalizedType, variantId, fromCreatedAt, toCreatedAt);
     Page<InventoryTransaction> raw = inventoryTransactionRepository.findAll(spec, pageable);
     Set<Long> vids = new HashSet<>();
     for (InventoryTransaction row : raw.getContent()) {
@@ -83,6 +91,7 @@ public class InventoryQueryService {
   public InventoryAvailabilityResponse availability(
       Long storeId, Long variantId, JwtAuthenticatedPrincipal principal) {
     storeAccessService.assertCanAccessStore(storeId, principal);
+    assertVariantInStore(variantId, storeId);
     List<Warehouse> whs = warehouseService.listByStore(storeId, principal);
     List<Long> whIds = whs.stream().map(Warehouse::getId).toList();
     List<Inventory> rows = inventoryRepository.findByWarehouseIdInAndVariantId(whIds, variantId);
@@ -115,6 +124,28 @@ public class InventoryQueryService {
     String sku = v != null ? v.getSku() : null;
     String vname = v != null ? v.getVariantName() : null;
     return new InventoryAvailabilityResponse(variantId, storeId, sku, vname, locs);
+  }
+
+  private void assertVariantInStore(Long variantId, Long storeId) {
+    Long variantStoreId =
+        productRepository
+            .findStoreIdByVariantId(variantId)
+            .orElseThrow(() -> new BusinessException("Biến thể không tồn tại: " + variantId));
+    if (!variantStoreId.equals(storeId)) {
+      throw new BusinessException("Biến thể không thuộc cửa hàng được yêu cầu.");
+    }
+  }
+
+  private String normalizeTransactionTypeFilter(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return null;
+    }
+    String k = raw.trim().toLowerCase();
+    return switch (k) {
+      case "purchase" -> "goods_receipt";
+      case "stocktake_adjust" -> "stocktake_adj";
+      default -> k;
+    };
   }
 
   private Page<InventoryResponse> mapInventoryPage(Page<Inventory> raw, Long fallbackStoreId) {
