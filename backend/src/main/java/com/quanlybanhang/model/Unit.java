@@ -21,6 +21,9 @@ public class Unit {
   @Column(name = "unit_id")
   private Long id;
 
+  @Column(name = "store_id", nullable = false)
+  private Long storeId;
+
   @Column(name = "unit_code", nullable = false, length = 50)
   private String unitCode;
 

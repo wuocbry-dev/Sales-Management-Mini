@@ -21,6 +21,9 @@ public class Supplier {
   @Column(name = "supplier_id")
   private Long id;
 
+  @Column(name = "store_id", nullable = false)
+  private Long storeId;
+
   @Column(name = "supplier_code", nullable = false, length = 50)
   private String supplierCode;
 

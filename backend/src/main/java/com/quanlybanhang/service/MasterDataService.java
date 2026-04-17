@@ -29,6 +29,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -133,21 +134,40 @@ public class MasterDataService {
 
   // --- Brand ---
 
-  public Page<BrandResponse> listBrands(Pageable pageable) {
-    return brandRepository.findAll(pageable).map(this::toBrandResponse);
+  public Page<BrandResponse> listBrands(
+      Pageable pageable, Long storeId, JwtAuthenticatedPrincipal principal) {
+    List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
+    assertStoreFilterAccessible(storeId, scope);
+    if (scope == null) {
+      if (storeId != null) {
+        return brandRepository.findByStoreId(storeId, pageable).map(this::toBrandResponse);
+      }
+      return brandRepository.findAll(pageable).map(this::toBrandResponse);
+    }
+    if (storeId != null) {
+      return brandRepository.findByStoreId(storeId, pageable).map(this::toBrandResponse);
+    }
+    return brandRepository.findByStoreIdIn(scope, pageable).map(this::toBrandResponse);
   }
 
-  public BrandResponse getBrand(Long id) {
-    return brandRepository.findById(id).map(this::toBrandResponse).orElseThrow(() -> notFound("Thương hiệu", id));
+  public BrandResponse getBrand(Long id, JwtAuthenticatedPrincipal principal) {
+    Brand e =
+        brandRepository
+            .findById(id)
+            .orElseThrow(() -> notFound("Thương hiệu", id));
+    storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
+    return toBrandResponse(e);
   }
 
   @Transactional
-  public BrandResponse createBrand(BrandRequest req) {
-    if (brandRepository.existsByBrandCode(req.brandCode())) {
+  public BrandResponse createBrand(BrandRequest req, JwtAuthenticatedPrincipal principal) {
+    long storeId = resolveStoreIdForMasterCreate(req.storeId(), principal);
+    if (brandRepository.existsByBrandCodeAndStoreId(req.brandCode(), storeId)) {
       throw new BusinessException("Mã thương hiệu đã tồn tại: " + req.brandCode());
     }
     LocalDateTime t = now();
     Brand e = new Brand();
+    e.setStoreId(storeId);
     e.setBrandCode(req.brandCode());
     e.setBrandName(req.brandName());
     e.setDescription(req.description());
@@ -158,15 +178,20 @@ public class MasterDataService {
   }
 
   @Transactional
-  public BrandResponse updateBrand(Long id, BrandRequest req) {
+  public BrandResponse updateBrand(Long id, BrandRequest req, JwtAuthenticatedPrincipal principal) {
     Brand e = brandRepository.findById(id).orElseThrow(() -> notFound("Thương hiệu", id));
-    if (!e.getBrandCode().equals(req.brandCode()) && brandRepository.existsByBrandCode(req.brandCode())) {
+    storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
+    if (req.storeId() != null && !req.storeId().equals(e.getStoreId())) {
+      throw new BusinessException("Không được thay đổi cửa hàng của thương hiệu.");
+    }
+    if (!e.getBrandCode().equals(req.brandCode())
+        && brandRepository.existsByBrandCodeAndStoreId(req.brandCode(), e.getStoreId())) {
       throw new BusinessException("Mã thương hiệu đã tồn tại: " + req.brandCode());
     }
     e.setBrandCode(req.brandCode());
     e.setBrandName(req.brandName());
     e.setDescription(req.description());
-    e.setStatus(req.status());
+    e.setStatus(normalizeActiveInactiveStatus(req.status()));
     e.setUpdatedAt(now());
     return toBrandResponse(brandRepository.save(e));
   }
@@ -174,6 +199,7 @@ public class MasterDataService {
   private BrandResponse toBrandResponse(Brand e) {
     return new BrandResponse(
         e.getId(),
+        e.getStoreId(),
         e.getBrandCode(),
         e.getBrandName(),
         e.getDescription(),
@@ -184,27 +210,46 @@ public class MasterDataService {
 
   // --- Category ---
 
-  public Page<CategoryResponse> listCategories(Pageable pageable) {
-    return categoryRepository.findAll(pageable).map(this::toCategoryResponse);
+  public Page<CategoryResponse> listCategories(
+      Pageable pageable, Long storeId, JwtAuthenticatedPrincipal principal) {
+    List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
+    assertStoreFilterAccessible(storeId, scope);
+    if (scope == null) {
+      if (storeId != null) {
+        return categoryRepository.findByStoreId(storeId, pageable).map(this::toCategoryResponse);
+      }
+      return categoryRepository.findAll(pageable).map(this::toCategoryResponse);
+    }
+    if (storeId != null) {
+      return categoryRepository.findByStoreId(storeId, pageable).map(this::toCategoryResponse);
+    }
+    return categoryRepository.findByStoreIdIn(scope, pageable).map(this::toCategoryResponse);
   }
 
-  public CategoryResponse getCategory(Long id) {
-    return categoryRepository
-        .findById(id)
-        .map(this::toCategoryResponse)
-        .orElseThrow(() -> notFound("Danh mục", id));
+  public CategoryResponse getCategory(Long id, JwtAuthenticatedPrincipal principal) {
+    Category e = categoryRepository.findById(id).orElseThrow(() -> notFound("Danh mục", id));
+    storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
+    return toCategoryResponse(e);
   }
 
   @Transactional
-  public CategoryResponse createCategory(CategoryRequest req) {
-    if (categoryRepository.existsByCategoryCode(req.categoryCode())) {
+  public CategoryResponse createCategory(CategoryRequest req, JwtAuthenticatedPrincipal principal) {
+    long storeId = resolveStoreIdForMasterCreate(req.storeId(), principal);
+    if (categoryRepository.existsByCategoryCodeAndStoreId(req.categoryCode(), storeId)) {
       throw new BusinessException("Mã danh mục đã tồn tại: " + req.categoryCode());
     }
-    if (req.parentId() != null && !categoryRepository.existsById(req.parentId())) {
-      throw new BusinessException("Danh mục cha không tồn tại: " + req.parentId());
+    if (req.parentId() != null) {
+      Category parent =
+          categoryRepository
+              .findById(req.parentId())
+              .orElseThrow(() -> new BusinessException("Danh mục cha không tồn tại: " + req.parentId()));
+      if (!parent.getStoreId().equals(storeId)) {
+        throw new BusinessException("Danh mục cha không thuộc cùng cửa hàng.");
+      }
     }
     LocalDateTime t = now();
     Category e = new Category();
+    e.setStoreId(storeId);
     e.setParentId(req.parentId());
     e.setCategoryCode(req.categoryCode());
     e.setCategoryName(req.categoryName());
@@ -216,13 +261,27 @@ public class MasterDataService {
   }
 
   @Transactional
-  public CategoryResponse updateCategory(Long id, CategoryRequest req) {
+  public CategoryResponse updateCategory(Long id, CategoryRequest req, JwtAuthenticatedPrincipal principal) {
     Category e = categoryRepository.findById(id).orElseThrow(() -> notFound("Danh mục", id));
-    if (!e.getCategoryCode().equals(req.categoryCode()) && categoryRepository.existsByCategoryCode(req.categoryCode())) {
+    storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
+    if (req.storeId() != null && !req.storeId().equals(e.getStoreId())) {
+      throw new BusinessException("Không được thay đổi cửa hàng của danh mục.");
+    }
+    if (!e.getCategoryCode().equals(req.categoryCode())
+        && categoryRepository.existsByCategoryCodeAndStoreId(req.categoryCode(), e.getStoreId())) {
       throw new BusinessException("Mã danh mục đã tồn tại: " + req.categoryCode());
     }
-    if (req.parentId() != null && !categoryRepository.existsById(req.parentId())) {
-      throw new BusinessException("Danh mục cha không tồn tại: " + req.parentId());
+    if (req.parentId() != null) {
+      if (req.parentId().equals(id)) {
+        throw new BusinessException("Danh mục cha không hợp lệ.");
+      }
+      Category parent =
+          categoryRepository
+              .findById(req.parentId())
+              .orElseThrow(() -> new BusinessException("Danh mục cha không tồn tại: " + req.parentId()));
+      if (!parent.getStoreId().equals(e.getStoreId())) {
+        throw new BusinessException("Danh mục cha không thuộc cùng cửa hàng.");
+      }
     }
     e.setParentId(req.parentId());
     e.setCategoryCode(req.categoryCode());
@@ -236,6 +295,7 @@ public class MasterDataService {
   private CategoryResponse toCategoryResponse(Category e) {
     return new CategoryResponse(
         e.getId(),
+        e.getStoreId(),
         e.getParentId(),
         e.getCategoryCode(),
         e.getCategoryName(),
@@ -247,20 +307,36 @@ public class MasterDataService {
 
   // --- Unit ---
 
-  public Page<UnitResponse> listUnits(Pageable pageable) {
-    return unitRepository.findAll(pageable).map(this::toUnitResponse);
+  public Page<UnitResponse> listUnits(
+      Pageable pageable, Long storeId, JwtAuthenticatedPrincipal principal) {
+    List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
+    assertStoreFilterAccessible(storeId, scope);
+    if (scope == null) {
+      if (storeId != null) {
+        return unitRepository.findByStoreId(storeId, pageable).map(this::toUnitResponse);
+      }
+      return unitRepository.findAll(pageable).map(this::toUnitResponse);
+    }
+    if (storeId != null) {
+      return unitRepository.findByStoreId(storeId, pageable).map(this::toUnitResponse);
+    }
+    return unitRepository.findByStoreIdIn(scope, pageable).map(this::toUnitResponse);
   }
 
-  public UnitResponse getUnit(Long id) {
-    return unitRepository.findById(id).map(this::toUnitResponse).orElseThrow(() -> notFound("Đơn vị tính", id));
+  public UnitResponse getUnit(Long id, JwtAuthenticatedPrincipal principal) {
+    Unit e = unitRepository.findById(id).orElseThrow(() -> notFound("Đơn vị tính", id));
+    storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
+    return toUnitResponse(e);
   }
 
   @Transactional
-  public UnitResponse createUnit(UnitRequest req) {
-    if (unitRepository.existsByUnitCode(req.unitCode())) {
+  public UnitResponse createUnit(UnitRequest req, JwtAuthenticatedPrincipal principal) {
+    long storeId = resolveStoreIdForMasterCreate(req.storeId(), principal);
+    if (unitRepository.existsByUnitCodeAndStoreId(req.unitCode(), storeId)) {
       throw new BusinessException("Mã đơn vị đã tồn tại: " + req.unitCode());
     }
     Unit e = new Unit();
+    e.setStoreId(storeId);
     e.setUnitCode(req.unitCode());
     e.setUnitName(req.unitName());
     e.setDescription(req.description());
@@ -269,9 +345,14 @@ public class MasterDataService {
   }
 
   @Transactional
-  public UnitResponse updateUnit(Long id, UnitRequest req) {
+  public UnitResponse updateUnit(Long id, UnitRequest req, JwtAuthenticatedPrincipal principal) {
     Unit e = unitRepository.findById(id).orElseThrow(() -> notFound("Đơn vị tính", id));
-    if (!e.getUnitCode().equals(req.unitCode()) && unitRepository.existsByUnitCode(req.unitCode())) {
+    storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
+    if (req.storeId() != null && !req.storeId().equals(e.getStoreId())) {
+      throw new BusinessException("Không được thay đổi cửa hàng của đơn vị tính.");
+    }
+    if (!e.getUnitCode().equals(req.unitCode())
+        && unitRepository.existsByUnitCodeAndStoreId(req.unitCode(), e.getStoreId())) {
       throw new BusinessException("Mã đơn vị đã tồn tại: " + req.unitCode());
     }
     e.setUnitCode(req.unitCode());
@@ -281,29 +362,43 @@ public class MasterDataService {
   }
 
   private UnitResponse toUnitResponse(Unit e) {
-    return new UnitResponse(e.getId(), e.getUnitCode(), e.getUnitName(), e.getDescription(), e.getCreatedAt());
+    return new UnitResponse(
+        e.getId(), e.getStoreId(), e.getUnitCode(), e.getUnitName(), e.getDescription(), e.getCreatedAt());
   }
 
   // --- Supplier ---
 
-  public Page<SupplierResponse> listSuppliers(Pageable pageable) {
-    return supplierRepository.findAll(pageable).map(this::toSupplierResponse);
+  public Page<SupplierResponse> listSuppliers(
+      Pageable pageable, Long storeId, JwtAuthenticatedPrincipal principal) {
+    List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
+    assertStoreFilterAccessible(storeId, scope);
+    if (scope == null) {
+      if (storeId != null) {
+        return supplierRepository.findByStoreId(storeId, pageable).map(this::toSupplierResponse);
+      }
+      return supplierRepository.findAll(pageable).map(this::toSupplierResponse);
+    }
+    if (storeId != null) {
+      return supplierRepository.findByStoreId(storeId, pageable).map(this::toSupplierResponse);
+    }
+    return supplierRepository.findByStoreIdIn(scope, pageable).map(this::toSupplierResponse);
   }
 
-  public SupplierResponse getSupplier(Long id) {
-    return supplierRepository
-        .findById(id)
-        .map(this::toSupplierResponse)
-        .orElseThrow(() -> notFound("Nhà cung cấp", id));
+  public SupplierResponse getSupplier(Long id, JwtAuthenticatedPrincipal principal) {
+    Supplier e = supplierRepository.findById(id).orElseThrow(() -> notFound("Nhà cung cấp", id));
+    storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
+    return toSupplierResponse(e);
   }
 
   @Transactional
-  public SupplierResponse createSupplier(SupplierRequest req) {
-    if (supplierRepository.existsBySupplierCode(req.supplierCode())) {
+  public SupplierResponse createSupplier(SupplierRequest req, JwtAuthenticatedPrincipal principal) {
+    long storeId = resolveStoreIdForMasterCreate(req.storeId(), principal);
+    if (supplierRepository.existsBySupplierCodeAndStoreId(req.supplierCode(), storeId)) {
       throw new BusinessException("Mã NCC đã tồn tại: " + req.supplierCode());
     }
     LocalDateTime t = now();
     Supplier e = new Supplier();
+    e.setStoreId(storeId);
     e.setSupplierCode(req.supplierCode());
     e.setSupplierName(req.supplierName());
     e.setContactPerson(req.contactPerson());
@@ -317,10 +412,15 @@ public class MasterDataService {
   }
 
   @Transactional
-  public SupplierResponse updateSupplier(Long id, SupplierRequest req) {
+  public SupplierResponse updateSupplier(
+      Long id, SupplierRequest req, JwtAuthenticatedPrincipal principal) {
     Supplier e = supplierRepository.findById(id).orElseThrow(() -> notFound("Nhà cung cấp", id));
+    storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
+    if (req.storeId() != null && !req.storeId().equals(e.getStoreId())) {
+      throw new BusinessException("Không được thay đổi cửa hàng của nhà cung cấp.");
+    }
     if (!e.getSupplierCode().equals(req.supplierCode())
-        && supplierRepository.existsBySupplierCode(req.supplierCode())) {
+        && supplierRepository.existsBySupplierCodeAndStoreId(req.supplierCode(), e.getStoreId())) {
       throw new BusinessException("Mã NCC đã tồn tại: " + req.supplierCode());
     }
     e.setSupplierCode(req.supplierCode());
@@ -337,6 +437,7 @@ public class MasterDataService {
   private SupplierResponse toSupplierResponse(Supplier e) {
     return new SupplierResponse(
         e.getId(),
+        e.getStoreId(),
         e.getSupplierCode(),
         e.getSupplierName(),
         e.getContactPerson(),
@@ -346,6 +447,39 @@ public class MasterDataService {
         e.getStatus(),
         e.getCreatedAt(),
         e.getUpdatedAt());
+  }
+
+  private long resolveStoreIdForMasterCreate(Long requestedStoreId, JwtAuthenticatedPrincipal principal) {
+    List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
+    if (scope == null) {
+      if (requestedStoreId == null) {
+        throw new BusinessException("Vui lòng chọn cửa hàng (storeId).");
+      }
+      if (!storeRepository.existsById(requestedStoreId)) {
+        throw new BusinessException("Cửa hàng không tồn tại: " + requestedStoreId);
+      }
+      return requestedStoreId;
+    }
+    if (requestedStoreId != null) {
+      storeAccessService.assertCanAccessStore(requestedStoreId, principal);
+      return requestedStoreId;
+    }
+    if (scope.size() == 1) {
+      return scope.get(0);
+    }
+    throw new BusinessException("Vui lòng chọn cửa hàng (storeId).");
+  }
+
+  private void assertStoreFilterAccessible(Long storeId, List<Long> scope) {
+    if (storeId == null) {
+      return;
+    }
+    if (!storeRepository.existsById(storeId)) {
+      throw new BusinessException("Cửa hàng không tồn tại: " + storeId);
+    }
+    if (scope != null && !scope.contains(storeId)) {
+      throw new AccessDeniedException("Không có quyền xem cửa hàng này.");
+    }
   }
 
   private static ResourceNotFoundException notFound(String label, Long id) {

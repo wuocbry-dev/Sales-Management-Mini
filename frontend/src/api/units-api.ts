@@ -3,7 +3,9 @@ import type { PageQuery } from "@/lib/spring-pagination";
 import type { UnitRequest, UnitResponse } from "@/types/master-data";
 import type { SpringPage } from "@/types/spring-page";
 
-export async function fetchUnitsPage(q: PageQuery): Promise<SpringPage<UnitResponse>> {
+export type UnitPageQuery = PageQuery & { storeId?: number };
+
+export async function fetchUnitsPage(q: UnitPageQuery): Promise<SpringPage<UnitResponse>> {
   const { data } = await apiClient.get<SpringPage<UnitResponse>>("/api/units", { params: q });
   return data;
 }

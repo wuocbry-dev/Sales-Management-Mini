@@ -21,6 +21,9 @@ public class Brand {
   @Column(name = "brand_id")
   private Long id;
 
+  @Column(name = "store_id", nullable = false)
+  private Long storeId;
+
   @Column(name = "brand_code", nullable = false, length = 50)
   private String brandCode;
 

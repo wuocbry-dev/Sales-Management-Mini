@@ -3,7 +3,9 @@ import type { PageQuery } from "@/lib/spring-pagination";
 import type { BrandRequest, BrandResponse } from "@/types/master-data";
 import type { SpringPage } from "@/types/spring-page";
 
-export async function fetchBrandsPage(q: PageQuery): Promise<SpringPage<BrandResponse>> {
+export type BrandPageQuery = PageQuery & { storeId?: number };
+
+export async function fetchBrandsPage(q: BrandPageQuery): Promise<SpringPage<BrandResponse>> {
   const { data } = await apiClient.get<SpringPage<BrandResponse>>("/api/brands", { params: q });
   return data;
 }

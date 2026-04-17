@@ -23,10 +23,11 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-function toReq(v: FormValues): CategoryRequest {
+function toReq(v: FormValues, storeId?: number): CategoryRequest {
   const raw = v.parentId?.trim();
   const parentId = raw && /^\d+$/.test(raw) ? Number(raw) : null;
   return {
+    storeId: typeof storeId === "number" && storeId > 0 ? storeId : undefined,
     parentId,
     categoryCode: v.categoryCode.trim(),
     categoryName: v.categoryName.trim(),
@@ -40,10 +41,11 @@ type Props = {
   category?: CategoryResponse | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  storeId?: number;
   onSuccess?: (saved?: CategoryResponse) => void;
 };
 
-export function CategoryFormDialog({ mode, category, open, onOpenChange, onSuccess }: Props) {
+export function CategoryFormDialog({ mode, category, open, onOpenChange, storeId, onSuccess }: Props) {
   const qc = useQueryClient();
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -68,7 +70,7 @@ export function CategoryFormDialog({ mode, category, open, onOpenChange, onSucce
   const mutation = useMutation({
     meta: { skipGlobalErrorToast: true },
     mutationFn: async (v: FormValues) => {
-      const body = toReq(v);
+      const body = toReq(v, storeId);
       if (mode === "create") return createCategory(body);
       if (!category) throw new Error("Thiếu nhóm hàng");
       return updateCategory(category.id, body);

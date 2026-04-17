@@ -25,8 +25,9 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-function toReq(v: FormValues): SupplierRequest {
+function toReq(v: FormValues, storeId?: number): SupplierRequest {
   return {
+    storeId: typeof storeId === "number" && storeId > 0 ? storeId : undefined,
     supplierCode: v.supplierCode.trim(),
     supplierName: v.supplierName.trim(),
     contactPerson: v.contactPerson?.trim() ? v.contactPerson.trim() : null,
@@ -42,10 +43,11 @@ type Props = {
   supplier?: SupplierResponse | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  storeId?: number;
   onSuccess?: (saved?: SupplierResponse) => void;
 };
 
-export function SupplierFormDialog({ mode, supplier, open, onOpenChange, onSuccess }: Props) {
+export function SupplierFormDialog({ mode, supplier, open, onOpenChange, storeId, onSuccess }: Props) {
   const qc = useQueryClient();
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -88,7 +90,7 @@ export function SupplierFormDialog({ mode, supplier, open, onOpenChange, onSucce
   const mutation = useMutation({
     meta: { skipGlobalErrorToast: true },
     mutationFn: async (v: FormValues) => {
-      const body = toReq(v);
+      const body = toReq(v, storeId);
       if (mode === "create") return createSupplier(body);
       if (!supplier) throw new Error("Thiếu nhà cung cấp");
       return updateSupplier(supplier.id, body);

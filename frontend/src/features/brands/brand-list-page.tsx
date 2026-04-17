@@ -19,6 +19,7 @@ const DEFAULT_SIZE = 10;
 export function BrandListPage() {
   const me = useAuthStore((s) => s.me);
   const canMutate = Boolean(me && gateProductCatalogMutate(me));
+  const preferredStoreId = me?.defaultStoreId ?? me?.storeIds[0];
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get("trang") ?? "0") || 0);
   const size = Math.min(100, Math.max(1, Number(params.get("kichThuoc") ?? String(DEFAULT_SIZE)) || DEFAULT_SIZE));
@@ -95,7 +96,13 @@ export function BrandListPage() {
         </CardContent>
       </Card>
       {canMutate ? (
-        <BrandFormDialog mode="create" open={open} onOpenChange={setOpen} onSuccess={() => void q.refetch()} />
+        <BrandFormDialog
+          mode="create"
+          open={open}
+          onOpenChange={setOpen}
+          storeId={preferredStoreId}
+          onSuccess={() => void q.refetch()}
+        />
       ) : null}
     </div>
   );

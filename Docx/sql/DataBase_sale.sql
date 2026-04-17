@@ -75,6 +75,7 @@ DROP TABLE IF EXISTS `brands`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `brands` (
   `brand_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `store_id` bigint unsigned NOT NULL,
   `brand_code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `brand_name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
   `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -82,7 +83,9 @@ CREATE TABLE `brands` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`brand_id`),
-  UNIQUE KEY `brand_code` (`brand_code`)
+  UNIQUE KEY `uk_brands_store_code` (`store_id`,`brand_code`),
+  KEY `fk_brands_store` (`store_id`),
+  CONSTRAINT `fk_brands_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -95,6 +98,7 @@ DROP TABLE IF EXISTS `categories`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `categories` (
   `category_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `store_id` bigint unsigned NOT NULL,
   `parent_id` bigint unsigned DEFAULT NULL,
   `category_code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `category_name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -103,8 +107,10 @@ CREATE TABLE `categories` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`category_id`),
-  UNIQUE KEY `category_code` (`category_code`),
+  UNIQUE KEY `uk_categories_store_code` (`store_id`,`category_code`),
+  KEY `fk_categories_store` (`store_id`),
   KEY `fk_categories_parent` (`parent_id`),
+  CONSTRAINT `fk_categories_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`),
   CONSTRAINT `fk_categories_parent` FOREIGN KEY (`parent_id`) REFERENCES `categories` (`category_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -706,6 +712,7 @@ DROP TABLE IF EXISTS `suppliers`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `suppliers` (
   `supplier_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `store_id` bigint unsigned NOT NULL,
   `supplier_code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `supplier_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `contact_person` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -716,7 +723,9 @@ CREATE TABLE `suppliers` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`supplier_id`),
-  UNIQUE KEY `supplier_code` (`supplier_code`)
+  UNIQUE KEY `uk_suppliers_store_code` (`store_id`,`supplier_code`),
+  KEY `fk_suppliers_store` (`store_id`),
+  CONSTRAINT `fk_suppliers_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -729,12 +738,15 @@ DROP TABLE IF EXISTS `units`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `units` (
   `unit_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `store_id` bigint unsigned NOT NULL,
   `unit_code` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `unit_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`unit_id`),
-  UNIQUE KEY `unit_code` (`unit_code`)
+  UNIQUE KEY `uk_units_store_code` (`store_id`,`unit_code`),
+  KEY `fk_units_store` (`store_id`),
+  CONSTRAINT `fk_units_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

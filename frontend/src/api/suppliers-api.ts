@@ -3,7 +3,9 @@ import type { PageQuery } from "@/lib/spring-pagination";
 import type { SupplierRequest, SupplierResponse } from "@/types/master-data";
 import type { SpringPage } from "@/types/spring-page";
 
-export async function fetchSuppliersPage(q: PageQuery): Promise<SpringPage<SupplierResponse>> {
+export type SupplierPageQuery = PageQuery & { storeId?: number };
+
+export async function fetchSuppliersPage(q: SupplierPageQuery): Promise<SpringPage<SupplierResponse>> {
   const { data } = await apiClient.get<SpringPage<SupplierResponse>>("/api/suppliers", { params: q });
   return data;
 }

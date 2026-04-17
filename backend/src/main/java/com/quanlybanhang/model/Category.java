@@ -21,6 +21,9 @@ public class Category {
   @Column(name = "category_id")
   private Long id;
 
+  @Column(name = "store_id", nullable = false)
+  private Long storeId;
+
   @Column(name = "parent_id")
   private Long parentId;
 

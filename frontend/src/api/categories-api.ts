@@ -3,7 +3,9 @@ import type { PageQuery } from "@/lib/spring-pagination";
 import type { CategoryRequest, CategoryResponse } from "@/types/master-data";
 import type { SpringPage } from "@/types/spring-page";
 
-export async function fetchCategoriesPage(q: PageQuery): Promise<SpringPage<CategoryResponse>> {
+export type CategoryPageQuery = PageQuery & { storeId?: number };
+
+export async function fetchCategoriesPage(q: CategoryPageQuery): Promise<SpringPage<CategoryResponse>> {
   const { data } = await apiClient.get<SpringPage<CategoryResponse>>("/api/categories", { params: q });
   return data;
 }

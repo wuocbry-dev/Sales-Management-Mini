@@ -161,17 +161,22 @@ export function ProductEditPage() {
     enabled: !invalid,
   });
 
+  const masterStoreId = productQ.data?.storeId ?? 0;
+
   const brandsQ = useQuery({
-    queryKey: ["product-edit", "brands"],
-    queryFn: () => fetchBrandsPage({ page: 0, size: 200 }),
+    queryKey: ["product-edit", "brands", masterStoreId],
+    queryFn: () => fetchBrandsPage({ page: 0, size: 200, storeId: masterStoreId }),
+    enabled: masterStoreId > 0,
   });
   const categoriesQ = useQuery({
-    queryKey: ["product-edit", "categories"],
-    queryFn: () => fetchCategoriesPage({ page: 0, size: 200 }),
+    queryKey: ["product-edit", "categories", masterStoreId],
+    queryFn: () => fetchCategoriesPage({ page: 0, size: 200, storeId: masterStoreId }),
+    enabled: masterStoreId > 0,
   });
   const unitsQ = useQuery({
-    queryKey: ["product-edit", "units"],
-    queryFn: () => fetchUnitsPage({ page: 0, size: 200 }),
+    queryKey: ["product-edit", "units", masterStoreId],
+    queryFn: () => fetchUnitsPage({ page: 0, size: 200, storeId: masterStoreId }),
+    enabled: masterStoreId > 0,
   });
 
   const imageMeta = productQ.data?.images ?? [];

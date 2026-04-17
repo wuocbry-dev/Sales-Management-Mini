@@ -21,8 +21,9 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-function toReq(v: FormValues): UnitRequest {
+function toReq(v: FormValues, storeId?: number): UnitRequest {
   return {
+    storeId: typeof storeId === "number" && storeId > 0 ? storeId : undefined,
     unitCode: v.unitCode.trim(),
     unitName: v.unitName.trim(),
     description: v.description?.trim() ? v.description.trim() : null,
@@ -34,10 +35,11 @@ type Props = {
   unit?: UnitResponse | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  storeId?: number;
   onSuccess?: (saved?: UnitResponse) => void;
 };
 
-export function UnitFormDialog({ mode, unit, open, onOpenChange, onSuccess }: Props) {
+export function UnitFormDialog({ mode, unit, open, onOpenChange, storeId, onSuccess }: Props) {
   const qc = useQueryClient();
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -60,7 +62,7 @@ export function UnitFormDialog({ mode, unit, open, onOpenChange, onSuccess }: Pr
   const mutation = useMutation({
     meta: { skipGlobalErrorToast: true },
     mutationFn: async (v: FormValues) => {
-      const body = toReq(v);
+      const body = toReq(v, storeId);
       if (mode === "create") return createUnit(body);
       if (!unit) throw new Error("Thiếu đơn vị");
       return updateUnit(unit.id, body);

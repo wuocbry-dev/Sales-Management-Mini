@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -95,6 +95,19 @@ export function GoodsReceiptCreatePage() {
   });
 
   const storeIdWatch = Number(form.watch("storeId")) || (me && !pickStore ? me.storeIds[0] : 0);
+  const previousStoreIdRef = useRef<number>(storeIdWatch);
+
+  useEffect(() => {
+    if (previousStoreIdRef.current === storeIdWatch) {
+      return;
+    }
+    previousStoreIdRef.current = storeIdWatch;
+    form.setValue("warehouseId", "", { shouldDirty: true, shouldValidate: true });
+    form.setValue("supplierId", "", { shouldDirty: true, shouldValidate: true });
+    const nextLines = form.getValues("lines").map((line) => ({ ...line, variantId: 0 }));
+    form.setValue("lines", nextLines, { shouldDirty: true, shouldValidate: true });
+  }, [form, storeIdWatch]);
+
   const warehousesQ = useQuery({
     queryKey: ["gr-create", "wh", storeIdWatch],
     queryFn: () => fetchWarehousesForStore(storeIdWatch),
@@ -102,8 +115,9 @@ export function GoodsReceiptCreatePage() {
   });
 
   const suppliersQ = useQuery({
-    queryKey: ["gr-create", "suppliers"],
-    queryFn: () => fetchSuppliersPage({ page: 0, size: 200 }),
+    queryKey: ["gr-create", "suppliers", storeIdWatch],
+    queryFn: () => fetchSuppliersPage({ page: 0, size: 200, storeId: storeIdWatch }),
+    enabled: storeIdWatch > 0,
   });
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
@@ -214,14 +228,20 @@ export function GoodsReceiptCreatePage() {
                           <button
                             type="button"
                             className="text-xs font-medium text-primary hover:underline"
-                            onClick={() => setSupplierDialogOpen(true)}
+                            onClick={() => {
+                              if (!storeIdWatch) {
+                                toast.error("Vui lòng chọn cửa hàng trước.");
+                                return;
+                              }
+                              setSupplierDialogOpen(true);
+                            }}
                           >
                             Khác
                           </button>
                         ) : null}
                       </div>
                       <FormControl>
-                        <select {...field} className={selectClass} disabled={suppliersQ.isPending}>
+                        <select {...field} className={selectClass} disabled={!storeIdWatch || suppliersQ.isPending}>
                           <option value="">— Không chọn —</option>
                           {suppliers.map((s) => (
                             <option key={s.id} value={String(s.id)}>
@@ -390,6 +410,7 @@ export function GoodsReceiptCreatePage() {
           mode="create"
           open={supplierDialogOpen}
           onOpenChange={setSupplierDialogOpen}
+          storeId={storeIdWatch > 0 ? storeIdWatch : undefined}
           onSuccess={(saved) => {
             void suppliersQ.refetch();
             if (saved?.id) {

@@ -226,7 +226,7 @@ public class ProductService {
     if (productRepository.existsByProductCodeAndStoreId(req.productCode(), storeId)) {
       throw new BusinessException("Mã sản phẩm đã tồn tại trong cửa hàng: " + req.productCode());
     }
-    validateProductFks(req.categoryId(), req.brandId(), req.unitId());
+    validateProductFks(req.categoryId(), req.brandId(), req.unitId(), storeId);
     Set<String> skusInRequest = new HashSet<>();
     for (ProductVariantRequest v : req.variants()) {
       String sku = v.sku().trim();
@@ -316,7 +316,7 @@ public class ProductService {
             .findById(productId)
             .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại: " + productId));
     storeAccessService.assertCanAccessStore(p.getStoreId(), principal);
-    validateProductFks(req.categoryId(), req.brandId(), req.unitId());
+    validateProductFks(req.categoryId(), req.brandId(), req.unitId(), p.getStoreId());
 
     long storeId = p.getStoreId();
     String newCode = req.productCode().trim();
@@ -577,15 +577,33 @@ public class ProductService {
     }
   }
 
-  private void validateProductFks(Long categoryId, Long brandId, Long unitId) {
-    if (categoryId != null && !categoryRepository.existsById(categoryId)) {
-      throw new BusinessException("Danh mục không tồn tại: " + categoryId);
+  private void validateProductFks(Long categoryId, Long brandId, Long unitId, Long storeId) {
+    if (categoryId != null) {
+      var category =
+          categoryRepository
+              .findById(categoryId)
+              .orElseThrow(() -> new BusinessException("Danh mục không tồn tại: " + categoryId));
+      if (!Objects.equals(category.getStoreId(), storeId)) {
+        throw new BusinessException("Danh mục không thuộc cửa hàng của sản phẩm.");
+      }
     }
-    if (brandId != null && !brandRepository.existsById(brandId)) {
-      throw new BusinessException("Thương hiệu không tồn tại: " + brandId);
+    if (brandId != null) {
+      var brand =
+          brandRepository
+              .findById(brandId)
+              .orElseThrow(() -> new BusinessException("Thương hiệu không tồn tại: " + brandId));
+      if (!Objects.equals(brand.getStoreId(), storeId)) {
+        throw new BusinessException("Thương hiệu không thuộc cửa hàng của sản phẩm.");
+      }
     }
-    if (unitId != null && !unitRepository.existsById(unitId)) {
-      throw new BusinessException("Đơn vị tính không tồn tại: " + unitId);
+    if (unitId != null) {
+      var unit =
+          unitRepository
+              .findById(unitId)
+              .orElseThrow(() -> new BusinessException("Đơn vị tính không tồn tại: " + unitId));
+      if (!Objects.equals(unit.getStoreId(), storeId)) {
+        throw new BusinessException("Đơn vị tính không thuộc cửa hàng của sản phẩm.");
+      }
     }
   }
 

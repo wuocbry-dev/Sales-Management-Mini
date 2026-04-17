@@ -22,8 +22,9 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-function toReq(v: FormValues): BrandRequest {
+function toReq(v: FormValues, storeId?: number): BrandRequest {
   return {
+    storeId: typeof storeId === "number" && storeId > 0 ? storeId : undefined,
     brandCode: v.brandCode.trim(),
     brandName: v.brandName.trim(),
     description: v.description?.trim() ? v.description.trim() : null,
@@ -36,10 +37,11 @@ type Props = {
   brand?: BrandResponse | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  storeId?: number;
   onSuccess?: (saved?: BrandResponse) => void;
 };
 
-export function BrandFormDialog({ mode, brand, open, onOpenChange, onSuccess }: Props) {
+export function BrandFormDialog({ mode, brand, open, onOpenChange, storeId, onSuccess }: Props) {
   const qc = useQueryClient();
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -63,7 +65,7 @@ export function BrandFormDialog({ mode, brand, open, onOpenChange, onSuccess }: 
   const mutation = useMutation({
     meta: { skipGlobalErrorToast: true },
     mutationFn: async (v: FormValues) => {
-      const body = toReq(v);
+      const body = toReq(v, storeId);
       if (mode === "create") return createBrand(body);
       if (!brand) throw new Error("Thiếu thương hiệu");
       return updateBrand(brand.id, body);

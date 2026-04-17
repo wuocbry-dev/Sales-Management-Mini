@@ -124,18 +124,6 @@ export function ProductCreatePage() {
   const [unitDialogOpen, setUnitDialogOpen] = useState(false);
 
   const { stores: storePickerList, getStoreName, isPending: storesPending, isError: storesError } = useStoreNameMap();
-  const brandsQ = useQuery({
-    queryKey: ["product-create", "brands"],
-    queryFn: () => fetchBrandsPage({ page: 0, size: 200 }),
-  });
-  const categoriesQ = useQuery({
-    queryKey: ["product-create", "categories"],
-    queryFn: () => fetchCategoriesPage({ page: 0, size: 200 }),
-  });
-  const unitsQ = useQuery({
-    queryKey: ["product-create", "units"],
-    queryFn: () => fetchUnitsPage({ page: 0, size: 200 }),
-  });
 
   const defaultVariant = useMemo(
     () => ({
@@ -174,6 +162,24 @@ export function ProductCreatePage() {
   const productCodeWatch = form.watch("productCode");
   const selectedStoreId = needStorePicker ? Number(form.watch("storeId")) || 0 : (me?.storeIds[0] ?? 0);
   const variantsWatch = form.watch("variants");
+  const masterDataEnabled = selectedStoreId > 0;
+  const previousMasterStoreIdRef = useRef<number>(selectedStoreId);
+
+  const brandsQ = useQuery({
+    queryKey: ["product-create", "brands", selectedStoreId],
+    queryFn: () => fetchBrandsPage({ page: 0, size: 200, storeId: selectedStoreId }),
+    enabled: masterDataEnabled,
+  });
+  const categoriesQ = useQuery({
+    queryKey: ["product-create", "categories", selectedStoreId],
+    queryFn: () => fetchCategoriesPage({ page: 0, size: 200, storeId: selectedStoreId }),
+    enabled: masterDataEnabled,
+  });
+  const unitsQ = useQuery({
+    queryKey: ["product-create", "units", selectedStoreId],
+    queryFn: () => fetchUnitsPage({ page: 0, size: 200, storeId: selectedStoreId }),
+    enabled: masterDataEnabled,
+  });
 
   useEffect(() => {
     if (hasVariant || fields.length <= 1) {
@@ -182,6 +188,19 @@ export function ProductCreatePage() {
     const firstVariant = form.getValues("variants.0") ?? defaultVariant;
     form.setValue("variants", [firstVariant], { shouldDirty: true, shouldValidate: true });
   }, [defaultVariant, fields.length, form, hasVariant]);
+
+  useEffect(() => {
+    if (!needStorePicker) {
+      return;
+    }
+    if (previousMasterStoreIdRef.current === selectedStoreId) {
+      return;
+    }
+    previousMasterStoreIdRef.current = selectedStoreId;
+    form.setValue("categoryId", "", { shouldDirty: true, shouldValidate: true });
+    form.setValue("brandId", "", { shouldDirty: true, shouldValidate: true });
+    form.setValue("unitId", "", { shouldDirty: true, shouldValidate: true });
+  }, [form, needStorePicker, selectedStoreId]);
 
   const currentFormSkus = useMemo(
     () => (variantsWatch ?? []).map((v) => normalizeSku(v?.sku)).filter((v) => v.length > 0),
@@ -260,9 +279,9 @@ export function ProductCreatePage() {
   });
 
   const storeOptions = storePickerList;
-  const brandOptions = brandsQ.data?.content ?? [];
-  const categoryOptions = categoriesQ.data?.content ?? [];
-  const unitOptions = unitsQ.data?.content ?? [];
+  const brandOptions = masterDataEnabled ? (brandsQ.data?.content ?? []) : [];
+  const categoryOptions = masterDataEnabled ? (categoriesQ.data?.content ?? []) : [];
+  const unitOptions = masterDataEnabled ? (unitsQ.data?.content ?? []) : [];
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -361,7 +380,13 @@ export function ProductCreatePage() {
                               <button
                                 type="button"
                                 className="text-xs font-medium text-primary hover:underline"
-                                onClick={() => setCategoryDialogOpen(true)}
+                                onClick={() => {
+                                  if (!masterDataEnabled) {
+                                    toast.error("Vui lòng chọn cửa hàng trước.");
+                                    return;
+                                  }
+                                  setCategoryDialogOpen(true);
+                                }}
                               >
                                 Khác
                               </button>
@@ -374,8 +399,8 @@ export function ProductCreatePage() {
                               onBlur={field.onBlur}
                               options={categoryOptions.map((c) => ({ id: c.id, label: c.categoryName }))}
                               placeholder="Chọn nhóm hàng"
-                              disabled={categoriesQ.isError || categoriesQ.isPending}
-                              noResultsText="Không có nhóm hàng phù hợp."
+                              disabled={!masterDataEnabled || categoriesQ.isError || categoriesQ.isPending}
+                              noResultsText={masterDataEnabled ? "Không có nhóm hàng phù hợp." : "Chọn cửa hàng trước."}
                             />
                           </FormControl>
                           <FormMessage />
@@ -393,7 +418,13 @@ export function ProductCreatePage() {
                               <button
                                 type="button"
                                 className="text-xs font-medium text-primary hover:underline"
-                                onClick={() => setBrandDialogOpen(true)}
+                                onClick={() => {
+                                  if (!masterDataEnabled) {
+                                    toast.error("Vui lòng chọn cửa hàng trước.");
+                                    return;
+                                  }
+                                  setBrandDialogOpen(true);
+                                }}
                               >
                                 Khác
                               </button>
@@ -406,8 +437,8 @@ export function ProductCreatePage() {
                               onBlur={field.onBlur}
                               options={brandOptions.map((b) => ({ id: b.id, label: b.brandName }))}
                               placeholder="Chọn thương hiệu"
-                              disabled={brandsQ.isError || brandsQ.isPending}
-                              noResultsText="Không có thương hiệu phù hợp."
+                              disabled={!masterDataEnabled || brandsQ.isError || brandsQ.isPending}
+                              noResultsText={masterDataEnabled ? "Không có thương hiệu phù hợp." : "Chọn cửa hàng trước."}
                             />
                           </FormControl>
                           <FormMessage />
@@ -426,7 +457,13 @@ export function ProductCreatePage() {
                               <button
                                 type="button"
                                 className="text-xs font-medium text-primary hover:underline"
-                                onClick={() => setUnitDialogOpen(true)}
+                                onClick={() => {
+                                  if (!masterDataEnabled) {
+                                    toast.error("Vui lòng chọn cửa hàng trước.");
+                                    return;
+                                  }
+                                  setUnitDialogOpen(true);
+                                }}
                               >
                                 Khác
                               </button>
@@ -439,8 +476,8 @@ export function ProductCreatePage() {
                               onBlur={field.onBlur}
                               options={unitOptions.map((u) => ({ id: u.id, label: u.unitName }))}
                               placeholder="Chọn đơn vị"
-                              disabled={unitsQ.isError || unitsQ.isPending}
-                              noResultsText="Không có đơn vị phù hợp."
+                              disabled={!masterDataEnabled || unitsQ.isError || unitsQ.isPending}
+                              noResultsText={masterDataEnabled ? "Không có đơn vị phù hợp." : "Chọn cửa hàng trước."}
                             />
                           </FormControl>
                           <FormMessage />
@@ -887,6 +924,7 @@ export function ProductCreatePage() {
             mode="create"
             open={categoryDialogOpen}
             onOpenChange={setCategoryDialogOpen}
+            storeId={selectedStoreId > 0 ? selectedStoreId : undefined}
             onSuccess={(saved) => {
               void categoriesQ.refetch();
               if (saved?.id) {
@@ -898,6 +936,7 @@ export function ProductCreatePage() {
             mode="create"
             open={brandDialogOpen}
             onOpenChange={setBrandDialogOpen}
+            storeId={selectedStoreId > 0 ? selectedStoreId : undefined}
             onSuccess={(saved) => {
               void brandsQ.refetch();
               if (saved?.id) {
@@ -909,6 +948,7 @@ export function ProductCreatePage() {
             mode="create"
             open={unitDialogOpen}
             onOpenChange={setUnitDialogOpen}
+            storeId={selectedStoreId > 0 ? selectedStoreId : undefined}
             onSuccess={(saved) => {
               void unitsQ.refetch();
               if (saved?.id) {

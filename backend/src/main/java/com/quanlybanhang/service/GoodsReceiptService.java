@@ -143,8 +143,14 @@ public class GoodsReceiptService {
       throw new BusinessException("Kho nhập không thuộc cửa hàng của phiếu.");
     }
     warehouseService.assertCanAccessWarehouse(dest.getId(), principal);
-    if (req.supplierId() != null && !supplierRepository.existsById(req.supplierId())) {
-      throw new BusinessException("Nhà cung cấp không tồn tại: " + req.supplierId());
+    if (req.supplierId() != null) {
+      var supplier =
+          supplierRepository
+              .findById(req.supplierId())
+              .orElseThrow(() -> new BusinessException("Nhà cung cấp không tồn tại: " + req.supplierId()));
+      if (!req.storeId().equals(supplier.getStoreId())) {
+        throw new BusinessException("Nhà cung cấp không thuộc cửa hàng của phiếu.");
+      }
     }
     for (GoodsReceiptLineRequest line : req.lines()) {
       if (!variantRepository.existsById(line.variantId())) {

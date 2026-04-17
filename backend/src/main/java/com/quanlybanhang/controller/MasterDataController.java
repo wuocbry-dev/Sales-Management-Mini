@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -64,103 +65,139 @@ public class MasterDataController {
 
   @GetMapping("/brands")
   @PreAuthorize("@authz.masterRead(authentication)")
-  public Page<BrandResponse> listBrands(Pageable pageable) {
-    return masterDataService.listBrands(pageable);
+  public Page<BrandResponse> listBrands(
+      Pageable pageable,
+      @RequestParam(required = false) Long storeId,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.listBrands(pageable, storeId, principal);
   }
 
   @GetMapping("/brands/{id}")
   @PreAuthorize("@authz.masterRead(authentication)")
-  public BrandResponse getBrand(@PathVariable Long id) {
-    return masterDataService.getBrand(id);
+  public BrandResponse getBrand(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.getBrand(id, principal);
   }
 
   @PostMapping("/brands")
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")
-  public BrandResponse createBrand(@Valid @RequestBody BrandRequest req) {
-    return masterDataService.createBrand(req);
+  public BrandResponse createBrand(
+      @Valid @RequestBody BrandRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.createBrand(req, principal);
   }
 
   @PutMapping("/brands/{id}")
   @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")
-  public BrandResponse updateBrand(@PathVariable Long id, @Valid @RequestBody BrandRequest req) {
-    return masterDataService.updateBrand(id, req);
+  public BrandResponse updateBrand(
+      @PathVariable Long id,
+      @Valid @RequestBody BrandRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.updateBrand(id, req, principal);
   }
 
   @GetMapping("/categories")
   @PreAuthorize("@authz.masterRead(authentication)")
-  public Page<CategoryResponse> listCategories(Pageable pageable) {
-    return masterDataService.listCategories(pageable);
+  public Page<CategoryResponse> listCategories(
+      Pageable pageable,
+      @RequestParam(required = false) Long storeId,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.listCategories(pageable, storeId, principal);
   }
 
   @GetMapping("/categories/{id}")
   @PreAuthorize("@authz.masterRead(authentication)")
-  public CategoryResponse getCategory(@PathVariable Long id) {
-    return masterDataService.getCategory(id);
+  public CategoryResponse getCategory(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.getCategory(id, principal);
   }
 
   @PostMapping("/categories")
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")
-  public CategoryResponse createCategory(@Valid @RequestBody CategoryRequest req) {
-    return masterDataService.createCategory(req);
+  public CategoryResponse createCategory(
+      @Valid @RequestBody CategoryRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.createCategory(req, principal);
   }
 
   @PutMapping("/categories/{id}")
   @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")
-  public CategoryResponse updateCategory(@PathVariable Long id, @Valid @RequestBody CategoryRequest req) {
-    return masterDataService.updateCategory(id, req);
+  public CategoryResponse updateCategory(
+      @PathVariable Long id,
+      @Valid @RequestBody CategoryRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.updateCategory(id, req, principal);
   }
 
   @GetMapping("/units")
   @PreAuthorize("@authz.masterRead(authentication)")
-  public Page<UnitResponse> listUnits(Pageable pageable) {
-    return masterDataService.listUnits(pageable);
+  public Page<UnitResponse> listUnits(
+      Pageable pageable,
+      @RequestParam(required = false) Long storeId,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.listUnits(pageable, storeId, principal);
   }
 
   @GetMapping("/units/{id}")
   @PreAuthorize("@authz.masterRead(authentication)")
-  public UnitResponse getUnit(@PathVariable Long id) {
-    return masterDataService.getUnit(id);
+  public UnitResponse getUnit(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.getUnit(id, principal);
   }
 
   @PostMapping("/units")
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")
-  public UnitResponse createUnit(@Valid @RequestBody UnitRequest req) {
-    return masterDataService.createUnit(req);
+  public UnitResponse createUnit(
+      @Valid @RequestBody UnitRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.createUnit(req, principal);
   }
 
   @PutMapping("/units/{id}")
   @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_UPDATE')")
-  public UnitResponse updateUnit(@PathVariable Long id, @Valid @RequestBody UnitRequest req) {
-    return masterDataService.updateUnit(id, req);
+  public UnitResponse updateUnit(
+      @PathVariable Long id,
+      @Valid @RequestBody UnitRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.updateUnit(id, req, principal);
   }
 
   @GetMapping("/suppliers")
   @PreAuthorize("@authz.masterRead(authentication)")
-  public Page<SupplierResponse> listSuppliers(Pageable pageable) {
-    return masterDataService.listSuppliers(pageable);
+  public Page<SupplierResponse> listSuppliers(
+      Pageable pageable,
+      @RequestParam(required = false) Long storeId,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.listSuppliers(pageable, storeId, principal);
   }
 
   @GetMapping("/suppliers/{id}")
   @PreAuthorize("@authz.masterRead(authentication)")
-  public SupplierResponse getSupplier(@PathVariable Long id) {
-    return masterDataService.getSupplier(id);
+  public SupplierResponse getSupplier(
+      @PathVariable Long id, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.getSupplier(id, principal);
   }
 
   @PostMapping("/suppliers")
   @ResponseStatus(HttpStatus.CREATED)
   @PreAuthorize(
       "@authz.systemManage(authentication) or @authz.hasAnyAuthority(authentication, 'GOODS_RECEIPT_CREATE', 'PRODUCT_UPDATE')")
-  public SupplierResponse createSupplier(@Valid @RequestBody SupplierRequest req) {
-    return masterDataService.createSupplier(req);
+  public SupplierResponse createSupplier(
+      @Valid @RequestBody SupplierRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.createSupplier(req, principal);
   }
 
   @PutMapping("/suppliers/{id}")
   @PreAuthorize(
       "@authz.systemManage(authentication) or @authz.hasAnyAuthority(authentication, 'GOODS_RECEIPT_CREATE', 'PRODUCT_UPDATE')")
-  public SupplierResponse updateSupplier(@PathVariable Long id, @Valid @RequestBody SupplierRequest req) {
-    return masterDataService.updateSupplier(id, req);
+  public SupplierResponse updateSupplier(
+      @PathVariable Long id,
+      @Valid @RequestBody SupplierRequest req,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return masterDataService.updateSupplier(id, req, principal);
   }
 }

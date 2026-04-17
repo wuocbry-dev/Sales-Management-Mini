@@ -28,6 +28,7 @@ public final class MasterDataDtos {
       LocalDateTime updatedAt) {}
 
   public record BrandRequest(
+      Long storeId,
       @NotBlank @Size(max = 50) String brandCode,
       @NotBlank @Size(max = 150) String brandName,
       @Size(max = 255) String description,
@@ -35,6 +36,7 @@ public final class MasterDataDtos {
 
   public record BrandResponse(
       Long id,
+      Long storeId,
       String brandCode,
       String brandName,
       String description,
@@ -43,6 +45,7 @@ public final class MasterDataDtos {
       LocalDateTime updatedAt) {}
 
   public record CategoryRequest(
+      Long storeId,
       Long parentId,
       @NotBlank @Size(max = 50) String categoryCode,
       @NotBlank @Size(max = 150) String categoryName,
@@ -51,6 +54,7 @@ public final class MasterDataDtos {
 
   public record CategoryResponse(
       Long id,
+      Long storeId,
       Long parentId,
       String categoryCode,
       String categoryName,
@@ -60,14 +64,21 @@ public final class MasterDataDtos {
       LocalDateTime updatedAt) {}
 
   public record UnitRequest(
+      Long storeId,
       @NotBlank @Size(max = 50) String unitCode,
       @NotBlank @Size(max = 100) String unitName,
       @Size(max = 255) String description) {}
 
   public record UnitResponse(
-      Long id, String unitCode, String unitName, String description, LocalDateTime createdAt) {}
+      Long id,
+      Long storeId,
+      String unitCode,
+      String unitName,
+      String description,
+      LocalDateTime createdAt) {}
 
   public record SupplierRequest(
+      Long storeId,
       @NotBlank @Size(max = 50) String supplierCode,
       @NotBlank @Size(max = 255) String supplierName,
       @Size(max = 150) String contactPerson,
@@ -78,6 +89,7 @@ public final class MasterDataDtos {
 
   public record SupplierResponse(
       Long id,
+      Long storeId,
       String supplierCode,
       String supplierName,
       String contactPerson,

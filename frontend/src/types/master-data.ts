@@ -22,6 +22,7 @@ export type StoreResponse = {
 };
 
 export type BrandRequest = {
+  storeId?: number | null;
   brandCode: string;
   brandName: string;
   description?: string | null;
@@ -30,6 +31,7 @@ export type BrandRequest = {
 
 export type BrandResponse = {
   id: number;
+  storeId: number;
   brandCode: string;
   brandName: string;
   description: string | null;
@@ -39,6 +41,7 @@ export type BrandResponse = {
 };
 
 export type CategoryRequest = {
+  storeId?: number | null;
   parentId?: number | null;
   categoryCode: string;
   categoryName: string;
@@ -48,6 +51,7 @@ export type CategoryRequest = {
 
 export type CategoryResponse = {
   id: number;
+  storeId: number;
   parentId: number | null;
   categoryCode: string;
   categoryName: string;
@@ -58,6 +62,7 @@ export type CategoryResponse = {
 };
 
 export type UnitRequest = {
+  storeId?: number | null;
   unitCode: string;
   unitName: string;
   description?: string | null;
@@ -65,6 +70,7 @@ export type UnitRequest = {
 
 export type UnitResponse = {
   id: number;
+  storeId: number;
   unitCode: string;
   unitName: string;
   description: string | null;
@@ -72,6 +78,7 @@ export type UnitResponse = {
 };
 
 export type SupplierRequest = {
+  storeId?: number | null;
   supplierCode: string;
   supplierName: string;
   contactPerson?: string | null;
@@ -83,6 +90,7 @@ export type SupplierRequest = {
 
 export type SupplierResponse = {
   id: number;
+  storeId: number;
   supplierCode: string;
   supplierName: string;
   contactPerson: string | null;

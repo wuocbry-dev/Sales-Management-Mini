@@ -16,10 +16,46 @@
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
+-- Drop all tables first (consolidated at top)
+--
+DROP TABLE IF EXISTS `audit_logs`;
+DROP TABLE IF EXISTS `branches`;
+DROP TABLE IF EXISTS `brands`;
+DROP TABLE IF EXISTS `categories`;
+DROP TABLE IF EXISTS `customers`;
+DROP TABLE IF EXISTS `goods_receipt_items`;
+DROP TABLE IF EXISTS `goods_receipts`;
+DROP TABLE IF EXISTS `inventories`;
+DROP TABLE IF EXISTS `inventory_transactions`;
+DROP TABLE IF EXISTS `payments`;
+DROP TABLE IF EXISTS `permissions`;
+DROP TABLE IF EXISTS `product_images`;
+DROP TABLE IF EXISTS `product_variants`;
+DROP TABLE IF EXISTS `products`;
+DROP TABLE IF EXISTS `role_permission_overrides`;
+DROP TABLE IF EXISTS `role_permissions`;
+DROP TABLE IF EXISTS `roles`;
+DROP TABLE IF EXISTS `sales_order_items`;
+DROP TABLE IF EXISTS `sales_orders`;
+DROP TABLE IF EXISTS `sales_return_items`;
+DROP TABLE IF EXISTS `sales_returns`;
+DROP TABLE IF EXISTS `stock_transfer_items`;
+DROP TABLE IF EXISTS `stock_transfers`;
+DROP TABLE IF EXISTS `stocktake_items`;
+DROP TABLE IF EXISTS `stocktakes`;
+DROP TABLE IF EXISTS `stores`;
+DROP TABLE IF EXISTS `suppliers`;
+DROP TABLE IF EXISTS `units`;
+DROP TABLE IF EXISTS `user_branches`;
+DROP TABLE IF EXISTS `user_roles`;
+DROP TABLE IF EXISTS `user_stores`;
+DROP TABLE IF EXISTS `users`;
+DROP TABLE IF EXISTS `warehouses`;
+
+--
 -- Table structure for table `audit_logs`
 --
 
-DROP TABLE IF EXISTS `audit_logs`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `audit_logs` (
@@ -55,7 +91,6 @@ UNLOCK TABLES;
 -- Table structure for table `branches`
 --
 
-DROP TABLE IF EXISTS `branches`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `branches` (
@@ -89,11 +124,11 @@ UNLOCK TABLES;
 -- Table structure for table `brands`
 --
 
-DROP TABLE IF EXISTS `brands`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `brands` (
   `brand_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `store_id` bigint unsigned NOT NULL,
   `brand_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `brand_name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -101,7 +136,9 @@ CREATE TABLE `brands` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`brand_id`),
-  UNIQUE KEY `brand_code` (`brand_code`)
+  UNIQUE KEY `uk_brands_store_code` (`store_id`,`brand_code`),
+  KEY `fk_brands_store` (`store_id`),
+  CONSTRAINT `fk_brands_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -118,11 +155,11 @@ UNLOCK TABLES;
 -- Table structure for table `categories`
 --
 
-DROP TABLE IF EXISTS `categories`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `categories` (
   `category_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `store_id` bigint unsigned NOT NULL,
   `parent_id` bigint unsigned DEFAULT NULL,
   `category_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `category_name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -131,8 +168,10 @@ CREATE TABLE `categories` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`category_id`),
-  UNIQUE KEY `category_code` (`category_code`),
+  UNIQUE KEY `uk_categories_store_code` (`store_id`,`category_code`),
+  KEY `fk_categories_store` (`store_id`),
   KEY `fk_categories_parent` (`parent_id`),
+  CONSTRAINT `fk_categories_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`),
   CONSTRAINT `fk_categories_parent` FOREIGN KEY (`parent_id`) REFERENCES `categories` (`category_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -150,7 +189,6 @@ UNLOCK TABLES;
 -- Table structure for table `customers`
 --
 
-DROP TABLE IF EXISTS `customers`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `customers` (
@@ -186,7 +224,6 @@ UNLOCK TABLES;
 -- Table structure for table `goods_receipt_items`
 --
 
-DROP TABLE IF EXISTS `goods_receipt_items`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `goods_receipt_items` (
@@ -218,7 +255,6 @@ UNLOCK TABLES;
 -- Table structure for table `goods_receipts`
 --
 
-DROP TABLE IF EXISTS `goods_receipts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `goods_receipts` (
@@ -263,7 +299,6 @@ UNLOCK TABLES;
 -- Table structure for table `inventories`
 --
 
-DROP TABLE IF EXISTS `inventories`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `inventories` (
@@ -296,7 +331,6 @@ UNLOCK TABLES;
 -- Table structure for table `inventory_transactions`
 --
 
-DROP TABLE IF EXISTS `inventory_transactions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `inventory_transactions` (
@@ -338,7 +372,6 @@ UNLOCK TABLES;
 -- Table structure for table `payments`
 --
 
-DROP TABLE IF EXISTS `payments`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `payments` (
@@ -379,7 +412,6 @@ UNLOCK TABLES;
 -- Table structure for table `permissions`
 --
 
-DROP TABLE IF EXISTS `permissions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `permissions` (
@@ -408,7 +440,6 @@ UNLOCK TABLES;
 -- Table structure for table `product_images`
 --
 
-DROP TABLE IF EXISTS `product_images`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `product_images` (
@@ -439,7 +470,6 @@ UNLOCK TABLES;
 -- Table structure for table `product_variants`
 --
 
-DROP TABLE IF EXISTS `product_variants`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `product_variants` (
@@ -476,7 +506,6 @@ UNLOCK TABLES;
 -- Table structure for table `products`
 --
 
-DROP TABLE IF EXISTS `products`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `products` (
@@ -484,7 +513,7 @@ CREATE TABLE `products` (
   `category_id` bigint unsigned DEFAULT NULL,
   `brand_id` bigint unsigned DEFAULT NULL,
   `unit_id` bigint unsigned DEFAULT NULL,
-  `store_id` bigint unsigned DEFAULT NULL COMMENT 'Cá»­a hÃ ng sá»Ÿ há»¯u catalog sáº£n pháº©m',
+  `store_id` bigint unsigned NOT NULL COMMENT 'Store owning product catalog',
   `product_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `product_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `product_type` varchar(7) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -520,7 +549,6 @@ UNLOCK TABLES;
 -- Table structure for table `role_permission_overrides`
 --
 
-DROP TABLE IF EXISTS `role_permission_overrides`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `role_permission_overrides` (
@@ -556,7 +584,6 @@ UNLOCK TABLES;
 -- Table structure for table `role_permissions`
 --
 
-DROP TABLE IF EXISTS `role_permissions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `role_permissions` (
@@ -583,7 +610,6 @@ UNLOCK TABLES;
 -- Table structure for table `roles`
 --
 
-DROP TABLE IF EXISTS `roles`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `roles` (
@@ -612,7 +638,6 @@ UNLOCK TABLES;
 -- Table structure for table `sales_order_items`
 --
 
-DROP TABLE IF EXISTS `sales_order_items`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sales_order_items` (
@@ -644,7 +669,6 @@ UNLOCK TABLES;
 -- Table structure for table `sales_orders`
 --
 
-DROP TABLE IF EXISTS `sales_orders`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sales_orders` (
@@ -688,7 +712,6 @@ UNLOCK TABLES;
 -- Table structure for table `sales_return_items`
 --
 
-DROP TABLE IF EXISTS `sales_return_items`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sales_return_items` (
@@ -723,7 +746,6 @@ UNLOCK TABLES;
 -- Table structure for table `sales_returns`
 --
 
-DROP TABLE IF EXISTS `sales_returns`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sales_returns` (
@@ -764,7 +786,6 @@ UNLOCK TABLES;
 -- Table structure for table `stock_transfer_items`
 --
 
-DROP TABLE IF EXISTS `stock_transfer_items`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `stock_transfer_items` (
@@ -793,7 +814,6 @@ UNLOCK TABLES;
 -- Table structure for table `stock_transfers`
 --
 
-DROP TABLE IF EXISTS `stock_transfers`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `stock_transfers` (
@@ -837,7 +857,6 @@ UNLOCK TABLES;
 -- Table structure for table `stocktake_items`
 --
 
-DROP TABLE IF EXISTS `stocktake_items`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `stocktake_items` (
@@ -869,7 +888,6 @@ UNLOCK TABLES;
 -- Table structure for table `stocktakes`
 --
 
-DROP TABLE IF EXISTS `stocktakes`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `stocktakes` (
@@ -908,7 +926,6 @@ UNLOCK TABLES;
 -- Table structure for table `stores`
 --
 
-DROP TABLE IF EXISTS `stores`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `stores` (
@@ -940,11 +957,11 @@ UNLOCK TABLES;
 -- Table structure for table `suppliers`
 --
 
-DROP TABLE IF EXISTS `suppliers`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `suppliers` (
   `supplier_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `store_id` bigint unsigned NOT NULL,
   `supplier_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `supplier_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `contact_person` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -955,7 +972,9 @@ CREATE TABLE `suppliers` (
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`supplier_id`),
-  UNIQUE KEY `supplier_code` (`supplier_code`)
+  UNIQUE KEY `uk_suppliers_store_code` (`store_id`,`supplier_code`),
+  KEY `fk_suppliers_store` (`store_id`),
+  CONSTRAINT `fk_suppliers_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -972,17 +991,19 @@ UNLOCK TABLES;
 -- Table structure for table `units`
 --
 
-DROP TABLE IF EXISTS `units`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `units` (
   `unit_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `store_id` bigint unsigned NOT NULL,
   `unit_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `unit_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`unit_id`),
-  UNIQUE KEY `unit_code` (`unit_code`)
+  UNIQUE KEY `uk_units_store_code` (`store_id`,`unit_code`),
+  KEY `fk_units_store` (`store_id`),
+  CONSTRAINT `fk_units_store` FOREIGN KEY (`store_id`) REFERENCES `stores` (`store_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -999,7 +1020,6 @@ UNLOCK TABLES;
 -- Table structure for table `user_branches`
 --
 
-DROP TABLE IF EXISTS `user_branches`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_branches` (
@@ -1026,7 +1046,6 @@ UNLOCK TABLES;
 -- Table structure for table `user_roles`
 --
 
-DROP TABLE IF EXISTS `user_roles`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_roles` (
@@ -1053,7 +1072,6 @@ UNLOCK TABLES;
 -- Table structure for table `user_stores`
 --
 
-DROP TABLE IF EXISTS `user_stores`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_stores` (
@@ -1081,7 +1099,6 @@ UNLOCK TABLES;
 -- Table structure for table `users`
 --
 
-DROP TABLE IF EXISTS `users`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `users` (
@@ -1117,7 +1134,6 @@ UNLOCK TABLES;
 -- Table structure for table `warehouses`
 --
 
-DROP TABLE IF EXISTS `warehouses`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `warehouses` (
