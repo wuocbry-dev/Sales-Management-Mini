@@ -44,6 +44,7 @@ export type RegisterRequestBody = {
   email: string;
   password: string;
   fullName: string;
+  storeName: string;
   phone?: string | null;
 };
 

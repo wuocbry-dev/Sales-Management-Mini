@@ -106,7 +106,7 @@ public class AuthService {
     userRoleAssignmentRepository.save(link);
 
     if ("STORE_MANAGER".equalsIgnoreCase(roleCode)) {
-      assignOwnedStoreForNewStoreManager(user, t);
+      assignOwnedStoreForNewStoreManager(user, req.storeName().trim(), t);
     }
 
     return buildAuthResponse(user, user.getUsername());
@@ -116,7 +116,7 @@ public class AuthService {
    * Đăng ký công khai với STORE_MANAGER: JWT cần {@code storeIds} (user_stores). Không gán thì
    * client báo "chưa được gán cửa hàng" và không tạo sản phẩm được.
    */
-  private void assignOwnedStoreForNewStoreManager(AppUser user, LocalDateTime t) {
+  private void assignOwnedStoreForNewStoreManager(AppUser user, String requestedStoreName, LocalDateTime t) {
     String baseCode = "CH-" + user.getId();
     String code = baseCode;
     int n = 0;
@@ -124,7 +124,7 @@ public class AuthService {
       n++;
       code = baseCode + "-" + n;
     }
-    String name = user.getFullName().trim() + " — Cửa hàng";
+    String name = requestedStoreName;
     if (name.length() > 255) {
       name = name.substring(0, 255);
     }

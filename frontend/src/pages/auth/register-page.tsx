@@ -19,6 +19,7 @@ const schema = z.object({
   username: z.string().min(1, "Vui lòng nhập tên đăng nhập").max(50, "Tối đa 50 ký tự"),
   email: z.string().min(1, "Vui lòng nhập email").email("Email không hợp lệ").max(100),
   fullName: z.string().min(1, "Vui lòng nhập họ và tên").max(150),
+  storeName: z.string().min(1, "Vui lòng nhập tên cửa hàng").max(255),
   phone: z
     .string()
     .max(20, "Tối đa 20 ký tự")
@@ -36,7 +37,7 @@ export function RegisterPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { username: "", email: "", fullName: "", phone: "", password: "" },
+    defaultValues: { username: "", email: "", fullName: "", storeName: "", phone: "", password: "" },
   });
 
   const mutation = useMutation({
@@ -47,6 +48,7 @@ export function RegisterPage() {
         email: values.email.trim(),
         password: values.password,
         fullName: values.fullName.trim(),
+        storeName: values.storeName.trim(),
         phone: values.phone ?? null,
       });
       setToken(auth.accessToken);
@@ -97,6 +99,13 @@ export function RegisterPage() {
               <Input id="reg-fullname" autoComplete="name" {...form.register("fullName")} />
               {form.formState.errors.fullName && (
                 <p className="text-sm text-red-600">{form.formState.errors.fullName.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="reg-storename">Tên cửa hàng</Label>
+              <Input id="reg-storename" autoComplete="organization" {...form.register("storeName")} />
+              {form.formState.errors.storeName && (
+                <p className="text-sm text-red-600">{form.formState.errors.storeName.message}</p>
               )}
             </div>
             <div className="space-y-2">

@@ -72,10 +72,10 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"demo_user\",\n  \"email\": \"demo@example.com\",\n  \"password\": \"secret12\",\n  \"fullName\": \"Người dùng demo\",\n  \"phone\": null\n}"
+              "raw": "{\n  \"username\": \"demo_user\",\n  \"email\": \"demo@example.com\",\n  \"password\": \"secret12\",\n  \"fullName\": \"Người dùng demo\",\n  \"storeName\": \"Cửa hàng demo\",\n  \"phone\": null\n}"
             },
             "url": "{{baseUrl}}/auth/register",
-            "description": "**Dùng để:** đăng ký công khai. Mọi user nhận role **STORE_MANAGER** (quản lý cửa hàng) theo cấu hình backend; **SYSTEM_ADMIN** chỉ tạo qua seed SQL / tài khoản quản trị. Trả về JWT + `roles` + `permissions`. Script lưu `accessToken`."
+            "description": "**Dùng để:** đăng ký công khai. Mọi user nhận role **STORE_MANAGER** (quản lý cửa hàng) theo cấu hình backend; **SYSTEM_ADMIN** chỉ tạo qua seed SQL / tài khoản quản trị. Bắt buộc gửi thêm `storeName` để backend tạo cửa hàng mặc định cho user mới. Trả về JWT + `roles` + `permissions`. Script lưu `accessToken`."
           }
         },
         {

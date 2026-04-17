@@ -122,7 +122,13 @@ class AuthLoginIntegrationTest {
   @Test
   void registeredStoreManager_cannotListUsers_returns403() throws Exception {
     RegisterRequest reg =
-        new RegisterRequest("itest_cashier", "cashier@itest.local", "secret12", "Cashier", null);
+        new RegisterRequest(
+            "itest_cashier",
+            "cashier@itest.local",
+            "secret12",
+            "Cashier",
+            "Cửa hàng Cashier",
+            null);
     mockMvc
         .perform(
             post("/api/auth/register")
@@ -155,7 +161,8 @@ class AuthLoginIntegrationTest {
   @Test
   void registerNewUser_returnsStoreManagerAndToken() throws Exception {
     RegisterRequest body =
-        new RegisterRequest("dev_user", "dev@example.com", "secret12", "Dev User", null);
+        new RegisterRequest(
+            "dev_user", "dev@example.com", "secret12", "Dev User", "Cửa hàng Dev", null);
     mockMvc
         .perform(
             post("/api/auth/register")
@@ -273,7 +280,8 @@ class AuthLoginIntegrationTest {
   @Test
   void registerDuplicateUsername_returns409() throws Exception {
     RegisterRequest body =
-        new RegisterRequest("itest_admin", "other@example.com", "secret12", "X", null);
+        new RegisterRequest(
+            "itest_admin", "other@example.com", "secret12", "X", "Cửa hàng X", null);
     mockMvc
         .perform(
             post("/api/auth/register")
@@ -290,7 +298,8 @@ class AuthLoginIntegrationTest {
     appUserRepository.save(u);
 
     RegisterRequest body =
-        new RegisterRequest("new_name", "dup@example.com", "secret12", "X", null);
+        new RegisterRequest(
+            "new_name", "dup@example.com", "secret12", "X", "Cửa hàng X", null);
     mockMvc
         .perform(
             post("/api/auth/register")

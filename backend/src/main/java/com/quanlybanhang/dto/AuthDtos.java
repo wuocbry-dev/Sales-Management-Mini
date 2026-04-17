@@ -14,6 +14,7 @@ public final class AuthDtos {
       @NotBlank @Email @Size(max = 100) String email,
       @NotBlank @Size(min = 6, max = 100) String password,
       @NotBlank @Size(max = 150) String fullName,
+      @NotBlank @Size(max = 255) String storeName,
       @Size(max = 20) String phone) {}
 
   /** Trường {@code username}: tên đăng nhập hoặc email. */

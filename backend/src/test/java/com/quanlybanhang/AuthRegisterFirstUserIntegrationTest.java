@@ -34,7 +34,13 @@ class AuthRegisterFirstUserIntegrationTest {
     assertEquals(0, appUserRepository.count());
 
     RegisterRequest body =
-        new RegisterRequest("bootstrap", "boot@example.com", "secret12", "Bootstrap", null);
+        new RegisterRequest(
+            "bootstrap",
+            "boot@example.com",
+            "secret12",
+            "Bootstrap",
+            "Cửa hàng Bootstrap",
+            null);
     mockMvc
         .perform(
             post("/api/auth/register")
