@@ -207,6 +207,25 @@ public class ProductService {
         .toList();
   }
 
+  public ProductVariantOptionResponse searchVariantByBarcode(
+      long storeId, String barcode, JwtAuthenticatedPrincipal principal) {
+    storeAccessService.assertCanAccessStore(storeId, principal);
+    String code = barcode == null ? "" : barcode.trim();
+    if (code.isEmpty()) {
+      throw new BusinessException("Barcode không được để trống.");
+    }
+    var row =
+        variantRepository
+            .findOptionByStoreAndBarcode(storeId, code)
+            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy biến thể với barcode: " + code));
+    return new ProductVariantOptionResponse(
+        row.getId(),
+        row.getSku(),
+        row.getVariantName(),
+        row.getProductName(),
+        row.getSellingPrice());
+  }
+
   public ProductResponse getProduct(Long id, JwtAuthenticatedPrincipal principal) {
     Product p =
         productRepository

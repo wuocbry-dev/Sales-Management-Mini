@@ -73,6 +73,7 @@ const ROUTE_RULES: RouteRule[] = [
   { match: (p) => p === "/app/phieu-nhap/moi", gate: gateGoodsReceiptCreate },
   { match: (p) => /^\/app\/phieu-nhap\/[^/]+\/?$/.test(p), gate: gateGoodsReceiptView },
   { match: (p) => p === "/app/phieu-nhap", gate: gateGoodsReceiptView },
+  { match: (p) => p === "/app/pos", gate: gateOrderCreate },
   { match: (p) => p === "/app/don-ban/moi", gate: gateOrderCreate },
   { match: (p) => /^\/app\/don-ban\/[^/]+\/?$/.test(p), gate: gateOrderView },
   { match: (p) => p === "/app/don-ban", gate: gateOrderView },

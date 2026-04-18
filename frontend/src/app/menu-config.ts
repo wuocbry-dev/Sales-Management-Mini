@@ -122,7 +122,7 @@ const MENU_DEFS: MenuDef[] = [
     section: "main",
     order: 15,
     label: "Bán hàng",
-    to: "/app/don-ban/moi",
+    to: "/app/pos",
     icon: ShoppingCart,
     access: gateOrderCreate,
     sidebarVisible: (me) =>

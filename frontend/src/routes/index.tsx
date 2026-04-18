@@ -59,9 +59,9 @@ import { ProductCreatePage } from "@/features/products/product-create-page";
 import { ProductDetailPage } from "@/features/products/product-detail-page";
 import { ProductEditPage } from "@/features/products/product-edit-page";
 import { ProductListPage } from "@/features/products/product-list-page";
+import { PosTerminalPage } from "@/features/pos/pos-terminal-page";
 import { RbacHubPage } from "@/features/rbac/rbac-hub-page";
 import { ReportSummaryPage } from "@/features/reports/report-summary-page";
-import { SalesOrderCreatePage } from "@/features/sales-orders/sales-order-create-page";
 import { SalesOrderDetailPage } from "@/features/sales-orders/sales-order-detail-page";
 import { SalesOrderListPage } from "@/features/sales-orders/sales-order-list-page";
 import { SalesReturnCreatePage } from "@/features/sales-returns/sales-return-create-page";
@@ -194,7 +194,8 @@ const appChildren: RouteObject[] = [
   guarded("phieu-nhap/moi", <GoodsReceiptCreatePage />, { title: "Tạo phiếu nhập" }, gateGoodsReceiptCreate),
   guarded("phieu-nhap/:id", <GoodsReceiptDetailPage />, { title: "Chi tiết phiếu nhập" }, gateGoodsReceiptView),
   guarded("phieu-nhap", <GoodsReceiptListPage />, { title: "Phiếu nhập", subtitle: "Nhập hàng vào kho." }, gateGoodsReceiptView),
-  guarded("don-ban/moi", <SalesOrderCreatePage />, { title: "Tạo đơn hàng" }, gateOrderCreate),
+  { path: "don-ban/moi", element: <Navigate to="/app/pos" replace /> },
+  guarded("pos", <PosTerminalPage />, { title: "POS Terminal", subtitle: "High-speed cashier workspace." }, gateOrderCreate),
   guarded("don-ban/:id", <SalesOrderDetailPage />, { title: "Chi tiết đơn hàng" }, gateOrderView),
   guarded("don-ban", <SalesOrderListPage />, { title: "Đơn bán", subtitle: "Đơn hàng bán lẻ." }, gateOrderView),
   guarded("tra-hang/moi", <SalesReturnCreatePage />, { title: "Tạo phiếu trả" }, gateReturnCreate),

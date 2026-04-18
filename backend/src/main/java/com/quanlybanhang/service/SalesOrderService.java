@@ -41,6 +41,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Service
 @RequiredArgsConstructor
@@ -119,11 +121,12 @@ public class SalesOrderService {
         throw new BusinessException("Biến thể không thuộc cửa hàng của đơn.");
       }
     }
-    if (req.branchId() != null) {
+    Long effectiveBranchId = resolveEffectiveBranchId(req, principal);
+    if (effectiveBranchId != null) {
       Branch br =
           branchRepository
-              .findById(req.branchId())
-              .orElseThrow(() -> new BusinessException("Chi nhánh không tồn tại: " + req.branchId()));
+              .findById(effectiveBranchId)
+              .orElseThrow(() -> new BusinessException("Chi nhánh không tồn tại: " + effectiveBranchId));
       if (!br.getStoreId().equals(req.storeId())) {
         throw new BusinessException("Chi nhánh không thuộc cửa hàng của đơn.");
       }
@@ -132,7 +135,7 @@ public class SalesOrderService {
     SalesOrder o = new SalesOrder();
     o.setOrderCode(nextOrderCode());
     o.setStoreId(req.storeId());
-    o.setBranchId(req.branchId());
+    o.setBranchId(effectiveBranchId);
     o.setCustomerId(req.customerId());
     o.setCashierId(cashierId);
     o.setOrderDate(req.orderDate());
@@ -161,6 +164,54 @@ public class SalesOrderService {
 
     salesOrderRepository.save(o);
     return get(o.getId(), principal);
+  }
+
+  private Long resolveEffectiveBranchId(
+      SalesOrderCreateRequest req, JwtAuthenticatedPrincipal principal) {
+    Long branchFromHeader = readBranchIdFromHeader();
+    Long requestedBranchId = req.branchId() != null ? req.branchId() : branchFromHeader;
+
+    if (storeAccessService.isBranchOnlyScoped(principal)) {
+      List<Long> branchScope = storeAccessService.dataBranchScopeOrDeny(principal);
+      if (requestedBranchId == null) {
+        if (branchScope.size() == 1) {
+          return branchScope.getFirst();
+        }
+        throw new BusinessException("Tài khoản được gán nhiều chi nhánh, vui lòng chọn chi nhánh.");
+      }
+      if (!branchScope.contains(requestedBranchId)) {
+        throw new BusinessException("Không có quyền thao tác trên chi nhánh đã chọn.");
+      }
+      return requestedBranchId;
+    }
+
+    if (requestedBranchId == null) {
+      return null;
+    }
+
+    storeAccessService.assertCanAccessBranch(requestedBranchId, principal);
+    return requestedBranchId;
+  }
+
+  private Long readBranchIdFromHeader() {
+    var attrs = RequestContextHolder.getRequestAttributes();
+    if (!(attrs instanceof ServletRequestAttributes servletAttrs)) {
+      return null;
+    }
+    String raw = servletAttrs.getRequest().getHeader("X-Branch-Id");
+    if (raw == null || raw.isBlank()) {
+      return null;
+    }
+    String value = raw.trim();
+    try {
+      long parsed = Long.parseLong(value);
+      if (parsed <= 0) {
+        throw new BusinessException("Header X-Branch-Id phải là số nguyên dương.");
+      }
+      return parsed;
+    } catch (NumberFormatException ex) {
+      throw new BusinessException("Header X-Branch-Id không hợp lệ: " + value);
+    }
   }
 
   @Transactional

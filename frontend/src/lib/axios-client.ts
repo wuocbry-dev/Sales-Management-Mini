@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { usePosScopeStore } from "@/features/pos/pos-scope-store";
 
 const raw = import.meta.env.VITE_API_BASE_URL;
 const baseURL =
@@ -18,8 +19,15 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;
+  const { selectedStoreId, selectedBranchId } = usePosScopeStore.getState();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  if (selectedStoreId != null) {
+    config.headers["X-Store-Id"] = String(selectedStoreId);
+  }
+  if (selectedBranchId != null) {
+    config.headers["X-Branch-Id"] = String(selectedBranchId);
   }
   return config;
 });
@@ -30,6 +38,7 @@ apiClient.interceptors.response.use(
     const status = error?.response?.status;
     if (status === 401) {
       useAuthStore.getState().clearSession();
+      usePosScopeStore.getState().clear();
       const p = window.location.pathname;
       const onAuthPage = p === "/login" || p === "/register" || p.startsWith("/login") || p.startsWith("/register");
       if (!onAuthPage) {

@@ -8,6 +8,7 @@ import { getSidebarSections, type AppNavItem } from "@/app/navigation";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { isSystemLevelUser } from "@/lib/access-control";
+import { AppLoadingShell } from "@/layouts/app-loading-shell";
 import { roleCodeDescriptionVi } from "@/lib/role-labels";
 import { cn } from "@/lib/utils";
 import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
@@ -79,7 +80,7 @@ export function AppShellLayout() {
   const leaf = matches[matches.length - 1];
   const handle = (leaf?.handle ?? {}) as AppRouteHandle;
 
-  if (!me) return null;
+  if (!me) return <AppLoadingShell />;
 
   const currentStoreLabel = me.defaultStoreId ? getStoreName(me.defaultStoreId) : "Chưa chọn cửa hàng";
   const isAdmin = isSystemLevelUser(me);

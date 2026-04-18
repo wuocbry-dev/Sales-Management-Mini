@@ -3,6 +3,7 @@ package com.quanlybanhang.repository;
 import com.quanlybanhang.model.ProductVariant;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -29,10 +30,19 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
           + "from ProductVariant v join Product p on p.id = v.productId "
           + "where v.storeId = :storeId and "
           + "(lower(v.sku) like lower(concat('%', :q, '%')) "
-          + "or lower(coalesce(v.variantName, '')) like lower(concat('%', :q, '%'))) "
+          + "or lower(coalesce(v.variantName, '')) like lower(concat('%', :q, '%')) "
+          + "or lower(coalesce(v.barcode, '')) like lower(concat('%', :q, '%'))) "
           + "order by v.sku asc")
   List<ProductVariantOptionProjection> searchOptionsByStore(
       @Param("storeId") Long storeId, @Param("q") String q, Pageable pageable);
+
+  @Query(
+      "select v.id as id, v.sku as sku, v.variantName as variantName, p.productName as productName, "
+          + "v.sellingPrice as sellingPrice "
+          + "from ProductVariant v join Product p on p.id = v.productId "
+          + "where v.storeId = :storeId and v.barcode = :barcode")
+  Optional<ProductVariantOptionProjection> findOptionByStoreAndBarcode(
+      @Param("storeId") Long storeId, @Param("barcode") String barcode);
 
   @Query(
       "select case when count(v) > 0 then true else false end from ProductVariant v "

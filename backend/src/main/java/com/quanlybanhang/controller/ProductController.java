@@ -60,6 +60,16 @@ public class ProductController {
     return productService.searchVariantOptions(storeId, q, principal);
   }
 
+  @GetMapping("/variant-by-barcode")
+  @PreAuthorize(
+      "@authz.systemManage(authentication) or @authz.hasAnyAuthority(authentication, 'PRODUCT_VIEW', 'ORDER_CREATE', 'GOODS_RECEIPT_CREATE')")
+  public ProductVariantOptionResponse variantByBarcode(
+      @RequestParam long storeId,
+      @RequestParam String barcode,
+      @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
+    return productService.searchVariantByBarcode(storeId, barcode, principal);
+  }
+
   @GetMapping("/{id}")
   @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('PRODUCT_VIEW')")
   public ProductResponse get(

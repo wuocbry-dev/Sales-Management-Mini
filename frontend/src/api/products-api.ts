@@ -44,6 +44,46 @@ export async function fetchProductVariantSearch(params: {
   return data;
 }
 
+export async function fetchPosVariantSearch(params: {
+  storeId: number;
+  q: string;
+}): Promise<ProductVariantOptionResponse[]> {
+  const q = params.q.trim();
+  if (!q) return [];
+  const { data } = await apiClient.get<ProductVariantOptionResponse[]>("/api/pos/variants/search", {
+    params: { storeId: params.storeId, q },
+  });
+  return data;
+}
+
+export async function fetchProductVariantByBarcode(params: {
+  storeId: number;
+  barcode: string;
+}): Promise<ProductVariantOptionResponse> {
+  const barcode = params.barcode.trim();
+  if (!barcode) {
+    throw new Error("Barcode không được để trống.");
+  }
+  const { data } = await apiClient.get<ProductVariantOptionResponse>("/api/products/variant-by-barcode", {
+    params: { storeId: params.storeId, barcode },
+  });
+  return data;
+}
+
+export async function fetchPosVariantByBarcode(params: {
+  storeId: number;
+  barcode: string;
+}): Promise<ProductVariantOptionResponse> {
+  const barcode = params.barcode.trim();
+  if (!barcode) {
+    throw new Error("Barcode không được để trống.");
+  }
+  const { data } = await apiClient.get<ProductVariantOptionResponse>("/api/pos/variants/by-barcode", {
+    params: { storeId: params.storeId, barcode },
+  });
+  return data;
+}
+
 export async function createProduct(body: ProductCreateRequestBody): Promise<ProductResponse> {
   const { data } = await apiClient.post<ProductResponse>("/api/products", body);
   return data;

@@ -25,6 +25,26 @@
     --ring: 152 72% 32%;
     --radius: 0.5rem;
     --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+    --pos-bg: 210 20% 97%;
+    --pos-panel: 0 0% 100%;
+    --pos-border: 214 25% 82%;
+    --pos-primary: 220 90% 45%;
+    --pos-success: 148 71% 34%;
+    --pos-warning: 40 96% 43%;
+    --pos-danger: 0 72% 51%;
+    --pos-focus: 220 100% 50%;
+  }
+
+  .dark {
+    --pos-bg: 222 24% 10%;
+    --pos-panel: 223 24% 15%;
+    --pos-border: 220 17% 27%;
+    --pos-primary: 216 92% 64%;
+    --pos-success: 148 69% 52%;
+    --pos-warning: 40 97% 55%;
+    --pos-danger: 0 86% 67%;
+    --pos-focus: 216 96% 68%;
   }
 
   * {
@@ -34,5 +54,21 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
+  }
+}
+
+@layer components {
+  .pos-screen {
+    background: hsl(var(--pos-bg));
+    color: hsl(var(--foreground));
+  }
+
+  .pos-panel {
+    background: hsl(var(--pos-panel));
+    border-color: hsl(var(--pos-border));
+  }
+
+  .pos-focus-ring {
+    box-shadow: 0 0 0 2px hsl(var(--pos-focus));
   }
 }

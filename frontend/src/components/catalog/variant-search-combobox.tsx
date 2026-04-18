@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { forwardRef, useCallback, useEffect, useId, useRef, useState } from "react";
-import { fetchProductVariantSearch } from "@/api/products-api";
+import { fetchPosVariantSearch, fetchProductVariantSearch } from "@/api/products-api";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { ProductVariantOptionResponse } from "@/types/product";
@@ -23,6 +23,7 @@ export type VariantSearchComboboxProps = {
   storeId: number;
   value: number;
   onChange: (variantId: number) => void;
+  apiNamespace?: "products" | "pos";
   /** Gọi khi user chọn một dòng từ danh sách (sau `onChange`). */
   onPick?: (row: ProductVariantOptionResponse) => void;
   onBlur?: () => void;
@@ -33,7 +34,17 @@ export type VariantSearchComboboxProps = {
 
 export const VariantSearchCombobox = forwardRef<HTMLInputElement, VariantSearchComboboxProps>(
   function VariantSearchCombobox(
-    { storeId, value, onChange, onPick, onBlur = () => {}, name = "variantSearch", disabled, id },
+    {
+      storeId,
+      value,
+      apiNamespace = "products",
+      onChange,
+      onPick,
+      onBlur = () => {},
+      name = "variantSearch",
+      disabled,
+      id,
+    },
     ref,
   ) {
     const listId = useId();
@@ -45,8 +56,11 @@ export const VariantSearchCombobox = forwardRef<HTMLInputElement, VariantSearchC
     const searchEnabled = storeId > 0 && debouncedText.trim().length > 0;
 
     const query = useQuery({
-      queryKey: ["product-variant-search", storeId, debouncedText.trim()],
-      queryFn: () => fetchProductVariantSearch({ storeId, q: debouncedText.trim() }),
+      queryKey: ["product-variant-search", apiNamespace, storeId, debouncedText.trim()],
+      queryFn: () =>
+        apiNamespace === "pos"
+          ? fetchPosVariantSearch({ storeId, q: debouncedText.trim() })
+          : fetchProductVariantSearch({ storeId, q: debouncedText.trim() }),
       enabled: searchEnabled,
       staleTime: 30_000,
     });

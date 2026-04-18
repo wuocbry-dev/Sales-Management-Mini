@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Navigate, useLocation, useMatches } from "react-router-dom";
 import { FORBIDDEN_ROUTE, resolveDefaultLandingPath } from "@/app/default-landing";
 import { useAuthStore } from "@/features/auth/auth-store";
+import { AppLoadingShell } from "@/layouts/app-loading-shell";
 import type { AppRouteHandle } from "@/routes/app-route-handles";
 
 type Props = {
@@ -20,7 +21,7 @@ export function PermissionRoute({ children }: Props) {
   const gate = handle.requireAccess;
 
   if (!me) {
-    return null;
+    return <AppLoadingShell />;
   }
 
   if (gate && !gate(me)) {
