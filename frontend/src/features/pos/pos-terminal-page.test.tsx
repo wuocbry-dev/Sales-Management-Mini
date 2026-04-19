@@ -6,6 +6,12 @@ import { PosTerminalPage } from "@/features/pos/pos-terminal-page";
 
 const mockCreateDraft = vi.fn();
 const mockConfirmOrder = vi.fn();
+const mockFetchPosVariantByBarcode = vi.fn();
+const mockFetchPosVariantSearch = vi.fn();
+const mockFetchProductsPage = vi.fn();
+const mockFetchProductImageBlobUrl = vi.fn();
+const mockFetchInventoryAvailability = vi.fn();
+const mockFetchCategoriesPage = vi.fn();
 
 vi.mock("@/api/sales-orders-api", () => ({
   createSalesOrderDraft: (...args: unknown[]) => mockCreateDraft(...args),
@@ -13,7 +19,29 @@ vi.mock("@/api/sales-orders-api", () => ({
 }));
 
 vi.mock("@/api/branches-api", () => ({
-  fetchBranchesForStore: vi.fn().mockResolvedValue({ content: [] }),
+  fetchBranchesForStore: vi.fn().mockResolvedValue({
+    content: [
+      {
+        branchId: 11,
+        branchName: "Kho tổng",
+      },
+    ],
+  }),
+}));
+
+vi.mock("@/api/categories-api", () => ({
+  fetchCategoriesPage: (...args: unknown[]) => mockFetchCategoriesPage(...args),
+}));
+
+vi.mock("@/api/products-api", () => ({
+  fetchPosVariantByBarcode: (...args: unknown[]) => mockFetchPosVariantByBarcode(...args),
+  fetchPosVariantSearch: (...args: unknown[]) => mockFetchPosVariantSearch(...args),
+  fetchProductsPage: (...args: unknown[]) => mockFetchProductsPage(...args),
+  fetchProductImageBlobUrl: (...args: unknown[]) => mockFetchProductImageBlobUrl(...args),
+}));
+
+vi.mock("@/api/inventory-api", () => ({
+  fetchInventoryAvailability: (...args: unknown[]) => mockFetchInventoryAvailability(...args),
 }));
 
 vi.mock("@/features/auth/access", () => ({
@@ -23,7 +51,13 @@ vi.mock("@/features/auth/access", () => ({
 }));
 
 vi.mock("@/hooks/use-store-name-map", () => ({
-  useStoreNameMap: () => ({ stores: [] }),
+  useStoreNameMap: () => ({
+    stores: [{ id: 1, storeName: "Circlek" }],
+    getStoreName: (id: number | null | undefined) => {
+      if (id === 1) return "Circlek";
+      return "—";
+    },
+  }),
 }));
 
 vi.mock("@/features/auth/auth-store", () => ({
@@ -44,6 +78,7 @@ vi.mock("@/features/pos/pos-scope-store", () => {
     selectedStoreId: null as number | null,
     selectedBranchId: null as number | null,
   };
+
   return {
     usePosScopeStore: (selector: (s: {
       selectedStoreId: number | null;
@@ -63,34 +98,50 @@ vi.mock("@/features/pos/pos-scope-store", () => {
   };
 });
 
-vi.mock("@/components/catalog/barcode-scanner-input", () => ({
-  BarcodeScannerInput: ({ onFound }: { onFound: (v: { variantId: number; sku: string; productName: string; variantName: string; sellingPrice: string }) => void }) => (
-    <button
-      type="button"
-      onClick={() =>
-        onFound({
-          variantId: 101,
-          sku: "SKU-101",
-          productName: "Cola",
-          variantName: "Lon",
-          sellingPrice: "12000",
-        })
-      }
-    >
-      scan-item
-    </button>
-  ),
-}));
-
-describe("PosTerminalPage happy flow", () => {
+describe("PosTerminalPage", () => {
   beforeEach(() => {
     mockCreateDraft.mockReset();
     mockConfirmOrder.mockReset();
+    mockFetchPosVariantByBarcode.mockReset();
+    mockFetchPosVariantSearch.mockReset();
+    mockFetchProductsPage.mockReset();
+    mockFetchProductImageBlobUrl.mockReset();
+    mockFetchInventoryAvailability.mockReset();
+    mockFetchCategoriesPage.mockReset();
+
+    mockFetchProductsPage.mockResolvedValue({ content: [] });
+    mockFetchCategoriesPage.mockResolvedValue({ content: [] });
+    mockFetchPosVariantSearch.mockResolvedValue([]);
+    mockFetchProductImageBlobUrl.mockResolvedValue("blob:http://localhost/product-image");
+
+    mockFetchInventoryAvailability.mockImplementation(async (_storeId: number, variantId: number) => ({
+      variantId,
+      storeId: 1,
+      variantSku: `SKU-${variantId}`,
+      variantName: "Lon",
+      locations: [
+        {
+          warehouseId: 10,
+          warehouseName: "Kho tổng",
+          warehouseType: "BRANCH",
+          branchId: 11,
+          branchName: "Kho tổng",
+          quantityOnHand: "50",
+        },
+      ],
+    }));
   });
 
-  it("scans item and completes checkout with cash", async () => {
+  it("adds SKU from lookup and completes checkout", async () => {
     mockCreateDraft.mockResolvedValue({ id: 5001 });
-    mockConfirmOrder.mockResolvedValue({ id: 5001, orderCode: "SO5001" });
+    mockConfirmOrder.mockResolvedValue({ id: 5001, orderCode: "SO5001", items: [] });
+    mockFetchPosVariantByBarcode.mockResolvedValue({
+      variantId: 101,
+      sku: "SKU-101",
+      productName: "Cola",
+      variantName: "Lon",
+      sellingPrice: "12000",
+    });
 
     const user = userEvent.setup();
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -101,10 +152,18 @@ describe("PosTerminalPage happy flow", () => {
       </QueryClientProvider>,
     );
 
-    await user.click(screen.getByRole("button", { name: "Tiếp tục nhập sản phẩm" }));
-    await user.click(screen.getByRole("button", { name: "scan-item" }));
-    await user.click(screen.getByRole("button", { name: "Tiếp tục tính tiền" }));
-    await user.click(screen.getByRole("button", { name: "Complete checkout" }));
+    const input = await screen.findByPlaceholderText(/Quét mã vạch hoặc nhập mã SKU.../i);
+    await waitFor(() => {
+      expect(input).toBeEnabled();
+    });
+
+    await user.type(input, "SKU-101{enter}");
+
+    await waitFor(() => {
+      expect(screen.getByText(/SKU: SKU-101/i)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: /HOÀN TẤT THANH TOÁN/i }));
 
     await waitFor(() => {
       expect(mockCreateDraft).toHaveBeenCalledTimes(1);
@@ -138,7 +197,7 @@ describe("PosTerminalPage happy flow", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /In hóa đơn\?/i })).toBeInTheDocument();
+      expect(screen.getByText(/đã thanh toán thành công/i)).toBeInTheDocument();
     });
   });
 });

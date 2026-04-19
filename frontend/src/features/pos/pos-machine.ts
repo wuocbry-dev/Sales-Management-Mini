@@ -63,16 +63,21 @@ export function toDraftPayload(params: {
   };
 }
 
-export function toPaymentLines(params: { totalAmount: number }): PaymentLineRequestBody[] {
+export function toPaymentLines(params: {
+  totalAmount: number;
+  paymentMethod?: string;
+}): PaymentLineRequestBody[] {
   const amount = Math.max(0, params.totalAmount);
   if (amount <= 0) {
     return [];
   }
 
+  const normalizedMethod = (params.paymentMethod ?? "CASH").trim().toUpperCase();
+
   return [
     {
       paymentType: "SALE",
-      paymentMethod: "CASH",
+      paymentMethod: normalizedMethod || "CASH",
       amount,
       referenceNo: null,
       note: "POS auto payment",
