@@ -31,7 +31,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Locale;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -570,32 +569,6 @@ public class ProductService {
     p.setUpdatedAt(t);
     productRepository.save(p);
     productRepository.flush();
-  }
-
-  private void deleteProductImageFiles(Long productId) {
-    Path root = Path.of(productImagesDir).toAbsolutePath().normalize();
-    Path productDir = root.resolve(String.valueOf(productId)).normalize();
-    if (!productDir.startsWith(root)) {
-      log.warn("Skip deleting product image directory because path is invalid: {}", productDir);
-      return;
-    }
-    if (!Files.exists(productDir)) {
-      return;
-    }
-
-    try (var walk = Files.walk(productDir)) {
-      walk.sorted(Comparator.reverseOrder())
-          .forEach(
-              path -> {
-                try {
-                  Files.deleteIfExists(path);
-                } catch (IOException ex) {
-                  log.warn("Cannot delete product image path {}", path, ex);
-                }
-              });
-    } catch (IOException ex) {
-      log.warn("Cannot traverse product image directory {}", productDir, ex);
-    }
   }
 
   private void deleteProductImageFile(Long productId, String fileName) {

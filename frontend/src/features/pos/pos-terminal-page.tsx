@@ -170,6 +170,7 @@ export function PosTerminalPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [machine, dispatch] = useReducer(posMachineReducer, posInitialState);
   const [completedOrder, setCompletedOrder] = useState<SalesOrderResponse | null>(null);
+  const receiptTenderedAmountRef = useRef<number | null>(null);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [customerForm, setCustomerForm] = useState<CustomerRequestBody>({
@@ -460,6 +461,7 @@ export function PosTerminalPage() {
       if (paymentMethod === "CASH" && cashReceived < amount) {
         throw new Error("Số tiền khách đưa chưa đủ.");
       }
+      receiptTenderedAmountRef.current = paymentMethod === "CASH" ? cashReceived : amount;
 
       const draft = await createSalesOrderDraft(
         toDraftPayload({
@@ -536,6 +538,7 @@ export function PosTerminalPage() {
     setCashReceived(0);
     setPaymentMethod("CASH");
     setCompletedOrder(null);
+    receiptTenderedAmountRef.current = null;
     checkoutM.reset();
     dispatch({ type: "IDLE" });
   };
@@ -636,7 +639,12 @@ export function PosTerminalPage() {
 
     const storeName = getStoreName(order.storeId);
     const lineNameMap = new Map<number, string>(lines.map((line) => [line.variantId, displayVariantName(line)]));
-    const paid = toNumber(order.paidAmount);
+    const orderPaid = toNumber(order.paidAmount);
+    const hasCashPayment = order.payments.some((payment) => payment.paymentMethod?.trim().toUpperCase() === "CASH");
+    const paid =
+      hasCashPayment && receiptTenderedAmountRef.current != null
+        ? Math.max(orderPaid, receiptTenderedAmountRef.current)
+        : orderPaid;
     const totalAmount = toNumber(order.totalAmount);
     const change = Math.max(0, paid - totalAmount);
 
@@ -681,7 +689,7 @@ export function PosTerminalPage() {
             <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Tạm tính:</span><strong>${formatVndFromDecimal(order.subtotal)}</strong></p>
             <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Giảm giá:</span><strong>${formatVndFromDecimal(order.discountAmount)}</strong></p>
             <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Tổng tiền:</span><strong>${formatVndFromDecimal(order.totalAmount)}</strong></p>
-            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Khách đưa:</span><strong>${formatVndFromDecimal(order.paidAmount)}</strong></p>
+            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Khách đưa:</span><strong>${formatVndFromDecimal(paid)}</strong></p>
             <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Tiền thối:</span><strong>${formatVndFromDecimal(change)}</strong></p>
           </div>
           <p style="margin:10px 0 0 0;font-size:12px;text-align:center;font-weight:600;">Cảm ơn quý khách!</p>

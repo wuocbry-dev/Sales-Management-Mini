@@ -90,7 +90,7 @@ export function ProductListPage() {
   });
 
   const deleteM = useMutation({
-    mutationFn: async (args: { productId: number }) => deleteProduct(args.productId),
+    mutationFn: async (args: { productId: number; status: string }) => deleteProduct(args.productId),
     onSuccess: async (_data, variables) => {
       toast.success(`Đã ${softDeleteToggleSuccessVerb(variables.status)} sản phẩm.`);
       await queryClient.invalidateQueries({ queryKey: ["products"] });

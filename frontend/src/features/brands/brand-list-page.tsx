@@ -38,7 +38,7 @@ export function BrandListPage() {
   const [editing, setEditing] = useState<BrandResponse | null>(null);
 
   const deleteM = useMutation({
-    mutationFn: async (args: { brandId: number }) => deleteBrand(args.brandId),
+    mutationFn: async (args: { brandId: number; status: string }) => deleteBrand(args.brandId),
     onSuccess: async (_data, variables) => {
       toast.success(`Đã ${softDeleteToggleSuccessVerb(variables.status)} thương hiệu.`);
       await queryClient.invalidateQueries({ queryKey: ["brands"] });

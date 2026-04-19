@@ -19,7 +19,6 @@ import com.quanlybanhang.model.Supplier;
 import com.quanlybanhang.model.Unit;
 import com.quanlybanhang.repository.BrandRepository;
 import com.quanlybanhang.repository.CategoryRepository;
-import com.quanlybanhang.repository.GoodsReceiptRepository;
 import com.quanlybanhang.repository.ProductRepository;
 import com.quanlybanhang.repository.StoreRepository;
 import com.quanlybanhang.repository.SupplierRepository;
@@ -48,7 +47,6 @@ public class MasterDataService {
   private final UnitRepository unitRepository;
   private final SupplierRepository supplierRepository;
   private final ProductRepository productRepository;
-  private final GoodsReceiptRepository goodsReceiptRepository;
   private final WarehouseService warehouseService;
 
   private LocalDateTime now() {
