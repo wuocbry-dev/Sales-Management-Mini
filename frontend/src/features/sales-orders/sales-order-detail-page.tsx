@@ -17,13 +17,13 @@ import { canSeeSalesOrderCancel, canSeeSalesOrderConfirm } from "@/features/auth
 import { useAuthStore } from "@/features/auth/auth-store";
 import { useVariantLabelMap } from "@/hooks/use-variant-label-map";
 import { formatApiError } from "@/lib/api-errors";
+import { formatDateTimeVi } from "@/lib/format-datetime";
 import {
   paymentMethodLabel,
   paymentStatusLabel,
   paymentTypeLabel,
   salesOrderStatusLabel,
 } from "@/lib/document-flow-labels";
-import { formatDateTimeVi } from "@/lib/format-datetime";
 import { formatQty } from "@/lib/format-qty";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
 import type { PaymentLineRequestBody } from "@/types/sales-order";
@@ -146,6 +146,92 @@ export function SalesOrderDetailPage() {
     setPayments((p) => p.map((row, i) => (i === idx ? { ...row, ...patch } : row)));
   };
 
+  const printReceipt = () => {
+    if (!q.data) {
+      return;
+    }
+
+    const order = q.data;
+    const popup = window.open("", "_blank", "width=420,height=720");
+    if (!popup) {
+      toast.error("Không mở được cửa sổ in. Vui lòng cho phép pop-up.");
+      return;
+    }
+
+    const storeName = getStoreName(order.storeId);
+    const branchName =
+      order.branchId == null
+        ? "Kho tổng"
+        : branchQ.data
+          ? branchQ.data.branchName
+          : `Chi nhánh #${order.branchId}`;
+
+    const lineRows = order.items
+      .map((item) => {
+        const label = item.productName && item.variantName
+          ? `${item.productName} - ${item.variantName}`
+          : getVariantLabel(item.variantId);
+
+        return `
+          <tr>
+            <td style="padding:6px;border-bottom:1px solid #ddd;">
+              <div style="font-weight:600;">${label}</div>
+            </td>
+            <td style="padding:6px;border-bottom:1px solid #ddd;text-align:center;">${item.quantity}</td>
+            <td style="padding:6px;border-bottom:1px solid #ddd;text-align:right;">${formatVndFromDecimal(item.lineTotal)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const html = `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Hóa đơn ${order.orderCode}</title>
+        </head>
+        <body style="font-family:Arial,sans-serif;padding:16px;color:#111;">
+          <h2 style="margin:0 0 6px 0;font-size:16px;">Hóa đơn bán hàng</h2>
+          <p style="margin:2px 0;"><strong>Cửa hàng:</strong> ${storeName}</p>
+          <p style="margin:2px 0;"><strong>Chi nhánh:</strong> ${branchName}</p>
+          <p style="margin:2px 0;"><strong>Mã đơn:</strong> ${order.orderCode}</p>
+          <p style="margin:2px 0 8px 0;"><strong>Ngày:</strong> ${formatDateTimeVi(order.orderDate)}</p>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr>
+                <th style="padding:6px;border-bottom:1px solid #999;text-align:left;">Sản phẩm</th>
+                <th style="padding:6px;border-bottom:1px solid #999;text-align:center;">SL</th>
+                <th style="padding:6px;border-bottom:1px solid #999;text-align:right;">Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>${lineRows}</tbody>
+          </table>
+          <div style="margin-top:10px;border-top:1px dashed #999;padding-top:8px;font-size:13px;">
+            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Tạm tính:</span><strong>${formatVndFromDecimal(order.subtotal)}</strong></p>
+            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Giảm giá:</span><strong>${formatVndFromDecimal(order.discountAmount)}</strong></p>
+            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Tổng tiền:</span><strong>${formatVndFromDecimal(order.totalAmount)}</strong></p>
+          </div>
+          <p style="margin:10px 0 0 0;font-size:12px;text-align:center;font-weight:600;">Cảm ơn quý khách!</p>
+          <script>
+            window.addEventListener("load", function () {
+              setTimeout(function () {
+                window.focus();
+                window.print();
+              }, 120);
+              window.onafterprint = function () {
+                window.close();
+              };
+            });
+          </script>
+        </body>
+      </html>
+    `;
+
+    popup.document.write(html);
+    popup.document.close();
+  };
+
   if (invalid) {
     return (
       <Card>
@@ -174,6 +260,9 @@ export function SalesOrderDetailPage() {
           ← Quay lại
         </Button>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" type="button" onClick={printReceipt}>
+            In lại hóa đơn
+          </Button>
           {canCancel && isDraft ? (
             <Button
               type="button"

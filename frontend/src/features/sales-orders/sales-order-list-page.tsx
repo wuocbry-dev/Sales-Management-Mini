@@ -25,7 +25,7 @@ export function SalesOrderListPage() {
 
   const q = useQuery({
     queryKey: ["sales-orders", page, size],
-    queryFn: () => fetchSalesOrdersPage({ page, size }),
+    queryFn: () => fetchSalesOrdersPage({ page, size, sort: "orderDate,desc" }),
   });
 
   const setPage = (next: number) => {

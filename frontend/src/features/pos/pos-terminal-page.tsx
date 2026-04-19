@@ -16,7 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import { createCustomer } from "@/api/customers-api";
+import { fetchBranchById } from "@/api/branches-api";
 import { fetchBranchesForStore } from "@/api/branches-api";
 import { fetchCategoriesPage } from "@/api/categories-api";
 import { fetchInventoryAvailability } from "@/api/inventory-api";
@@ -41,12 +41,12 @@ import { usePosScopeStore } from "@/features/pos/pos-scope-store";
 import { displayVariantName, toPosCartLine, type PosCartLine } from "@/features/pos/types";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { formatApiError } from "@/lib/api-errors";
+import { formatDateTimeVi } from "@/lib/format-datetime";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
 import type { InventoryAvailabilityResponse } from "@/types/inventory";
-import type { CategoryResponse } from "@/types/master-data";
 import type { ProductResponse, ProductVariantOptionResponse } from "@/types/product";
 import type { SalesOrderResponse } from "@/types/sales-order";
-import type { CustomerRequestBody } from "@/types/customer";
+import { canAccessRoute } from "@/app/route-access";
 
 type PaymentMethod = "CASH" | "CARD" | "EWALLET";
 
@@ -138,10 +138,15 @@ function flattenVariants(rows: ProductResponse[]): CatalogVariant[] {
   return out;
 }
 
-function selectedBranchLabel(branchId: number | null, branches: Array<{ branchId: number; branchName: string }>): string {
+function selectedBranchLabel(
+  branchId: number | null,
+  branches: Array<{ branchId: number; branchName: string }>,
+  branchName?: string | null,
+): string {
   if (branchId == null) return "Kho tổng";
+  if (branchName) return branchName;
   const found = branches.find((b) => b.branchId === branchId);
-  return found?.branchName ?? `Chi nhánh #${branchId}`;
+  return found?.branchName ?? `Chi nhánh ${branchId}`;
 }
 
 export function PosTerminalPage() {
@@ -172,28 +177,30 @@ export function PosTerminalPage() {
   const [completedOrder, setCompletedOrder] = useState<SalesOrderResponse | null>(null);
   const receiptTenderedAmountRef = useRef<number | null>(null);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
-  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
-  const [customerForm, setCustomerForm] = useState<CustomerRequestBody>({
-    customerCode: "",
-    fullName: "",
-    phone: "",
-    email: "",
-    gender: "",
-    dateOfBirth: "",
-    address: "",
-    status: "ACTIVE",
-  });
 
   const scannerInputRef = useRef<HTMLInputElement>(null);
   const headerDiscount = 0;
+  const backTarget = canAccessRoute(me, "/app/don-ban")
+    ? "/app/don-ban"
+    : canAccessRoute(me, "/app/tong-quan")
+      ? "/app/tong-quan"
+      : "/app";
 
-  const { stores, getStoreName } = useStoreNameMap();
+  const { getStoreName } = useStoreNameMap();
 
   const branchesQ = useQuery({
     queryKey: ["pos", "branches", storeId],
     queryFn: () => fetchBranchesForStore(storeId, { page: 0, size: 200 }),
     enabled: storeId > 0,
     staleTime: 60_000,
+  });
+
+  const branchDetailQ = useQuery({
+    queryKey: ["pos", "branch", branchId],
+    queryFn: () => fetchBranchById(branchId!),
+    enabled: branchId != null && branchId > 0,
+    staleTime: 60_000,
+    retry: false,
   });
 
   const categoriesQ = useQuery({
@@ -342,7 +349,7 @@ export function PosTerminalPage() {
   }, [scopeReady]);
 
   const selectedStoreName = getStoreName(storeId);
-  const selectedBranchName = selectedBranchLabel(branchId, branchesQ.data?.content ?? []);
+  const selectedBranchName = selectedBranchLabel(branchId, branchesQ.data?.content ?? [], branchDetailQ.data?.branchName);
   
   // Display labels based on user role
   const displayStoreName = selectedStoreName || "Cửa hàng";
@@ -594,7 +601,7 @@ export function PosTerminalPage() {
           <h2 style="margin:0 0 6px 0;font-size:16px;">In tạm tính</h2>
           <p style="margin:2px 0;"><strong>Cửa hàng:</strong> ${selectedStoreName}</p>
           <p style="margin:2px 0;"><strong>Chi nhánh:</strong> ${selectedBranchName}</p>
-          <p style="margin:2px 0 8px 0;"><strong>Thời gian:</strong> ${new Date().toLocaleString("vi-VN")}</p>
+          <p style="margin:2px 0 8px 0;"><strong>Thời gian:</strong> ${formatDateTimeVi(new Date().toISOString())}</p>
           <table style="width:100%;border-collapse:collapse;font-size:13px;">
             <thead>
               <tr>
@@ -674,7 +681,7 @@ export function PosTerminalPage() {
           <p style="margin:2px 0;"><strong>Cửa hàng:</strong> ${storeName}</p>
           <p style="margin:2px 0;"><strong>Chi nhánh:</strong> ${order.branchId == null ? "Kho tổng" : `Chi nhánh #${order.branchId}`}</p>
           <p style="margin:2px 0;"><strong>Mã đơn:</strong> ${order.orderCode}</p>
-          <p style="margin:2px 0 8px 0;"><strong>Ngày:</strong> ${new Date(order.orderDate).toLocaleString("vi-VN")}</p>
+          <p style="margin:2px 0 8px 0;"><strong>Ngày:</strong> ${formatDateTimeVi(order.orderDate)}</p>
           <table style="width:100%;border-collapse:collapse;font-size:13px;">
             <thead>
               <tr>
@@ -729,9 +736,9 @@ export function PosTerminalPage() {
         <div className="pos-v2-topbar-row-1">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(backTarget, { replace: true })}
             className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground shrink-0"
-            title="Quay lại giao diện quản lý"
+            title="Quay lại giao diện nhân viên"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
