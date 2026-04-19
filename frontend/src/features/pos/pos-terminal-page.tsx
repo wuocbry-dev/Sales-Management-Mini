@@ -66,6 +66,13 @@ const PAYMENT_OPTIONS: Array<{ value: PaymentMethod; label: string }> = [
   { value: "EWALLET", label: "QR Pay" },
 ];
 
+const DEFAULT_MARKET_VAT_RATE_PERCENT = 8;
+const POS_MARKET_VAT_RATE_PERCENT = (() => {
+  const raw = Number(import.meta.env.VITE_POS_MARKET_VAT_RATE_PERCENT ?? DEFAULT_MARKET_VAT_RATE_PERCENT);
+  if (!Number.isFinite(raw)) return DEFAULT_MARKET_VAT_RATE_PERCENT;
+  return Math.min(100, Math.max(0, Math.round(raw * 100) / 100));
+})();
+
 const POS_PARKED_ORDERS_KEY = "pos-v2-parked-orders";
 const POS_PARKED_ORDERS_LIMIT = 30;
 
@@ -77,6 +84,8 @@ type ParkedPosOrder = {
   customerName: string | null;
   customerPhoneLookup: string;
   forceGuestCustomer: boolean;
+  headerDiscountAmount: number;
+  vatRatePercent: number;
   lines: PosCartLine[];
   cashReceived: number;
   paymentMethod: PaymentMethod;
@@ -117,6 +126,14 @@ function readParkedOrders(): ParkedPosOrder[] {
           typeof record.forceGuestCustomer === "boolean"
             ? record.forceGuestCustomer
             : !(Number.isFinite(record.customerId as number) && Number(record.customerId) > 0),
+        headerDiscountAmount:
+          Number.isFinite(record.headerDiscountAmount) && Number(record.headerDiscountAmount) >= 0
+            ? Number(record.headerDiscountAmount)
+            : 0,
+        vatRatePercent:
+          Number.isFinite(record.vatRatePercent) && Number(record.vatRatePercent) >= 0
+            ? Math.min(100, Number(record.vatRatePercent))
+            : POS_MARKET_VAT_RATE_PERCENT,
         lines: record.lines as PosCartLine[],
         cashReceived: Number.isFinite(record.cashReceived) ? Number(record.cashReceived) : 0,
         paymentMethod: record.paymentMethod,
@@ -155,6 +172,12 @@ function parseCashInput(value: string): number {
   const digitsOnly = value.replace(/[^0-9]/g, "");
   if (!digitsOnly) return 0;
   return Math.max(0, Number.parseInt(digitsOnly, 10) || 0);
+}
+
+function formatPercentInput(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "0";
+  if (Math.round(value) === value) return String(value);
+  return value.toFixed(2).replace(/\.0+$/, "").replace(/(\.[0-9]*[1-9])0+$/, "$1");
 }
 
 function normalizePhone(value: string | null | undefined): string {
@@ -278,9 +301,16 @@ export function PosTerminalPage() {
   const [showCreateCustomerModal, setShowCreateCustomerModal] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [headerDiscountAmount, setHeaderDiscountAmount] = useState(0);
+  const checkoutSummaryRef = useRef<{
+    subtotal: number;
+    discountAmount: number;
+    vatRatePercent: number;
+    vatAmount: number;
+    total: number;
+  } | null>(null);
 
   const scannerInputRef = useRef<HTMLInputElement>(null);
-  const headerDiscount = 0;
   const backTarget = canAccessRoute(me, "/app/don-ban")
     ? "/app/don-ban"
     : canAccessRoute(me, "/app/tong-quan")
@@ -476,17 +506,6 @@ export function PosTerminalPage() {
   }, [customers, normalizedCustomerPhone]);
   const selectedCustomer: CustomerResponse | null = canViewCustomer && !forceGuestCustomer ? matchedCustomer : null;
   const customerHeadline = selectedCustomer?.fullName ?? "Khách lẻ";
-  const customerLookupHint = !canViewCustomer
-    ? "Tài khoản hiện tại không có quyền xem khách hàng. Đơn sẽ lưu ở chế độ khách lẻ."
-    : forceGuestCustomer
-      ? "Đang bán cho Khách lẻ (không gắn lịch sử khách hàng)."
-      : !normalizedCustomerPhone
-        ? "Nhập số điện thoại để nhận diện khách hàng có sẵn."
-        : customersQ.isFetching
-          ? "Đang tìm khách hàng..."
-          : matchedCustomer
-            ? `Đã nhận khách: ${matchedCustomer.fullName}${matchedCustomer.phone ? ` (${matchedCustomer.phone})` : ""}.`
-            : "Không tìm thấy số điện thoại này, hệ thống sẽ tính như Khách lẻ.";
   
   // Display labels based on user role
   const displayStoreName = selectedStoreName || "Cửa hàng";
@@ -502,8 +521,20 @@ export function PosTerminalPage() {
 
   const totalItems = useMemo(() => lines.reduce((sum, line) => sum + line.quantity, 0), [lines]);
   const subtotal = useMemo(() => lines.reduce((sum, line) => sum + lineTotal(line), 0), [lines]);
-  const vatAmount = 0;
-  const total = Math.max(0, subtotal - headerDiscount + vatAmount);
+  const safeHeaderDiscountAmount = useMemo(
+    () => Math.max(0, Math.trunc(headerDiscountAmount || 0)),
+    [headerDiscountAmount],
+  );
+  const safeVatRatePercent = POS_MARKET_VAT_RATE_PERCENT;
+  const taxableAmount = useMemo(
+    () => Math.max(0, subtotal - safeHeaderDiscountAmount),
+    [subtotal, safeHeaderDiscountAmount],
+  );
+  const vatAmount = useMemo(
+    () => Math.round(((taxableAmount * safeVatRatePercent) / 100) * 10_000) / 10_000,
+    [taxableAmount, safeVatRatePercent],
+  );
+  const total = Math.max(0, taxableAmount + vatAmount);
   const changeAmount = paymentMethod === "CASH" ? Math.max(0, cashReceived - total) : 0;
 
   const parkedOrdersInScope = useMemo(() => {
@@ -603,11 +634,18 @@ export function PosTerminalPage() {
         throw new Error("Giỏ hàng đang trống.");
       }
 
-      const amount = Math.max(0, lines.reduce((sum, line) => sum + lineTotal(line), 0) - headerDiscount + vatAmount);
+      const amount = total;
       if (paymentMethod === "CASH" && cashReceived < amount) {
         throw new Error("Số tiền khách đưa chưa đủ.");
       }
       receiptTenderedAmountRef.current = paymentMethod === "CASH" ? cashReceived : amount;
+      checkoutSummaryRef.current = {
+        subtotal,
+        discountAmount: safeHeaderDiscountAmount,
+        vatRatePercent: safeVatRatePercent,
+        vatAmount,
+        total: amount,
+      };
 
       const draft = await createSalesOrderDraft(
         toDraftPayload({
@@ -615,7 +653,9 @@ export function PosTerminalPage() {
           branchId,
           customerId: selectedCustomer?.id ?? null,
           lines,
-          headerDiscountAmount: headerDiscount,
+          headerDiscountAmount: safeHeaderDiscountAmount,
+          vatRatePercent: safeVatRatePercent,
+          vatAmount,
         }),
       );
 
@@ -745,9 +785,11 @@ export function PosTerminalPage() {
     setCatalogKeyword("");
     setCustomerPhoneLookup("");
     setForceGuestCustomer(true);
+    setHeaderDiscountAmount(0);
     setCashReceived(0);
     setPaymentMethod("CASH");
     setCompletedOrder(null);
+    checkoutSummaryRef.current = null;
     receiptTenderedAmountRef.current = null;
     checkoutM.reset();
     dispatch({ type: "IDLE" });
@@ -773,6 +815,8 @@ export function PosTerminalPage() {
         customerName: selectedCustomer?.fullName ?? null,
         customerPhoneLookup,
         forceGuestCustomer,
+        headerDiscountAmount: safeHeaderDiscountAmount,
+        vatRatePercent: safeVatRatePercent,
         lines,
         cashReceived,
         paymentMethod,
@@ -831,9 +875,11 @@ export function PosTerminalPage() {
     setCatalogKeyword("");
     setCustomerPhoneLookup(picked.customerPhoneLookup);
     setForceGuestCustomer(picked.forceGuestCustomer);
+    setHeaderDiscountAmount(Math.max(0, Math.trunc(picked.headerDiscountAmount || 0)));
     setCashReceived(picked.cashReceived);
     setPaymentMethod(picked.paymentMethod);
     setCompletedOrder(null);
+    checkoutSummaryRef.current = null;
     receiptTenderedAmountRef.current = null;
     checkoutM.reset();
     dispatch({ type: "IDLE" });
@@ -918,8 +964,8 @@ export function PosTerminalPage() {
           </table>
           <div style="margin-top:10px;border-top:1px dashed #999;padding-top:8px;font-size:13px;">
             <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Tạm tính:</span><strong>${formatVndFromDecimal(subtotal)}</strong></p>
-            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Chiết khấu:</span><strong>${formatVndFromDecimal(headerDiscount)}</strong></p>
-            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Thuế VAT:</span><strong>${formatVndFromDecimal(vatAmount)}</strong></p>
+            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Chiết khấu:</span><strong>${formatVndFromDecimal(safeHeaderDiscountAmount)}</strong></p>
+            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Thuế VAT (${safeVatRatePercent}%):</span><strong>${formatVndFromDecimal(vatAmount)}</strong></p>
             <p style="display:flex;justify-content:space-between;margin:6px 0 0 0;font-size:15px;"><span><strong>Tổng cần trả:</strong></span><strong>${formatVndFromDecimal(total)}</strong></p>
           </div>
           <script>
@@ -950,13 +996,22 @@ export function PosTerminalPage() {
 
     const storeName = getStoreName(order.storeId);
     const lineNameMap = new Map<number, string>(lines.map((line) => [line.variantId, displayVariantName(line)]));
+    const checkoutSummary = checkoutSummaryRef.current;
+    const orderSubtotal = checkoutSummary?.subtotal ?? toNumber(order.subtotal);
+    const orderDiscount = checkoutSummary?.discountAmount ?? toNumber(order.discountAmount);
+    const taxable = Math.max(0, orderSubtotal - orderDiscount);
+    const totalAmount = checkoutSummary?.total ?? toNumber(order.totalAmount);
+    const fallbackVatAmount = Math.max(0, totalAmount - taxable);
+    const orderVatAmount = checkoutSummary?.vatAmount ?? fallbackVatAmount;
+    const inferredVatRatePercent = taxable > 0 ? Math.round((orderVatAmount / taxable) * 10_000) / 100 : 0;
+    const orderVatRatePercent = checkoutSummary?.vatRatePercent ?? inferredVatRatePercent;
+    const vatRateLabel = formatPercentInput(orderVatRatePercent);
     const orderPaid = toNumber(order.paidAmount);
     const hasCashPayment = order.payments.some((payment) => payment.paymentMethod?.trim().toUpperCase() === "CASH");
     const paid =
       hasCashPayment && receiptTenderedAmountRef.current != null
         ? Math.max(orderPaid, receiptTenderedAmountRef.current)
         : orderPaid;
-    const totalAmount = toNumber(order.totalAmount);
     const change = Math.max(0, paid - totalAmount);
 
     const lineRows = order.items
@@ -997,9 +1052,10 @@ export function PosTerminalPage() {
             <tbody>${lineRows}</tbody>
           </table>
           <div style="margin-top:10px;border-top:1px dashed #999;padding-top:8px;font-size:13px;">
-            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Tạm tính:</span><strong>${formatVndFromDecimal(order.subtotal)}</strong></p>
-            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Giảm giá:</span><strong>${formatVndFromDecimal(order.discountAmount)}</strong></p>
-            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Tổng tiền:</span><strong>${formatVndFromDecimal(order.totalAmount)}</strong></p>
+            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Tạm tính:</span><strong>${formatVndFromDecimal(orderSubtotal)}</strong></p>
+            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Giảm giá:</span><strong>${formatVndFromDecimal(orderDiscount)}</strong></p>
+            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Thuế VAT (${vatRateLabel}%):</span><strong>${formatVndFromDecimal(orderVatAmount)}</strong></p>
+            <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Tổng tiền:</span><strong>${formatVndFromDecimal(totalAmount)}</strong></p>
             <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Khách đưa:</span><strong>${formatVndFromDecimal(paid)}</strong></p>
             <p style="display:flex;justify-content:space-between;margin:3px 0;"><span>Tiền thối:</span><strong>${formatVndFromDecimal(change)}</strong></p>
           </div>
@@ -1022,17 +1078,6 @@ export function PosTerminalPage() {
     popup.document.write(html);
     popup.document.close();
   };
-
-  const machineLabel =
-    machine.status === "payment"
-      ? "Đang xử lý"
-      : machine.status === "error"
-        ? "Có lỗi"
-        : machine.status === "success"
-          ? "Thành công"
-          : machine.status === "scanning"
-            ? "Đang quét"
-            : "Sẵn sàng";
 
   return (
     <div className="pos-v2-shell">
@@ -1127,7 +1172,15 @@ export function PosTerminalPage() {
               <ShoppingCart className="h-4 w-4" aria-hidden />
               Giỏ hàng ({totalItems})
             </h2>
-            <span className="pos-v2-panel-hint">{machineLabel}</span>
+            <button
+              type="button"
+              className="pos-v2-panel-search-btn"
+              onClick={() => setShowCatalogModal(true)}
+              disabled={!scopeReady}
+            >
+              <Search className="h-3.5 w-3.5" aria-hidden />
+              Tìm kiếm sản phẩm
+            </button>
           </header>
 
           <div className="pos-v2-cart-list">
@@ -1216,8 +1269,7 @@ export function PosTerminalPage() {
               type="button"
               className="pos-v2-footer-btn pos-v2-footer-btn-danger"
               onClick={() => {
-                setLines([]);
-                setCompletedOrder(null);
+                resetForNextSale();
                 toast.success("Đã hủy đơn hiện tại.");
               }}
             >
@@ -1232,152 +1284,157 @@ export function PosTerminalPage() {
         </section>
 
         <section className="pos-v2-right-column">
-          <div className="pos-v2-catalog-panel">
-            <button
-              type="button"
-              className="pos-v2-select-products-btn"
-              onClick={() => setShowCatalogModal(true)}
-              disabled={!scopeReady}
-            >
-              <ShoppingCart className="h-5 w-5" aria-hidden />
-              Chọn sản phẩm
-            </button>
-          </div>
-
           <div className="pos-v2-payment-panel">
-            <div className="pos-v2-payment-head">
-              <h3>
-                <User className="h-4 w-4" aria-hidden />
-                {customerHeadline}
-              </h3>
-              <div className="pos-v2-payment-head-actions">
-                {canCreateCustomer ? (
-                  <button type="button" onClick={openCreateCustomerModal}>
-                    + Thêm khách
+            <section className="pos-v2-payment-section pos-v2-payment-section-customer">
+              <div className="pos-v2-payment-head">
+                <h3>
+                  <User className="h-4 w-4" aria-hidden />
+                  {customerHeadline}
+                </h3>
+                <div className="pos-v2-payment-head-actions">
+                  {canCreateCustomer ? (
+                    <button type="button" onClick={openCreateCustomerModal}>
+                      + Thêm khách
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomerPhoneLookup("");
+                      setForceGuestCustomer(true);
+                    }}
+                    disabled={forceGuestCustomer}
+                  >
+                    Khách lẻ
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomerPhoneLookup("");
-                    setForceGuestCustomer(true);
-                  }}
-                  disabled={forceGuestCustomer}
-                >
-                  Khách lẻ
-                </button>
+                </div>
               </div>
-            </div>
 
-            <label className="pos-v2-customer-lookup-wrap">
-              <span>Số điện thoại khách</span>
-              <input
-                type="text"
-                inputMode="tel"
-                value={customerPhoneLookup}
-                placeholder="Nhập số điện thoại để tìm khách hàng"
-                disabled={checkoutM.isPending || !canViewCustomer}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setCustomerPhoneLookup(next);
-                  setForceGuestCustomer(next.trim().length === 0);
-                }}
-              />
-            </label>
-            <p
-              className={`pos-v2-customer-lookup-hint ${selectedCustomer ? "is-ok" : normalizedCustomerPhone && !forceGuestCustomer ? "is-warn" : ""}`}
-            >
-              {customerLookupHint}
-            </p>
+              <div className="pos-v2-payment-fields">
+                <label className="pos-v2-customer-lookup-wrap">
+                  <span>Số điện thoại khách</span>
+                  <input
+                    type="text"
+                    inputMode="tel"
+                    value={customerPhoneLookup}
+                    placeholder="Nhập số điện thoại để tìm khách hàng"
+                    disabled={checkoutM.isPending || !canViewCustomer}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setCustomerPhoneLookup(next);
+                      setForceGuestCustomer(next.trim().length === 0);
+                    }}
+                  />
+                </label>
 
-            <div className="pos-v2-summary-grid">
-              <div>
-                <span>Tạm tính ({totalItems} sp)</span>
-                <strong>{formatVndFromDecimal(subtotal)}</strong>
+                <label className="pos-v2-customer-lookup-wrap">
+                  <span>Chiết khấu đơn hàng</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatCashInput(headerDiscountAmount)}
+                    placeholder="Nhập số tiền giảm giá"
+                    disabled={checkoutM.isPending}
+                    onChange={(e) => setHeaderDiscountAmount(parseCashInput(e.target.value))}
+                  />
+                </label>
               </div>
-              <div>
-                <span>Chiết khấu</span>
-                <strong>{formatVndFromDecimal(headerDiscount)}</strong>
+            </section>
+
+            <section className="pos-v2-payment-section pos-v2-payment-section-summary">
+              <div className="pos-v2-summary-grid">
+                <div>
+                  <span>Tạm tính ({totalItems} sp)</span>
+                  <strong>{formatVndFromDecimal(subtotal)}</strong>
+                </div>
+                <div>
+                  <span>Chiết khấu</span>
+                  <strong>{formatVndFromDecimal(safeHeaderDiscountAmount)}</strong>
+                </div>
+                <div>
+                  <span>Thuế (VAT {safeVatRatePercent}%)</span>
+                  <strong>{formatVndFromDecimal(vatAmount)}</strong>
+                </div>
               </div>
-              <div>
-                <span>Thuế (VAT 8%)</span>
-                <strong>{formatVndFromDecimal(vatAmount)}</strong>
+
+              <div className="pos-v2-payable-row">
+                <span>Khách cần trả</span>
+                <strong>{formatVndFromDecimal(total)}</strong>
               </div>
-            </div>
+            </section>
 
-            <div className="pos-v2-payable-row">
-              <span>Khách cần trả</span>
-              <strong>{formatVndFromDecimal(total)}</strong>
-            </div>
+            <section className="pos-v2-payment-section pos-v2-payment-section-collect">
+              <div className="pos-v2-method-row">
+                {PAYMENT_OPTIONS.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    className={`pos-v2-method-btn ${paymentMethod === item.value ? "is-active" : ""}`}
+                    onClick={() => setPaymentMethod(item.value)}
+                  >
+                    {paymentMethodIcon(item.value)}
+                    {item.label}
+                  </button>
+                ))}
+              </div>
 
-            <div className="pos-v2-method-row">
-              {PAYMENT_OPTIONS.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  className={`pos-v2-method-btn ${paymentMethod === item.value ? "is-active" : ""}`}
-                  onClick={() => setPaymentMethod(item.value)}
-                >
-                  {paymentMethodIcon(item.value)}
-                  {item.label}
-                </button>
-              ))}
-            </div>
+              <label className="pos-v2-cash-input-wrap">
+                <span>Khách đưa</span>
+                <span className="pos-v2-cash-input-field">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatCashInput(cashReceived)}
+                    placeholder="Nhập số tiền khách đưa"
+                    disabled={paymentMethod !== "CASH" || checkoutM.isPending}
+                    onChange={(e) => setCashReceived(parseCashInput(e.target.value))}
+                  />
+                  <button
+                    type="button"
+                    className="pos-v2-cash-fill-btn"
+                    onClick={() => setCashReceived(Math.ceil(total))}
+                    disabled={paymentMethod !== "CASH" || checkoutM.isPending || total <= 0}
+                  >
+                    Đủ tiền
+                  </button>
+                </span>
+              </label>
 
-            <label className="pos-v2-cash-input-wrap">
-              <span>Khách đưa</span>
-              <span className="pos-v2-cash-input-field">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={formatCashInput(cashReceived)}
-                  placeholder="Nhập số tiền khách đưa"
-                  disabled={paymentMethod !== "CASH" || checkoutM.isPending}
-                  onChange={(e) => setCashReceived(parseCashInput(e.target.value))}
-                />
-                <button
-                  type="button"
-                  className="pos-v2-cash-fill-btn"
-                  onClick={() => setCashReceived(Math.ceil(total))}
-                  disabled={paymentMethod !== "CASH" || checkoutM.isPending || total <= 0}
-                >
-                  Đủ tiền
-                </button>
-              </span>
-            </label>
+              <div className="pos-v2-change-row">
+                <span>Tiền thừa trả khách</span>
+                <strong>{formatVndFromDecimal(changeAmount)}</strong>
+              </div>
 
-            <div className="pos-v2-change-row">
-              <span>Tiền thừa trả khách</span>
-              <strong>{formatVndFromDecimal(changeAmount)}</strong>
-            </div>
-
-            <div className="pos-v2-quick-cash-row">
-              {QUICK_CASH_VALUES.map((amount) => (
-                <button
-                  key={amount}
-                  type="button"
-                  onClick={() => setCashReceived((prev) => prev + amount)}
-                  disabled={paymentMethod !== "CASH" || checkoutM.isPending}
-                >
-                  +{formatVndFromDecimal(amount)}
-                </button>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              className="pos-v2-complete-btn"
-              disabled={lines.length === 0 || checkoutM.isPending || !scopeReady}
-              onClick={() => checkoutM.mutate()}
-            >
-              {checkoutM.isPending ? "ĐANG XỬ LÝ..." : "HOÀN TẤT THANH TOÁN"}
-            </button>
+              <div className="pos-v2-quick-cash-row">
+                {QUICK_CASH_VALUES.map((amount) => (
+                  <button
+                    key={amount}
+                    type="button"
+                    onClick={() => setCashReceived((prev) => prev + amount)}
+                    disabled={paymentMethod !== "CASH" || checkoutM.isPending}
+                  >
+                    +{formatVndFromDecimal(amount)}
+                  </button>
+                ))}
+              </div>
+            </section>
 
             {machine.status === "error" && machine.message ? (
               <p className="pos-v2-error-text" role="alert">
                 {machine.message}
               </p>
             ) : null}
+
+            <div className="pos-v2-payment-submit-row">
+              <button
+                type="button"
+                className="pos-v2-complete-btn"
+                disabled={lines.length === 0 || checkoutM.isPending || !scopeReady}
+                onClick={() => checkoutM.mutate()}
+              >
+                {checkoutM.isPending ? "ĐANG XỬ LÝ..." : "HOÀN TẤT THANH TOÁN"}
+              </button>
+            </div>
           </div>
         </section>
       </div>
@@ -1408,7 +1465,12 @@ export function PosTerminalPage() {
                 <div className="grid gap-3 overflow-y-auto">
                   {parkedOrdersInScope.map((order, idx) => {
                     const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
-                    const parkedTotal = order.lines.reduce((sum, line) => sum + lineTotal(line), 0);
+                    const parkedSubtotal = order.lines.reduce((sum, line) => sum + lineTotal(line), 0);
+                    const parkedDiscount = Math.max(0, Math.trunc(order.headerDiscountAmount || 0));
+                    const parkedVatRate = Math.min(100, Math.max(0, Number(order.vatRatePercent) || 0));
+                    const parkedTaxable = Math.max(0, parkedSubtotal - parkedDiscount);
+                    const parkedVatAmount = Math.round(((parkedTaxable * parkedVatRate) / 100) * 10_000) / 10_000;
+                    const parkedTotal = parkedTaxable + parkedVatAmount;
                     const firstLabel = order.lines[0] ? displayVariantName(order.lines[0]) : "Không có sản phẩm";
 
                     return (
@@ -1424,7 +1486,7 @@ export function PosTerminalPage() {
                           <p>Sản phẩm: <strong>{itemCount}</strong></p>
                           <p>Khách: <strong>{order.forceGuestCustomer ? "Khách lẻ" : (order.customerName ?? "Khách hàng")}</strong></p>
                           <p>Thanh toán: <strong>{paymentMethodLabel(order.paymentMethod)}</strong></p>
-                          <p>Tạm tính: <strong>{formatVndFromDecimal(parkedTotal)}</strong></p>
+                          <p>Tổng cần trả: <strong>{formatVndFromDecimal(parkedTotal)}</strong></p>
                         </div>
 
                         <div className="mt-3 flex flex-wrap justify-end gap-2">

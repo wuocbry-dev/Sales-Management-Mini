@@ -47,6 +47,8 @@ export function toDraftPayload(params: {
   customerId?: number | null;
   lines: PosCartLine[];
   headerDiscountAmount: number;
+  vatRatePercent?: number;
+  vatAmount?: number;
 }): SalesOrderCreateRequestBody {
   return {
     storeId: params.storeId,
@@ -54,6 +56,8 @@ export function toDraftPayload(params: {
     customerId: params.customerId ?? null,
     orderDate: new Date().toISOString(),
     headerDiscountAmount: Math.max(0, params.headerDiscountAmount),
+    vatRatePercent: params.vatRatePercent ?? 0,
+    vatAmount: params.vatAmount ?? 0,
     note: "POS checkout",
     lines: params.lines.map((l) => ({
       variantId: l.variantId,

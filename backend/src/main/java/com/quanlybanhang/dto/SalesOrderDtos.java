@@ -27,6 +27,8 @@ public final class SalesOrderDtos {
       Long customerId,
       @NotNull LocalDateTime orderDate,
       @NotNull @DecimalMin(value = "0") BigDecimal headerDiscountAmount,
+      @DecimalMin(value = "0") BigDecimal vatRatePercent,
+      @DecimalMin(value = "0") BigDecimal vatAmount,
       @Size(max = 500) String note,
       @NotEmpty @Valid List<SalesOrderLineRequest> lines) {}
 

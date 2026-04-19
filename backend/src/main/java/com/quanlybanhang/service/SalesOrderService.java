@@ -141,7 +141,6 @@ public class SalesOrderService {
     o.setCashierId(cashierId);
     o.setOrderDate(req.orderDate());
     o.setStatus(DomainConstants.ORDER_DRAFT);
-    o.setDiscountAmount(req.headerDiscountAmount());
     o.setNote(req.note());
     o.setPaidAmount(BigDecimal.ZERO);
     o.setPaymentStatus(DomainConstants.PAYMENT_STATUS_UNPAID);
@@ -160,11 +159,36 @@ public class SalesOrderService {
       item.setLineTotal(lineTotal);
       o.addLine(item);
     }
+
+    BigDecimal headerDiscount = req.headerDiscountAmount().max(BigDecimal.ZERO);
+    BigDecimal taxableAmount = subtotal.subtract(headerDiscount).max(BigDecimal.ZERO);
+    BigDecimal vatRatePercent = normalizeVatRatePercent(req.vatRatePercent());
+    BigDecimal computedVatAmount =
+        taxableAmount
+            .multiply(vatRatePercent)
+            .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+    if (req.vatAmount() != null && !moneyEquals(req.vatAmount(), computedVatAmount)) {
+      throw new BusinessException(
+          "VAT không hợp lệ (gửi " + req.vatAmount() + ", hệ thống tính " + computedVatAmount + ").");
+    }
+
     o.setSubtotal(subtotal);
-    o.setTotalAmount(subtotal.subtract(req.headerDiscountAmount()).max(BigDecimal.ZERO));
+    o.setDiscountAmount(headerDiscount);
+    o.setTotalAmount(taxableAmount.add(computedVatAmount));
 
     salesOrderRepository.save(o);
     return get(o.getId(), principal);
+  }
+
+  private static BigDecimal normalizeVatRatePercent(BigDecimal raw) {
+    if (raw == null) {
+      return BigDecimal.ZERO;
+    }
+    BigDecimal normalized = raw.max(BigDecimal.ZERO);
+    if (normalized.compareTo(new BigDecimal("100")) > 0) {
+      throw new BusinessException("VAT % phải trong khoảng 0-100.");
+    }
+    return normalized;
   }
 
   private Long resolveEffectiveBranchId(

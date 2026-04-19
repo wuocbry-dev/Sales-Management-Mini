@@ -11,6 +11,8 @@ export type SalesOrderCreateRequestBody = {
   customerId?: number | null;
   orderDate: string;
   headerDiscountAmount: number | string;
+  vatRatePercent?: number | string | null;
+  vatAmount?: number | string | null;
   note?: string | null;
   lines: SalesOrderLineRequestBody[];
 };
