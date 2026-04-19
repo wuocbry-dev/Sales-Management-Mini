@@ -9,17 +9,14 @@ type PosLayoutShellProps = PropsWithChildren<{
 
 export function PosLayoutShell({ sessionBar, cartPanel, catalogPanel, paymentPanel }: PosLayoutShellProps) {
   return (
-    <div className="pos-screen min-h-[calc(100dvh-4.25rem)] rounded-xl border border-[hsl(var(--pos-border))] p-3 shadow-sm md:p-4">
-      <div className="grid min-h-[calc(100dvh-6rem)] grid-rows-[auto_minmax(0,1fr)] gap-3">
-        <section className="min-h-0">{sessionBar}</section>
-
-        <div className="grid min-h-0 gap-3 xl:grid-cols-[1.65fr_1fr] xl:items-stretch">
-          <section className="min-h-0">{cartPanel}</section>
-          <section className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_auto]">
-            {catalogPanel}
-            {paymentPanel}
-          </section>
-        </div>
+    <div className="pos-screen h-[calc(100dvh-10.5rem)] overflow-hidden rounded-xl border border-[hsl(var(--pos-border))] p-3 md:h-[calc(100dvh-11.5rem)] md:p-4">
+      <div className="mb-3 shrink-0">{sessionBar}</div>
+      <div className="grid min-h-0 h-[calc(100%-5.25rem)] gap-3 lg:grid-cols-[1.8fr_1fr] lg:items-stretch">
+        <section className="min-h-0">{cartPanel}</section>
+        <section className="grid min-h-0 gap-3 lg:grid-rows-[minmax(0,1fr)_auto]">
+          {catalogPanel}
+          {paymentPanel}
+        </section>
       </div>
     </div>
   );

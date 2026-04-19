@@ -63,26 +63,16 @@ export function toDraftPayload(params: {
   };
 }
 
-export function toPaymentLines(params: {
-  method: "cash" | "card" | "bank" | "qr";
-  totalAmount: number;
-}): PaymentLineRequestBody[] {
+export function toPaymentLines(params: { totalAmount: number }): PaymentLineRequestBody[] {
   const amount = Math.max(0, params.totalAmount);
   if (amount <= 0) {
     return [];
   }
 
-  const methodMap: Record<"cash" | "card" | "bank" | "qr", string> = {
-    cash: "CASH",
-    card: "CARD",
-    bank: "BANK_TRANSFER",
-    qr: "EWALLET",
-  };
-
   return [
     {
       paymentType: "SALE",
-      paymentMethod: methodMap[params.method],
+      paymentMethod: "CASH",
       amount,
       referenceNo: null,
       note: "POS auto payment",

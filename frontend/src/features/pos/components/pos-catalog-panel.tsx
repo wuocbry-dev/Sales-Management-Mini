@@ -38,16 +38,16 @@ export function PosCatalogPanel({ storeId, onPickVariant }: PosCatalogPanelProps
   });
 
   const categories = categoriesQ.data?.content ?? [];
-  const quickVariants = (quickVariantsQ.data ?? []).slice(0, 12);
+  const quickVariants = (quickVariantsQ.data ?? []).slice(0, 6);
 
   return (
     <Card className="pos-panel flex h-full min-h-0 flex-col">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Tìm nhanh sản phẩm</CardTitle>
+        <CardTitle className="text-lg">Catalog / Quick pick</CardTitle>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
         <div className="rounded-md border border-[hsl(var(--pos-border))] p-2">
-          <p className="mb-2 text-xs font-semibold text-muted-foreground">Chọn thủ công theo tên / SKU</p>
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">Manual select</p>
           <VariantSearchCombobox
             apiNamespace="pos"
             storeId={storeId}
@@ -58,29 +58,19 @@ export function PosCatalogPanel({ storeId, onPickVariant }: PosCatalogPanelProps
           />
         </div>
 
-        <div className="min-h-0 rounded-md border border-[hsl(var(--pos-border))] p-2">
-          <p className="mb-2 text-xs font-semibold text-muted-foreground">Ô tìm nhanh tại quầy</p>
-          <Input
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            className="mb-2 h-11"
-            placeholder="Nhập từ khóa (SKU / tên sản phẩm)"
-          />
-        </div>
-
         <div className="rounded-md border border-[hsl(var(--pos-border))] p-2">
-          <p className="mb-2 text-xs font-semibold text-muted-foreground">Lọc nhanh theo danh mục</p>
-          <div className="flex max-h-[10dvh] flex-wrap gap-2 overflow-auto">
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">Category quick filter</p>
+          <div className="flex flex-wrap gap-2">
             {categories.length === 0 ? (
-              <Badge variant="muted">Chưa có dữ liệu danh mục</Badge>
+              <Badge variant="muted">No category data</Badge>
             ) : (
-              categories.slice(0, 12).map((c) => (
+              categories.slice(0, 6).map((c) => (
                 <Button
                   key={c.id}
                   type="button"
                   size="sm"
                   variant={activeCategoryName === c.categoryName ? "default" : "outline"}
-                  className="h-9"
+                  className="h-10"
                   onClick={() => setActiveCategoryName((prev) => (prev === c.categoryName ? "" : c.categoryName))}
                 >
                   {c.categoryName}
@@ -90,20 +80,24 @@ export function PosCatalogPanel({ storeId, onPickVariant }: PosCatalogPanelProps
           </div>
         </div>
 
-        <div className="min-h-0 rounded-md border border-[hsl(var(--pos-border))] p-2">
-          <p className="mb-2 text-xs font-semibold text-muted-foreground">Sản phẩm gợi ý để thêm nhanh</p>
-          <div className="grid max-h-[26dvh] grid-cols-1 gap-2 overflow-auto sm:grid-cols-2">
+        <div className="rounded-md border border-[hsl(var(--pos-border))] p-2">
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">Quick pick variants</p>
+          <Input
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            className="mb-2 h-11"
+            placeholder="Type keyword (sku/name)"
+          />
+          <div className="grid grid-cols-2 gap-2">
             {quickVariants.length === 0 ? (
-              <div className="col-span-2 text-xs text-muted-foreground">
-                Chưa có gợi ý chọn nhanh. Hãy chọn danh mục hoặc nhập từ khóa.
-              </div>
+              <div className="col-span-2 text-xs text-muted-foreground">No quick pick yet. Pick a category or type keyword.</div>
             ) : (
               quickVariants.map((v) => (
                 <Button
                   key={v.variantId}
                   type="button"
                   variant="outline"
-                  className="h-auto min-h-16 justify-start whitespace-normal text-left"
+                  className="h-auto min-h-14 justify-start whitespace-normal text-left"
                   onClick={() => onPickVariant(v)}
                 >
                   <span className="block text-xs font-semibold">{v.sku}</span>

@@ -195,7 +195,7 @@ const appChildren: RouteObject[] = [
   guarded("phieu-nhap/:id", <GoodsReceiptDetailPage />, { title: "Chi tiết phiếu nhập" }, gateGoodsReceiptView),
   guarded("phieu-nhap", <GoodsReceiptListPage />, { title: "Phiếu nhập", subtitle: "Nhập hàng vào kho." }, gateGoodsReceiptView),
   { path: "don-ban/moi", element: <Navigate to="/app/pos" replace /> },
-  guarded("pos", <PosTerminalPage />, { title: "Bán hàng POS", subtitle: "Quầy thu ngân" }, gateOrderCreate),
+  guarded("pos", <PosTerminalPage />, { title: "" }, gateOrderCreate),
   guarded("don-ban/:id", <SalesOrderDetailPage />, { title: "Chi tiết đơn hàng" }, gateOrderView),
   guarded("don-ban", <SalesOrderListPage />, { title: "Đơn bán", subtitle: "Đơn hàng bán lẻ." }, gateOrderView),
   guarded("tra-hang/moi", <SalesReturnCreatePage />, { title: "Tạo phiếu trả" }, gateReturnCreate),
@@ -266,5 +266,3 @@ export const router = createBrowserRouter([
   },
   { path: "*", element: <Navigate to="/" replace /> },
 ]);
-
-export const appRouter = router;

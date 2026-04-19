@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ProductVariantOptionResponse } from "@/types/product";
 import { PosTerminalPage } from "@/features/pos/pos-terminal-page";
 
 const mockCreateDraft = vi.fn();
@@ -64,12 +63,12 @@ vi.mock("@/features/pos/pos-scope-store", () => {
   };
 });
 
-vi.mock("@/features/pos/components/pos-session-bar", () => ({
-  PosSessionBar: ({ onScanned }: { onScanned: (v: ProductVariantOptionResponse) => void }) => (
+vi.mock("@/components/catalog/barcode-scanner-input", () => ({
+  BarcodeScannerInput: ({ onFound }: { onFound: (v: { variantId: number; sku: string; productName: string; variantName: string; sellingPrice: string }) => void }) => (
     <button
       type="button"
       onClick={() =>
-        onScanned({
+        onFound({
           variantId: 101,
           sku: "SKU-101",
           productName: "Cola",
@@ -89,7 +88,7 @@ describe("PosTerminalPage happy flow", () => {
     mockConfirmOrder.mockReset();
   });
 
-  it("scans item, chooses payment method, completes checkout", async () => {
+  it("scans item and completes checkout with cash", async () => {
     mockCreateDraft.mockResolvedValue({ id: 5001 });
     mockConfirmOrder.mockResolvedValue({ id: 5001, orderCode: "SO5001" });
 
@@ -102,9 +101,10 @@ describe("PosTerminalPage happy flow", () => {
       </QueryClientProvider>,
     );
 
+    await user.click(screen.getByRole("button", { name: "Tiếp tục nhập sản phẩm" }));
     await user.click(screen.getByRole("button", { name: "scan-item" }));
-    await user.click(screen.getByRole("button", { name: "Thẻ" }));
-    await user.click(screen.getByRole("button", { name: "Xác nhận thanh toán" }));
+    await user.click(screen.getByRole("button", { name: "Tiếp tục tính tiền" }));
+    await user.click(screen.getByRole("button", { name: "Complete checkout" }));
 
     await waitFor(() => {
       expect(mockCreateDraft).toHaveBeenCalledTimes(1);
@@ -130,7 +130,7 @@ describe("PosTerminalPage happy flow", () => {
       expect.objectContaining({
         payments: [
           expect.objectContaining({
-            paymentMethod: "CARD",
+            paymentMethod: "CASH",
             amount: 12000,
           }),
         ],
@@ -138,7 +138,7 @@ describe("PosTerminalPage happy flow", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Thành công")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /In hóa đơn\?/i })).toBeInTheDocument();
     });
   });
 });

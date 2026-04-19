@@ -14,7 +14,16 @@ function useDebouncedValue<T>(value: T, ms: number): T {
   return debounced;
 }
 
-function optionLabel(row: ProductVariantOptionResponse): string {
+type LabelMode = "sku-variant" | "product-sku" | "product-variant";
+
+function optionLabel(row: ProductVariantOptionResponse, mode: LabelMode): string {
+  if (mode === "product-sku") {
+    return `${row.productName} - ${row.sku}`;
+  }
+  if (mode === "product-variant") {
+    const variant = row.variantName?.trim() ? row.variantName.trim() : "Mặc định";
+    return `${row.productName} - ${variant}`;
+  }
   const name = row.variantName?.trim() ? row.variantName.trim() : "—";
   return `${row.sku} - ${name}`;
 }
@@ -30,6 +39,8 @@ export type VariantSearchComboboxProps = {
   name?: string;
   disabled?: boolean;
   id?: string;
+  placeholder?: string;
+  labelMode?: LabelMode;
 };
 
 export const VariantSearchCombobox = forwardRef<HTMLInputElement, VariantSearchComboboxProps>(
@@ -44,6 +55,8 @@ export const VariantSearchCombobox = forwardRef<HTMLInputElement, VariantSearchC
       name = "variantSearch",
       disabled,
       id,
+      placeholder,
+      labelMode = "sku-variant",
     },
     ref,
   ) {
@@ -82,10 +95,10 @@ export const VariantSearchCombobox = forwardRef<HTMLInputElement, VariantSearchC
       (row: ProductVariantOptionResponse) => {
         onChange(row.variantId);
         onPick?.(row);
-        setText(optionLabel(row));
+        setText(optionLabel(row, labelMode));
         setOpen(false);
       },
-      [onChange, onPick],
+      [onChange, onPick, labelMode],
     );
 
     return (
@@ -96,7 +109,7 @@ export const VariantSearchCombobox = forwardRef<HTMLInputElement, VariantSearchC
           name={name}
           autoComplete="off"
           disabled={disabled || storeId <= 0}
-          placeholder={storeId <= 0 ? "Chọn cửa hàng trước" : "Gõ SKU hoặc tên biến thể…"}
+          placeholder={storeId <= 0 ? "Chọn cửa hàng trước" : (placeholder ?? "Gõ SKU hoặc tên biến thể…")}
           value={text}
           role="combobox"
           aria-expanded={showList}
@@ -138,7 +151,7 @@ export const VariantSearchCombobox = forwardRef<HTMLInputElement, VariantSearchC
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => pick(row)}
                 >
-                  <span className="break-all">{optionLabel(row)}</span>
+                  <span className="break-all">{optionLabel(row, labelMode)}</span>
                 </button>
               ))
             )}
