@@ -71,4 +71,20 @@ public class AuthorizationExpressions {
         "ORDER_CREATE",
         "STORE_VIEW");
   }
+
+  /**
+   * Đọc thông tin chi nhánh cho UI vận hành (sidebar, scope chips) theo role nghiệp vụ.
+   * Service layer vẫn kiểm tra phạm vi store/branch thực tế.
+   */
+  public boolean branchRead(Authentication authentication) {
+    if (systemManage(authentication)) {
+      return true;
+    }
+    return hasAnyAuthority(authentication, "BRANCH_VIEW")
+        || hasRole(authentication, "STORE_MANAGER")
+        || hasRole(authentication, "BRANCH_MANAGER")
+        || hasRole(authentication, "CASHIER")
+        || hasRole(authentication, "WAREHOUSE_STAFF")
+        || masterRead(authentication);
+  }
 }

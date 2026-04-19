@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchBrandsPage } from "@/api/brands-api";
 import { fetchCategoriesPage } from "@/api/categories-api";
 import { deleteProduct, fetchProductImageBlobUrl, fetchProductsPage } from "@/api/products-api";
@@ -11,6 +11,7 @@ import { PaginationBar } from "@/components/data-table/pagination-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AppImage } from "@/components/ui/app-image";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -134,11 +135,18 @@ export function ProductListPage() {
     },
   });
 
+  const thumbBlobUrlsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    (thumbQ.data ?? []).forEach((item) => thumbBlobUrlsRef.current.add(item.blobUrl));
+  }, [thumbQ.data]);
+
   useEffect(() => {
     return () => {
-      thumbQ.data?.forEach((item) => URL.revokeObjectURL(item.blobUrl));
+      thumbBlobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      thumbBlobUrlsRef.current.clear();
     };
-  }, [thumbQ.data]);
+  }, []);
 
   const { getStoreName } = useStoreNameMap();
 
@@ -279,7 +287,7 @@ export function ProductListPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[72px]">Ảnh</TableHead>
+                  <TableHead className="w-[88px]">Ảnh</TableHead>
                   <TableHead>Mã</TableHead>
                   <TableHead>Tên</TableHead>
                   <TableHead>Loại</TableHead>
@@ -299,17 +307,12 @@ export function ProductListPage() {
                   data.content.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>
-                        {thumbMap.has(row.id) ? (
-                          <img
-                            src={thumbMap.get(row.id)}
-                            alt={row.productName}
-                            className="h-10 w-10 rounded-md border object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-10 w-10 items-center justify-center rounded-md border bg-muted text-[10px] text-muted-foreground">
-                            No img
-                          </div>
-                        )}
+                        <AppImage
+                          src={thumbMap.get(row.id)}
+                          alt={row.productName}
+                          containerClassName="h-12 w-12"
+                          fallback="No img"
+                        />
                       </TableCell>
                       <TableCell className="font-mono text-sm">{row.productCode}</TableCell>
                       <TableCell className="font-medium">{row.productName}</TableCell>

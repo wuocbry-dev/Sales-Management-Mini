@@ -27,9 +27,10 @@ import {
   fetchProductsPage,
 } from "@/api/products-api";
 import { confirmSalesOrder, createSalesOrderDraft } from "@/api/sales-orders-api";
+import { AppImage } from "@/components/ui/app-image";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/features/auth/auth-store";
-import { isFrontlineCashierNav, isStoreManagerRole, isSystemManage } from "@/features/auth/access";
+import { hasPermission, isFrontlineCashierNav, isStoreManagerRole, isSystemManage } from "@/features/auth/access";
 import {
   lineTotal,
   posInitialState,
@@ -159,6 +160,7 @@ export function PosTerminalPage() {
 
   const manager = isManager(me);
   const isCashier = isFrontlineCashierNav(me);
+  const canViewBranch = Boolean(me && (isSystemManage(me) || hasPermission(me, "BRANCH_VIEW")));
   const fallbackStoreId = me?.defaultStoreId ?? me?.storeIds?.[0] ?? 0;
   const lockedStoreId = !manager ? fallbackStoreId : 0;
   const lockedBranchId = !manager ? ((me?.branchIds?.length ?? 0) === 1 ? (me?.branchIds?.[0] ?? null) : null) : null;
@@ -191,14 +193,16 @@ export function PosTerminalPage() {
   const branchesQ = useQuery({
     queryKey: ["pos", "branches", storeId],
     queryFn: () => fetchBranchesForStore(storeId, { page: 0, size: 200 }),
-    enabled: storeId > 0,
+    enabled: manager && canViewBranch && storeId > 0,
     staleTime: 60_000,
+    retry: false,
   });
 
   const branchDetailQ = useQuery({
     queryKey: ["pos", "branch", branchId],
     queryFn: () => fetchBranchById(branchId!),
-    enabled: branchId != null && branchId > 0,
+    // Frontline users are locked to assigned branch and still need readable branch name on POS header.
+    enabled: branchId != null && branchId > 0 && (manager ? canViewBranch : true),
     staleTime: 60_000,
     retry: false,
   });
@@ -263,11 +267,18 @@ export function PosTerminalPage() {
     },
   });
 
+  const catalogBlobUrlsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    (catalogImagesQ.data ?? []).forEach((item) => catalogBlobUrlsRef.current.add(item.blobUrl));
+  }, [catalogImagesQ.data]);
+
   useEffect(() => {
     return () => {
-      catalogImagesQ.data?.forEach((item) => URL.revokeObjectURL(item.blobUrl));
+      catalogBlobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      catalogBlobUrlsRef.current.clear();
     };
-  }, [catalogImagesQ.data]);
+  }, []);
 
   const imageBlobBySource = useMemo(() => {
     const out = new Map<string, string>();
@@ -779,7 +790,6 @@ export function PosTerminalPage() {
           <div className="pos-v2-user-box">
             <div className="pos-v2-user-meta">
               <p className="pos-v2-user-name">{me?.fullName ?? me?.username ?? "Người dùng"}</p>
-              <p className="pos-v2-user-shift">Ca sáng (08:00 - 16:00)</p>
             </div>
             <div className="pos-v2-avatar">{initialsFromName(me?.fullName ?? me?.username ?? "User")}</div>
           </div>
@@ -838,11 +848,14 @@ export function PosTerminalPage() {
                 return (
                   <article key={line.variantId} className="pos-v2-cart-item">
                     <div className="pos-v2-cart-thumb">
-                      {imageUrl ? (
-                        <img src={imageUrl} alt={displayVariantName(line)} loading="lazy" />
-                      ) : (
-                        <span>{line.sku.slice(0, 2).toUpperCase()}</span>
-                      )}
+                      <AppImage
+                        src={imageUrl}
+                        alt={displayVariantName(line)}
+                        withFrame={false}
+                        containerClassName="h-full w-full"
+                        imageClassName="h-full w-full object-contain p-0"
+                        fallback={<span>{line.sku.slice(0, 2).toUpperCase()}</span>}
+                      />
                     </div>
 
                     <div className="pos-v2-cart-content">
@@ -1081,11 +1094,14 @@ export function PosTerminalPage() {
                         </span>
 
                         <div className="pos-v2-product-thumb">
-                          {imageUrl ? (
-                            <img src={imageUrl} alt={displayVariantName(toPosCartLine(variant))} loading="lazy" />
-                          ) : (
-                            <span>{variant.sku.slice(0, 3).toUpperCase()}</span>
-                          )}
+                          <AppImage
+                            src={imageUrl}
+                            alt={displayVariantName(toPosCartLine(variant))}
+                            withFrame={false}
+                            containerClassName="h-full w-full"
+                            imageClassName="h-full w-full object-contain p-0"
+                            fallback={<span>{variant.sku.slice(0, 3).toUpperCase()}</span>}
+                          />
                         </div>
 
                         <div className="pos-v2-product-meta">

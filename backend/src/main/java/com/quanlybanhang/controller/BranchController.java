@@ -29,7 +29,7 @@ public class BranchController {
   private final BranchService branchService;
 
   @GetMapping("/stores/{storeId}/branches")
-  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('BRANCH_VIEW')")
+  @PreAuthorize("@authz.branchRead(authentication)")
   public Page<BranchResponse> list(
       @PathVariable Long storeId,
       Pageable pageable,
@@ -38,7 +38,7 @@ public class BranchController {
   }
 
   @GetMapping("/stores/{storeId}/branches/{branchId}")
-  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('BRANCH_VIEW')")
+  @PreAuthorize("@authz.branchRead(authentication)")
   public BranchResponse get(
       @PathVariable Long storeId,
       @PathVariable Long branchId,
@@ -68,7 +68,7 @@ public class BranchController {
 
   /** Alias theo query {@code storeId} — cùng logic với {@code /api/stores/{storeId}/branches}. */
   @GetMapping("/branches")
-  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('BRANCH_VIEW')")
+  @PreAuthorize("@authz.branchRead(authentication)")
   public Page<BranchResponse> listByQuery(
       @RequestParam Long storeId,
       Pageable pageable,
@@ -77,7 +77,7 @@ public class BranchController {
   }
 
   @GetMapping("/branches/{branchId}")
-  @PreAuthorize("@authz.systemManage(authentication) or hasAuthority('BRANCH_VIEW')")
+  @PreAuthorize("@authz.branchRead(authentication)")
   public BranchResponse getById(
       @PathVariable Long branchId, @AuthenticationPrincipal JwtAuthenticatedPrincipal principal) {
     return branchService.getById(branchId, principal);

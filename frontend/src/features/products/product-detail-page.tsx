@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { fetchBrandById } from "@/api/brands-api";
 import { fetchCategoryById } from "@/api/categories-api";
@@ -12,6 +12,7 @@ import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AppImage } from "@/components/ui/app-image";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { catalogStatusLabel, catalogStatusTextClass } from "@/lib/catalog-status-labels";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
@@ -81,11 +82,18 @@ export function ProductDetailPage() {
     },
   });
 
+  const productDetailBlobUrlsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    (imageQ.data ?? []).forEach((img) => productDetailBlobUrlsRef.current.add(img.url));
+  }, [imageQ.data]);
+
   useEffect(() => {
     return () => {
-      imageQ.data?.forEach((img) => URL.revokeObjectURL(img.url));
+      productDetailBlobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      productDetailBlobUrlsRef.current.clear();
     };
-  }, [imageQ.data]);
+  }, []);
 
   const { getStoreName } = useStoreNameMap();
 
@@ -199,12 +207,13 @@ export function ProductDetailPage() {
                   href={img.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="group relative block overflow-hidden rounded-md border"
+                  className="group block"
                 >
-                  <img
+                  <AppImage
                     src={img.url}
                     alt={`Ảnh sản phẩm ${img.imageId}`}
-                    className="h-28 w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    containerClassName="h-28 w-full"
+                    imageClassName="h-full w-full transition-transform duration-200 group-hover:scale-105"
                   />
                 </a>
               ))}

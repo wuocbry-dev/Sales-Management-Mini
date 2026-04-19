@@ -12,6 +12,7 @@ import { fetchUnitsPage } from "@/api/units-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { AppImage } from "@/components/ui/app-image";
 import { Input } from "@/components/ui/input";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
@@ -202,11 +203,18 @@ export function ProductEditPage() {
     },
   });
 
+  const productEditBlobUrlsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    (imageQ.data ?? []).forEach((img) => productEditBlobUrlsRef.current.add(img.url));
+  }, [imageQ.data]);
+
   useEffect(() => {
     return () => {
-      imageQ.data?.forEach((img) => URL.revokeObjectURL(img.url));
+      productEditBlobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      productEditBlobUrlsRef.current.clear();
     };
-  }, [imageQ.data]);
+  }, []);
 
   const imageUrlMap = useMemo(
     () => new Map((imageQ.data ?? []).map((img) => [img.imageId, img.url] as const)),
@@ -608,12 +616,15 @@ export function ProductEditPage() {
 
                     const previewUrl = imageUrlMap.get(image.imageId);
                     return (
-                      <div key={image.imageId} className="relative h-28 overflow-hidden rounded-md border">
-                        {previewUrl ? (
-                          <img src={previewUrl} alt={`Ảnh sản phẩm ${image.imageId}`} className="h-full w-full object-cover" />
-                        ) : (
-                          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Đang tải ảnh...</div>
-                        )}
+                      <div key={image.imageId} className="relative h-28">
+                        <AppImage
+                          src={previewUrl}
+                          alt={`Ảnh sản phẩm ${image.imageId}`}
+                          loading="eager"
+                          containerClassName="h-full w-full"
+                          fallback="Đang tải ảnh..."
+                          fallbackClassName="text-xs"
+                        />
                         <button
                           type="button"
                           className="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white"

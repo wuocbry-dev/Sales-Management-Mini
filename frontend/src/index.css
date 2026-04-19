@@ -751,16 +751,22 @@
     position: absolute;
     right: 0.34rem;
     top: 0.34rem;
+    z-index: 3;
     border-radius: 999px;
-    background: rgba(37, 99, 235, 0.12);
+    border: 1px solid #bfdbfe;
+    background: rgba(239, 246, 255, 0.96);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
     padding: 0.08rem 0.4rem;
     color: #1d4ed8;
     font-size: 0.66rem;
     font-weight: 700;
     line-height: 1.2;
+    pointer-events: none;
   }
 
   .pos-v2-product-thumb {
+    position: relative;
+    z-index: 1;
     display: grid;
     aspect-ratio: 1 / 1;
     place-items: center;

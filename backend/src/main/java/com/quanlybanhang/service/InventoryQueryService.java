@@ -45,8 +45,10 @@ public class InventoryQueryService {
 
   public Page<InventoryResponse> listByWarehouse(
       Long warehouseId, Pageable pageable, JwtAuthenticatedPrincipal principal) {
-    warehouseService.assertCanAccessWarehouse(warehouseId, principal);
     Warehouse w = warehouseService.requireById(warehouseId);
+    // Inventory lookup supports cross-warehouse visibility within the same accessible store
+    // so branch-scoped staff can plan internal stock transfers.
+    storeAccessService.assertCanAccessStore(w.getStoreId(), principal);
     return mapInventoryPage(
         inventoryRepository.findByWarehouseId(warehouseId, pageable), w.getStoreId());
   }

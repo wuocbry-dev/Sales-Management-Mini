@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, Outlet, useMatches } from "react-router-dom";
-import { fetchBranchesForStore } from "@/api/branches-api";
 import { fetchBranchById } from "@/api/branches-api";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
@@ -76,7 +75,8 @@ export function AppShellLayout() {
   const me = useAuthStore((s) => s.me);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { getStoreName } = useStoreNameMap({ enabled: Boolean(me?.defaultStoreId) });
+  const currentStoreId = me?.defaultStoreId ?? (me?.storeIds?.length ? me.storeIds[0] : null);
+  const { getStoreName } = useStoreNameMap({ enabled: Boolean(currentStoreId) });
   const matches = useMatches();
   const leaf = matches[matches.length - 1];
   const handle = (leaf?.handle ?? {}) as AppRouteHandle;
@@ -84,20 +84,12 @@ export function AppShellLayout() {
 
   if (!me) return <AppLoadingShell />;
 
-  const currentStoreLabel = me.defaultStoreId ? getStoreName(me.defaultStoreId) : "Chưa chọn cửa hàng";
+  const currentStoreLabel = currentStoreId ? getStoreName(currentStoreId) : "Chưa chọn cửa hàng";
   const isAdmin = isSystemLevelUser(me);
   const isCashier = me.roles.includes("CASHIER");
   const isWarehouseStaff = me.roles.includes("WAREHOUSE_STAFF");
   const isFrontlineRole = isCashier || isWarehouseStaff;
   const currentBranchId = me.branchIds.length > 0 ? me.branchIds[0] : null;
-  const currentStoreId = me.defaultStoreId ?? (me.storeIds.length > 0 ? me.storeIds[0] : null);
-  const storeBranchesQ = useQuery({
-    queryKey: ["layout", "store-branches", currentStoreId],
-    queryFn: () => fetchBranchesForStore(Number(currentStoreId), { page: 0, size: 200 }),
-    enabled: isFrontlineRole && currentStoreId != null,
-    staleTime: 60_000,
-    retry: false,
-  });
   const branchQ = useQuery({
     queryKey: ["layout", "branch", currentBranchId],
     queryFn: () => fetchBranchById(Number(currentBranchId)),
@@ -117,13 +109,11 @@ export function AppShellLayout() {
   const currentBranchName =
     currentBranchId == null
       ? null
-      : storeBranchesQ.data?.content?.find((b) => b.branchId === currentBranchId)?.branchName ??
-        branchQ.data?.branchName ??
-        null;
+      : branchQ.data?.branchName ?? `Chi nhánh #${currentBranchId}`;
   const roleSubline = isAdmin
     ? "quản trị viên hệ thống"
     : frontlineRoleCode
-      ? (currentBranchName ?? (storeBranchesQ.isPending || branchQ.isPending ? "Đang tải chi nhánh..." : "Chưa gán chi nhánh"))
+      ? (currentBranchName ?? (branchQ.isPending ? "Đang tải chi nhánh..." : "Chưa gán chi nhánh"))
       : currentStoreLabel;
 
   const sidebar = (
@@ -151,10 +141,15 @@ export function AppShellLayout() {
         </NavLink>
         {!collapsed ? (
           <div className="min-w-0 flex-1 px-2">
-            <p className="truncate text-xs font-bold tracking-wide text-emerald-700 dark:text-emerald-400">
+            <p
+              className="truncate text-xs font-bold tracking-wide text-emerald-700 dark:text-emerald-400"
+              title={roleHeadline}
+            >
               {roleHeadline}
             </p>
-            <p className="truncate text-[11px] font-medium text-muted-foreground">{roleSubline}</p>
+            <p className="truncate text-[11px] font-medium text-muted-foreground" title={roleSubline}>
+              {roleSubline}
+            </p>
           </div>
         ) : null}
         <Button

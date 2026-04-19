@@ -12,6 +12,7 @@ import { fetchUnitsPage } from "@/api/units-api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { AppImage } from "@/components/ui/app-image";
 import { Input } from "@/components/ui/input";
 import { isSystemManage } from "@/features/auth/access";
 import { gateProductCatalogMutate } from "@/features/auth/gates";
@@ -116,6 +117,7 @@ export function ProductCreatePage() {
   const me = useAuthStore((s) => s.me);
   const navigate = useNavigate();
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const previewBlobUrlsRef = useRef<Set<string>>(new Set());
   const [images, setImages] = useState<LocalProductImage[]>([]);
   const needStorePicker = Boolean(me && (isSystemManage(me) || me.storeIds.length > 1));
   const canCreateCatalogMaster = Boolean(me && gateProductCatalogMutate(me));
@@ -209,9 +211,10 @@ export function ProductCreatePage() {
 
   useEffect(() => {
     return () => {
-      images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+      previewBlobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      previewBlobUrlsRef.current.clear();
     };
-  }, [images]);
+  }, []);
 
   function handlePickImages(fileList: FileList | null): void {
     if (!fileList || fileList.length === 0) return;
@@ -228,11 +231,15 @@ export function ProductCreatePage() {
       return;
     }
 
-    const picked = fileArray.slice(0, remain).map((file) => ({
-      id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 7)}`,
-      file,
-      previewUrl: URL.createObjectURL(file),
-    }));
+    const picked = fileArray.slice(0, remain).map((file) => {
+      const previewUrl = URL.createObjectURL(file);
+      previewBlobUrlsRef.current.add(previewUrl);
+      return {
+        id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2, 7)}`,
+        file,
+        previewUrl,
+      };
+    });
 
     if (fileArray.length > remain) {
       toast.warning(`Chỉ lấy ${remain} ảnh đầu tiên do giới hạn ${MAX_PRODUCT_IMAGES} ảnh.`);
@@ -244,7 +251,10 @@ export function ProductCreatePage() {
   function handleRemoveImage(id: string): void {
     setImages((prev) => {
       const target = prev.find((img) => img.id === id);
-      if (target) URL.revokeObjectURL(target.previewUrl);
+      if (target) {
+        URL.revokeObjectURL(target.previewUrl);
+        previewBlobUrlsRef.current.delete(target.previewUrl);
+      }
       return prev.filter((img) => img.id !== id);
     });
   }
@@ -267,7 +277,8 @@ export function ProductCreatePage() {
       );
     },
     onSuccess: (data) => {
-      images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+      previewBlobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      previewBlobUrlsRef.current.clear();
       setImages([]);
       toast.success("Đã tạo sản phẩm.");
       void navigate(`/app/san-pham/${data.id}`);
@@ -582,8 +593,13 @@ export function ProductCreatePage() {
                           );
                         }
                         return (
-                          <div key={img.id} className="relative h-24 overflow-hidden rounded-md border">
-                            <img src={img.previewUrl} alt={img.file.name} className="h-full w-full object-cover" />
+                          <div key={img.id} className="relative h-24">
+                            <AppImage
+                              src={img.previewUrl}
+                              alt={img.file.name}
+                              loading="eager"
+                              containerClassName="h-full w-full"
+                            />
                             <button
                               type="button"
                               className="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white"
