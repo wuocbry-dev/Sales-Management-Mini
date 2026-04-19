@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
+  ArrowLeft,
   Camera,
   ClipboardList,
   CreditCard,
@@ -14,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { createCustomer } from "@/api/customers-api";
 import { fetchBranchesForStore } from "@/api/branches-api";
 import { fetchCategoriesPage } from "@/api/categories-api";
 import { fetchInventoryAvailability } from "@/api/inventory-api";
@@ -43,6 +46,7 @@ import type { InventoryAvailabilityResponse } from "@/types/inventory";
 import type { CategoryResponse } from "@/types/master-data";
 import type { ProductResponse, ProductVariantOptionResponse } from "@/types/product";
 import type { SalesOrderResponse } from "@/types/sales-order";
+import type { CustomerRequestBody } from "@/types/customer";
 
 type PaymentMethod = "CASH" | "CARD" | "EWALLET";
 
@@ -141,6 +145,7 @@ function selectedBranchLabel(branchId: number | null, branches: Array<{ branchId
 }
 
 export function PosTerminalPage() {
+  const navigate = useNavigate();
   const me = useAuthStore((s) => s.me);
   const selectedStoreId = usePosScopeStore((s) => s.selectedStoreId);
   const selectedBranchId = usePosScopeStore((s) => s.selectedBranchId);
@@ -165,6 +170,18 @@ export function PosTerminalPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [machine, dispatch] = useReducer(posMachineReducer, posInitialState);
   const [completedOrder, setCompletedOrder] = useState<SalesOrderResponse | null>(null);
+  const [showCatalogModal, setShowCatalogModal] = useState(false);
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [customerForm, setCustomerForm] = useState<CustomerRequestBody>({
+    customerCode: "",
+    fullName: "",
+    phone: "",
+    email: "",
+    gender: "",
+    dateOfBirth: "",
+    address: "",
+    status: "ACTIVE",
+  });
 
   const scannerInputRef = useRef<HTMLInputElement>(null);
   const headerDiscount = 0;
@@ -286,15 +303,20 @@ export function PosTerminalPage() {
   });
 
   useEffect(() => {
-    if (manager) return;
-    const nextStoreId = lockedStoreId > 0 ? lockedStoreId : null;
-    if (selectedStoreId !== nextStoreId) {
-      setSelectedStoreId(nextStoreId);
+    if (manager) {
+      // Manager always locked to their default store
+      if (me?.defaultStoreId) {
+        setSelectedStoreId(me.defaultStoreId);
+      }
+      setSelectedBranchId(null);
     }
-    if (selectedBranchId !== lockedBranchId) {
-      setSelectedBranchId(lockedBranchId);
+    if (isCashier) {
+      // Cashier always locked to their assigned branch
+      if (me?.branchIds?.[0]) {
+        setSelectedBranchId(me.branchIds[0]);
+      }
     }
-  }, [manager, lockedStoreId, lockedBranchId, selectedStoreId, selectedBranchId, setSelectedStoreId, setSelectedBranchId]);
+  }, [manager, isCashier, me, setSelectedStoreId, setSelectedBranchId]);
 
   useEffect(() => {
     if (!stockByVariantQ.data) return;
@@ -320,6 +342,13 @@ export function PosTerminalPage() {
 
   const selectedStoreName = getStoreName(storeId);
   const selectedBranchName = selectedBranchLabel(branchId, branchesQ.data?.content ?? []);
+  
+  // Display labels based on user role
+  const displayStoreName = selectedStoreName || "Cửa hàng";
+  const displayBranchName = !isCashier || branchId != null 
+    ? selectedBranchName 
+    : "Chọn chi nhánh";
+
   const scopeMessage = !storeId
     ? "Chọn cửa hàng trước khi bán hàng."
     : isCashier && !branchId
@@ -689,91 +718,65 @@ export function PosTerminalPage() {
   return (
     <div className="pos-v2-shell">
       <div className="pos-v2-topbar">
-        <div className="pos-v2-brand-box">
-          <Store className="h-5 w-5 text-[#2563eb]" aria-hidden />
-          <div>
-            <p className="pos-v2-brand-title">Bán hàng POS</p>
-            <p className="pos-v2-brand-subtitle">Quầy thu ngân</p>
-          </div>
-        </div>
-
-        <div className="pos-v2-search-box">
-          <input
-            ref={scannerInputRef}
-            type="text"
-            value={scanCode}
-            disabled={!scopeReady || scanLookupM.isPending}
-            className="pos-v2-search-input"
-            placeholder={scopeReady ? "Quét mã vạch hoặc nhập mã SKU..." : "Chọn cửa hàng/chi nhánh trước"}
-            onChange={(e) => setScanCode(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                runLookup();
-              }
-            }}
-          />
-          <Button type="button" className="pos-v2-search-btn" onClick={runLookup} disabled={!scopeReady || scanLookupM.isPending}>
-            <Search className="h-4 w-4" aria-hidden />
-            Tìm kiếm
-          </Button>
-          <button type="button" className="pos-v2-icon-btn" aria-label="Camera scan" disabled>
-            <Camera className="h-4 w-4" aria-hidden />
+        <div className="pos-v2-topbar-row-1">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground shrink-0"
+            title="Quay lại giao diện quản lý"
+          >
+            <ArrowLeft className="h-5 w-5" />
           </button>
+
+          <div className="pos-v2-brand-box">
+            <Store className="h-5 w-5 text-[#2563eb]" aria-hidden />
+            <div>
+              <p className="pos-v2-brand-title">Bán hàng POS</p>
+              <p className="pos-v2-brand-subtitle">Quầy thu ngân</p>
+            </div>
+          </div>
+
+          <div className="pos-v2-search-box">
+            <input
+              ref={scannerInputRef}
+              type="text"
+              value={scanCode}
+              disabled={!scopeReady || scanLookupM.isPending}
+              className="pos-v2-search-input"
+              placeholder={scopeReady ? "Quét mã vạch hoặc nhập mã SKU..." : "Chọn cửa hàng/chi nhánh trước"}
+              onChange={(e) => setScanCode(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  runLookup();
+                }
+              }}
+            />
+            <Button type="button" className="pos-v2-search-btn" onClick={runLookup} disabled={!scopeReady || scanLookupM.isPending}>
+              <Search className="h-4 w-4" aria-hidden />
+              Tìm kiếm
+            </Button>
+            <button type="button" className="pos-v2-icon-btn" aria-label="Camera scan" disabled>
+              <Camera className="h-4 w-4" aria-hidden />
+            </button>
+          </div>
+
+          <div className="pos-v2-user-box">
+            <div className="pos-v2-user-meta">
+              <p className="pos-v2-user-name">{me?.fullName ?? me?.username ?? "Người dùng"}</p>
+              <p className="pos-v2-user-shift">Ca sáng (08:00 - 16:00)</p>
+            </div>
+            <div className="pos-v2-avatar">{initialsFromName(me?.fullName ?? me?.username ?? "User")}</div>
+          </div>
         </div>
 
-        <div className="pos-v2-user-box">
-          <div className="pos-v2-user-meta">
-            <p className="pos-v2-user-name">{me?.fullName ?? me?.username ?? "Người dùng"}</p>
-            <p className="pos-v2-user-shift">Ca sáng (08:00 - 16:00)</p>
+        <div className="pos-v2-topbar-row-2">
+          <div className="pos-v2-chip-row">
+            <span className="pos-v2-pill pos-v2-pill-soft">{displayStoreName}</span>
+            <span className="pos-v2-pill pos-v2-pill-soft">{displayBranchName}</span>
           </div>
-          <div className="pos-v2-avatar">{initialsFromName(me?.fullName ?? me?.username ?? "User")}</div>
         </div>
       </div>
-
-      {manager ? (
-        <div className="pos-v2-manager-scope">
-          <label className="pos-v2-scope-field">
-            Cửa hàng
-            <select
-              value={storeId > 0 ? String(storeId) : ""}
-              onChange={(e) => {
-                const nextStore = Number(e.target.value) || null;
-                setSelectedStoreId(nextStore);
-                setSelectedBranchId(null);
-                setActiveCategoryId(null);
-                resetForNextSale();
-              }}
-            >
-              <option value="">Chọn cửa hàng</option>
-              {stores.map((store) => (
-                <option key={store.id} value={store.id}>
-                  {store.storeName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="pos-v2-scope-field">
-            Chi nhánh
-            <select
-              value={branchId != null ? String(branchId) : ""}
-              disabled={storeId <= 0}
-              onChange={(e) => {
-                const nextBranch = Number(e.target.value);
-                setSelectedBranchId(Number.isFinite(nextBranch) && nextBranch > 0 ? nextBranch : null);
-                resetForNextSale();
-              }}
-            >
-              <option value="">Kho tổng</option>
-              {(branchesQ.data?.content ?? []).map((branch) => (
-                <option key={branch.branchId} value={branch.branchId}>
-                  {branch.branchName}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      ) : null}
 
       {scopeMessage ? (
         <div className="pos-v2-inline-warning" role="alert">
@@ -909,83 +912,15 @@ export function PosTerminalPage() {
 
         <section className="pos-v2-right-column">
           <div className="pos-v2-catalog-panel">
-            <input
-              type="text"
-              className="pos-v2-catalog-search"
-              value={catalogKeyword}
-              placeholder="Lọc sản phẩm theo tên hoặc SKU..."
-              onChange={(e) => setCatalogKeyword(e.target.value)}
-            />
-
-            <div className="pos-v2-chip-row">
-              <span className="pos-v2-pill pos-v2-pill-soft">{selectedStoreName}</span>
-              <span className="pos-v2-pill pos-v2-pill-soft">{selectedBranchName}</span>
-            </div>
-
-            <div className="pos-v2-chip-row">
-              <button
-                type="button"
-                className={`pos-v2-pill ${activeCategoryId == null ? "is-active" : ""}`}
-                onClick={() => setActiveCategoryId(null)}
-              >
-                Tất cả
-              </button>
-
-              {categories.slice(0, 10).map((category: CategoryResponse) => (
-                <button
-                  key={category.id}
-                  type="button"
-                  className={`pos-v2-pill ${activeCategoryId === category.id ? "is-active" : ""}`}
-                  onClick={() => setActiveCategoryId(category.id)}
-                >
-                  {category.categoryName}
-                </button>
-              ))}
-            </div>
-
-            <div className="pos-v2-catalog-grid" role="list">
-              {productsQ.isPending ? (
-                <div className="pos-v2-empty-state">Đang tải danh mục sản phẩm...</div>
-              ) : productsQ.isError ? (
-                <div className="pos-v2-empty-state">{formatApiError(productsQ.error)}</div>
-              ) : catalogVariants.length === 0 ? (
-                <div className="pos-v2-empty-state">Không tìm thấy sản phẩm phù hợp bộ lọc hiện tại.</div>
-              ) : (
-                catalogVariants.map((variant) => {
-                  const imageUrl = imageBlobByVariantId.get(variant.variantId);
-                  const availableQty = stockByVariantQ.data?.get(variant.variantId);
-                  const isOutOfStock = typeof availableQty === "number" && availableQty <= 0;
-                  return (
-                    <button
-                      key={variant.variantId}
-                      type="button"
-                      role="listitem"
-                      className={`pos-v2-product-card ${isOutOfStock ? "is-out" : ""}`}
-                      disabled={!scopeReady || isOutOfStock}
-                      onClick={() => addVariant(variant)}
-                    >
-                      <span className="pos-v2-stock-badge">
-                        {typeof availableQty === "number" ? `SL: ${availableQty}` : "SL: --"}
-                      </span>
-
-                      <div className="pos-v2-product-thumb">
-                        {imageUrl ? (
-                          <img src={imageUrl} alt={displayVariantName(toPosCartLine(variant))} loading="lazy" />
-                        ) : (
-                          <span>{variant.sku.slice(0, 3).toUpperCase()}</span>
-                        )}
-                      </div>
-
-                      <div className="pos-v2-product-meta">
-                        <p className="pos-v2-product-name">{variant.productName}</p>
-                        <p className="pos-v2-product-sku">{variant.sku}</p>
-                        <p className="pos-v2-product-price">{formatVndFromDecimal(variant.sellingPrice)}</p>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
+            <button
+              type="button"
+              className="pos-v2-select-products-btn"
+              onClick={() => setShowCatalogModal(true)}
+              disabled={!scopeReady}
+            >
+              <ShoppingCart className="h-5 w-5" aria-hidden />
+              Chọn sản phẩm
+            </button>
           </div>
 
           <div className="pos-v2-payment-panel">
@@ -1077,6 +1012,82 @@ export function PosTerminalPage() {
           </div>
         </section>
       </div>
+
+      {showCatalogModal && (
+        <div className="pos-v2-modal-overlay" onClick={() => setShowCatalogModal(false)}>
+          <div className="pos-v2-modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="pos-v2-modal-header">
+              <h2>Chọn sản phẩm</h2>
+              <button
+                type="button"
+                className="pos-v2-modal-close"
+                onClick={() => setShowCatalogModal(false)}
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="pos-v2-modal-content">
+              <input
+                type="text"
+                className="pos-v2-catalog-search"
+                value={catalogKeyword}
+                placeholder="Lọc sản phẩm theo tên hoặc SKU..."
+                onChange={(e) => setCatalogKeyword(e.target.value)}
+              />
+
+              <div className="pos-v2-catalog-grid" role="list">
+                {productsQ.isPending ? (
+                  <div className="pos-v2-empty-state">Đang tải danh mục sản phẩm...</div>
+                ) : productsQ.isError ? (
+                  <div className="pos-v2-empty-state">{formatApiError(productsQ.error)}</div>
+                ) : catalogVariants.length === 0 ? (
+                  <div className="pos-v2-empty-state">Không tìm thấy sản phẩm phù hợp bộ lọc hiện tại.</div>
+                ) : (
+                  catalogVariants.map((variant) => {
+                    const imageUrl = imageBlobByVariantId.get(variant.variantId);
+                    const availableQty = stockByVariantQ.data?.get(variant.variantId);
+                    const isOutOfStock = typeof availableQty === "number" && availableQty <= 0;
+                    return (
+                      <button
+                        key={variant.variantId}
+                        type="button"
+                        role="listitem"
+                        className={`pos-v2-product-card ${isOutOfStock ? "is-out" : ""}`}
+                        disabled={isOutOfStock}
+                        onClick={() => {
+                          addVariant(variant);
+                          setShowCatalogModal(false);
+                        }}
+                      >
+                        <span className="pos-v2-stock-badge">
+                          {typeof availableQty === "number" ? `SL: ${availableQty}` : "SL: --"}
+                        </span>
+
+                        <div className="pos-v2-product-thumb">
+                          {imageUrl ? (
+                            <img src={imageUrl} alt={displayVariantName(toPosCartLine(variant))} loading="lazy" />
+                          ) : (
+                            <span>{variant.sku.slice(0, 3).toUpperCase()}</span>
+                          )}
+                        </div>
+
+                        <div className="pos-v2-product-meta">
+                          <p className="pos-v2-product-name">{variant.productName}</p>
+                          <p className="pos-v2-product-sku">{variant.sku}</p>
+                          <p className="pos-v2-product-sku" style={{ color: '#6b7280', fontSize: '0.72rem' }}>{variant.variantName}</p>
+                          <p className="pos-v2-product-price">{formatVndFromDecimal(variant.sellingPrice)}</p>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

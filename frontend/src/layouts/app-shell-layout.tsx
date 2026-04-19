@@ -179,6 +179,14 @@ export function AppShellLayout() {
     </aside>
   );
 
+  if (isPosRoute) {
+    return (
+      <div className="h-dvh w-screen bg-background">
+        <Outlet />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-muted/30">
       {mobileOpen && (
@@ -212,15 +220,15 @@ export function AppShellLayout() {
             <AppBreadcrumbs />
           </div>
         </header>
-        <main className={cn("p-4 md:p-6", isPosRoute && "h-[calc(100dvh-6.45rem)] overflow-hidden p-3 md:p-4")}>
-          <div className={cn("mx-auto max-w-7xl space-y-6", isPosRoute && "h-full max-w-none space-y-3")}>
+        <main className="p-4 md:p-6">
+          <div className="mx-auto max-w-7xl space-y-6">
             {handle.title ? (
               <div className="space-y-1">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">{handle.title}</h1>
                 {handle.subtitle ? <p className="text-sm text-muted-foreground">{handle.subtitle}</p> : null}
               </div>
             ) : null}
-            <div className={cn(isPosRoute && "h-full min-h-0")}>
+            <div>
               <Outlet />
             </div>
           </div>
