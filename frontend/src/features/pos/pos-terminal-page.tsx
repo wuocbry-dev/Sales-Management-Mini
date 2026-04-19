@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { fetchBranchById } from "@/api/branches-api";
 import { fetchBranchesForStore } from "@/api/branches-api";
 import { fetchCategoriesPage } from "@/api/categories-api";
+import { createCustomer, fetchCustomersPage } from "@/api/customers-api";
 import { fetchInventoryAvailability } from "@/api/inventory-api";
 import {
   fetchPosVariantByBarcode,
@@ -44,6 +45,7 @@ import { useStoreNameMap } from "@/hooks/use-store-name-map";
 import { formatApiError } from "@/lib/api-errors";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
+import type { CustomerResponse } from "@/types/customer";
 import type { InventoryAvailabilityResponse } from "@/types/inventory";
 import type { ProductResponse, ProductVariantOptionResponse } from "@/types/product";
 import type { SalesOrderResponse } from "@/types/sales-order";
@@ -63,6 +65,74 @@ const PAYMENT_OPTIONS: Array<{ value: PaymentMethod; label: string }> = [
   { value: "CARD", label: "Thẻ/Bank" },
   { value: "EWALLET", label: "QR Pay" },
 ];
+
+const POS_PARKED_ORDERS_KEY = "pos-v2-parked-orders";
+const POS_PARKED_ORDERS_LIMIT = 30;
+
+type ParkedPosOrder = {
+  id: string;
+  storeId: number;
+  branchId: number | null;
+  customerId: number | null;
+  customerName: string | null;
+  customerPhoneLookup: string;
+  forceGuestCustomer: boolean;
+  lines: PosCartLine[];
+  cashReceived: number;
+  paymentMethod: PaymentMethod;
+  createdAt: string;
+};
+
+function isPaymentMethod(value: unknown): value is PaymentMethod {
+  return value === "CASH" || value === "CARD" || value === "EWALLET";
+}
+
+function readParkedOrders(): ParkedPosOrder[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(POS_PARKED_ORDERS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const out: ParkedPosOrder[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") continue;
+      const record = item as Partial<ParkedPosOrder>;
+      if (!Number.isFinite(record.storeId) || (record.storeId ?? 0) <= 0) continue;
+      if (!Array.isArray(record.lines) || record.lines.length === 0) continue;
+      if (!isPaymentMethod(record.paymentMethod)) continue;
+      out.push({
+        id: typeof record.id === "string" && record.id.length > 0 ? record.id : `${Date.now()}-${Math.random()}`,
+        storeId: Number(record.storeId),
+        branchId: Number.isFinite(record.branchId as number)
+          ? Number(record.branchId)
+          : record.branchId == null
+            ? null
+            : null,
+        customerId: Number.isFinite(record.customerId as number) ? Number(record.customerId) : null,
+        customerName: typeof record.customerName === "string" && record.customerName.trim().length > 0 ? record.customerName : null,
+        customerPhoneLookup:
+          typeof record.customerPhoneLookup === "string" ? record.customerPhoneLookup : "",
+        forceGuestCustomer:
+          typeof record.forceGuestCustomer === "boolean"
+            ? record.forceGuestCustomer
+            : !(Number.isFinite(record.customerId as number) && Number(record.customerId) > 0),
+        lines: record.lines as PosCartLine[],
+        cashReceived: Number.isFinite(record.cashReceived) ? Number(record.cashReceived) : 0,
+        paymentMethod: record.paymentMethod,
+        createdAt: typeof record.createdAt === "string" ? record.createdAt : new Date().toISOString(),
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+function writeParkedOrders(orders: ParkedPosOrder[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(POS_PARKED_ORDERS_KEY, JSON.stringify(orders));
+}
 
 function isManager(me: ReturnType<typeof useAuthStore.getState>["me"]): boolean {
   if (!me) return false;
@@ -85,6 +155,19 @@ function parseCashInput(value: string): number {
   const digitsOnly = value.replace(/[^0-9]/g, "");
   if (!digitsOnly) return 0;
   return Math.max(0, Number.parseInt(digitsOnly, 10) || 0);
+}
+
+function normalizePhone(value: string | null | undefined): string {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+function createPosCustomerCode(phoneDigits: string): string {
+  const stamp = Date.now().toString().slice(-8);
+  const tail = phoneDigits.slice(-6).padStart(6, "0");
+  const rand = Math.floor(Math.random() * 90 + 10)
+    .toString()
+    .padStart(2, "0");
+  return `KH${stamp}${tail}${rand}`;
 }
 
 function initialsFromName(name: string): string {
@@ -115,6 +198,12 @@ function paymentMethodIcon(method: PaymentMethod) {
     return <QrCode className="h-4 w-4" aria-hidden />;
   }
   return <Wallet className="h-4 w-4" aria-hidden />;
+}
+
+function paymentMethodLabel(method: PaymentMethod): string {
+  if (method === "CARD") return "Thẻ/Bank";
+  if (method === "EWALLET") return "QR Pay";
+  return "Tiền mặt";
 }
 
 function flattenVariants(rows: ProductResponse[]): CatalogVariant[] {
@@ -152,6 +241,7 @@ function selectedBranchLabel(
 
 export function PosTerminalPage() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const me = useAuthStore((s) => s.me);
   const selectedStoreId = usePosScopeStore((s) => s.selectedStoreId);
   const selectedBranchId = usePosScopeStore((s) => s.selectedBranchId);
@@ -161,6 +251,8 @@ export function PosTerminalPage() {
   const manager = isManager(me);
   const isCashier = isFrontlineCashierNav(me);
   const canViewBranch = Boolean(me && (isSystemManage(me) || hasPermission(me, "BRANCH_VIEW")));
+  const canViewCustomer = Boolean(me && (isSystemManage(me) || hasPermission(me, "CUSTOMER_VIEW")));
+  const canCreateCustomer = Boolean(me && (isSystemManage(me) || hasPermission(me, "CUSTOMER_CREATE")));
   const fallbackStoreId = me?.defaultStoreId ?? me?.storeIds?.[0] ?? 0;
   const lockedStoreId = !manager ? fallbackStoreId : 0;
   const lockedBranchId = !manager ? ((me?.branchIds?.length ?? 0) === 1 ? (me?.branchIds?.[0] ?? null) : null) : null;
@@ -179,6 +271,13 @@ export function PosTerminalPage() {
   const [completedOrder, setCompletedOrder] = useState<SalesOrderResponse | null>(null);
   const receiptTenderedAmountRef = useRef<number | null>(null);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
+  const [showParkedOrdersModal, setShowParkedOrdersModal] = useState(false);
+  const [parkedOrdersVersion, setParkedOrdersVersion] = useState(0);
+  const [customerPhoneLookup, setCustomerPhoneLookup] = useState("");
+  const [forceGuestCustomer, setForceGuestCustomer] = useState(true);
+  const [showCreateCustomerModal, setShowCreateCustomerModal] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
 
   const scannerInputRef = useRef<HTMLInputElement>(null);
   const headerDiscount = 0;
@@ -203,6 +302,14 @@ export function PosTerminalPage() {
     queryFn: () => fetchBranchById(branchId!),
     // Frontline users are locked to assigned branch and still need readable branch name on POS header.
     enabled: branchId != null && branchId > 0 && (manager ? canViewBranch : true),
+    staleTime: 60_000,
+    retry: false,
+  });
+
+  const customersQ = useQuery({
+    queryKey: ["pos", "customers", storeId],
+    queryFn: () => fetchCustomersPage({ page: 0, size: 500, storeId }),
+    enabled: canViewCustomer && storeId > 0,
     staleTime: 60_000,
     retry: false,
   });
@@ -361,6 +468,25 @@ export function PosTerminalPage() {
 
   const selectedStoreName = getStoreName(storeId);
   const selectedBranchName = selectedBranchLabel(branchId, branchesQ.data?.content ?? [], branchDetailQ.data?.branchName);
+  const customers = customersQ.data?.content ?? [];
+  const normalizedCustomerPhone = useMemo(() => normalizePhone(customerPhoneLookup), [customerPhoneLookup]);
+  const matchedCustomer = useMemo(() => {
+    if (!normalizedCustomerPhone) return null;
+    return customers.find((c) => normalizePhone(c.phone) === normalizedCustomerPhone) ?? null;
+  }, [customers, normalizedCustomerPhone]);
+  const selectedCustomer: CustomerResponse | null = canViewCustomer && !forceGuestCustomer ? matchedCustomer : null;
+  const customerHeadline = selectedCustomer?.fullName ?? "Khách lẻ";
+  const customerLookupHint = !canViewCustomer
+    ? "Tài khoản hiện tại không có quyền xem khách hàng. Đơn sẽ lưu ở chế độ khách lẻ."
+    : forceGuestCustomer
+      ? "Đang bán cho Khách lẻ (không gắn lịch sử khách hàng)."
+      : !normalizedCustomerPhone
+        ? "Nhập số điện thoại để nhận diện khách hàng có sẵn."
+        : customersQ.isFetching
+          ? "Đang tìm khách hàng..."
+          : matchedCustomer
+            ? `Đã nhận khách: ${matchedCustomer.fullName}${matchedCustomer.phone ? ` (${matchedCustomer.phone})` : ""}.`
+            : "Không tìm thấy số điện thoại này, hệ thống sẽ tính như Khách lẻ.";
   
   // Display labels based on user role
   const displayStoreName = selectedStoreName || "Cửa hàng";
@@ -380,13 +506,15 @@ export function PosTerminalPage() {
   const total = Math.max(0, subtotal - headerDiscount + vatAmount);
   const changeAmount = paymentMethod === "CASH" ? Math.max(0, cashReceived - total) : 0;
 
-  useEffect(() => {
-    if (paymentMethod !== "CASH") {
-      setCashReceived(total);
-      return;
-    }
-    setCashReceived((prev) => (prev < total ? total : prev));
-  }, [paymentMethod, total]);
+  const parkedOrdersInScope = useMemo(() => {
+    const toMillis = (s: string) => {
+      const t = Date.parse(s);
+      return Number.isFinite(t) ? t : 0;
+    };
+    return readParkedOrders()
+      .filter((x) => x.storeId === storeId && x.branchId === branchId)
+      .sort((a, b) => toMillis(b.createdAt) - toMillis(a.createdAt));
+  }, [storeId, branchId, parkedOrdersVersion]);
 
   const addVariant = (variant: ProductVariantOptionResponse) => {
     if (!scopeReady) {
@@ -485,6 +613,7 @@ export function PosTerminalPage() {
         toDraftPayload({
           storeId,
           branchId,
+          customerId: selectedCustomer?.id ?? null,
           lines,
           headerDiscountAmount: headerDiscount,
         }),
@@ -496,6 +625,66 @@ export function PosTerminalPage() {
           paymentMethod,
         }),
       });
+    },
+  });
+
+  const createCustomerM = useMutation({
+    mutationFn: async () => {
+      if (!canCreateCustomer) {
+        throw new Error("Tài khoản hiện tại không có quyền thêm khách hàng.");
+      }
+      if (!storeId || storeId <= 0) {
+        throw new Error("Thiếu cửa hàng vận hành POS.");
+      }
+
+      const fullName = newCustomerName.trim();
+      if (!fullName) {
+        throw new Error("Vui lòng nhập tên khách hàng.");
+      }
+
+      const phoneDigits = normalizePhone(newCustomerPhone);
+      if (phoneDigits.length < 8) {
+        throw new Error("Số điện thoại không hợp lệ.");
+      }
+
+      const existed = customers.find((c) => normalizePhone(c.phone) === phoneDigits);
+      if (existed) {
+        return {
+          created: existed,
+          alreadyExists: true,
+        } as const;
+      }
+
+      const created = await createCustomer({
+        storeId,
+        customerCode: createPosCustomerCode(phoneDigits),
+        fullName,
+        phone: phoneDigits,
+        email: null,
+        gender: null,
+        dateOfBirth: null,
+        address: null,
+        status: "ACTIVE",
+      });
+
+      return {
+        created,
+        alreadyExists: false,
+      } as const;
+    },
+    onSuccess: async ({ created, alreadyExists }) => {
+      await qc.invalidateQueries({ queryKey: ["pos", "customers", storeId] });
+      await qc.invalidateQueries({ queryKey: ["customers"] });
+
+      setCustomerPhoneLookup(created.phone ?? "");
+      setForceGuestCustomer(false);
+      setShowCreateCustomerModal(false);
+      setNewCustomerName("");
+      setNewCustomerPhone("");
+      toast.success(alreadyExists ? "Khách hàng đã tồn tại, đã gắn vào đơn hiện tại." : "Đã thêm khách hàng mới.");
+    },
+    onError: (err) => {
+      toast.error(formatApiError(err));
     },
   });
 
@@ -553,12 +742,116 @@ export function PosTerminalPage() {
   const resetForNextSale = () => {
     setLines([]);
     setScanCode("");
+    setCatalogKeyword("");
+    setCustomerPhoneLookup("");
+    setForceGuestCustomer(true);
     setCashReceived(0);
     setPaymentMethod("CASH");
     setCompletedOrder(null);
     receiptTenderedAmountRef.current = null;
     checkoutM.reset();
     dispatch({ type: "IDLE" });
+  };
+
+  const holdCurrentOrder = () => {
+    if (!scopeReady) {
+      toast.error("Hoàn tất chọn cửa hàng/chi nhánh trước khi tạm giữ đơn.");
+      return;
+    }
+    if (lines.length === 0) {
+      toast.error("Giỏ hàng đang trống.");
+      return;
+    }
+
+    const current = readParkedOrders();
+    const next: ParkedPosOrder[] = [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        storeId,
+        branchId,
+        customerId: selectedCustomer?.id ?? null,
+        customerName: selectedCustomer?.fullName ?? null,
+        customerPhoneLookup,
+        forceGuestCustomer,
+        lines,
+        cashReceived,
+        paymentMethod,
+        createdAt: new Date().toISOString(),
+      },
+      ...current,
+    ].slice(0, POS_PARKED_ORDERS_LIMIT);
+
+    writeParkedOrders(next);
+    setParkedOrdersVersion((prev) => prev + 1);
+    const scopedCount = next.filter((x) => x.storeId === storeId && x.branchId === branchId).length;
+    resetForNextSale();
+    toast.success(`Đã tạm giữ đơn. Hiện có ${scopedCount} đơn tạm trong quầy này.`);
+  };
+
+  const openCreateCustomerModal = () => {
+    if (!scopeReady) {
+      toast.error("Hoàn tất chọn cửa hàng/chi nhánh trước khi thêm khách hàng.");
+      return;
+    }
+    if (!canCreateCustomer) {
+      toast.error("Tài khoản hiện tại không có quyền thêm khách hàng.");
+      return;
+    }
+    setNewCustomerName("");
+    setNewCustomerPhone(normalizedCustomerPhone || "");
+    setShowCreateCustomerModal(true);
+  };
+
+  const openParkedOrdersModal = () => {
+    if (!scopeReady) {
+      toast.error("Hoàn tất chọn cửa hàng/chi nhánh trước khi mở đơn tạm.");
+      return;
+    }
+    setParkedOrdersVersion((prev) => prev + 1);
+    setShowParkedOrdersModal(true);
+  };
+
+  const restoreParkedOrderById = (parkedOrderId: string) => {
+    const current = readParkedOrders();
+    const idx = current.findIndex(
+      (x) => x.id === parkedOrderId && x.storeId === storeId && x.branchId === branchId,
+    );
+    if (idx < 0) {
+      setParkedOrdersVersion((prev) => prev + 1);
+      toast.error("Đơn tạm không còn tồn tại.");
+      return;
+    }
+
+    const [picked] = current.splice(idx, 1);
+    writeParkedOrders(current);
+    setParkedOrdersVersion((prev) => prev + 1);
+
+    setLines(picked.lines);
+    setScanCode("");
+    setCatalogKeyword("");
+    setCustomerPhoneLookup(picked.customerPhoneLookup);
+    setForceGuestCustomer(picked.forceGuestCustomer);
+    setCashReceived(picked.cashReceived);
+    setPaymentMethod(picked.paymentMethod);
+    setCompletedOrder(null);
+    receiptTenderedAmountRef.current = null;
+    checkoutM.reset();
+    dispatch({ type: "IDLE" });
+    setShowParkedOrdersModal(false);
+    window.setTimeout(() => scannerInputRef.current?.focus(), 0);
+    toast.success(`Đã mở đơn tạm (${picked.lines.length} sản phẩm).`);
+  };
+
+  const removeParkedOrderById = (parkedOrderId: string) => {
+    const current = readParkedOrders();
+    const next = current.filter((x) => x.id !== parkedOrderId);
+    if (next.length === current.length) {
+      toast.info("Đơn tạm đã được xử lý hoặc không còn tồn tại.");
+      return;
+    }
+    writeParkedOrders(next);
+    setParkedOrdersVersion((prev) => prev + 1);
+    toast.success("Đã xóa đơn tạm khỏi lịch sử.");
   };
 
   const runLookup = () => {
@@ -906,7 +1199,7 @@ export function PosTerminalPage() {
             <button
               type="button"
               className="pos-v2-footer-btn pos-v2-footer-btn-warn"
-              onClick={() => toast.info("Đơn tạm sẽ được hỗ trợ sau khi có API giữ đơn.")}
+              onClick={holdCurrentOrder}
             >
               <ClipboardList className="h-4 w-4" aria-hidden />
               Tạm giữ
@@ -914,7 +1207,7 @@ export function PosTerminalPage() {
             <button
               type="button"
               className="pos-v2-footer-btn"
-              onClick={() => toast.info("Tính năng mở đơn tạm sẽ được bật khi backend hỗ trợ.")}
+              onClick={openParkedOrdersModal}
             >
               <ClipboardList className="h-4 w-4" aria-hidden />
               Mở đơn tạm
@@ -955,10 +1248,47 @@ export function PosTerminalPage() {
             <div className="pos-v2-payment-head">
               <h3>
                 <User className="h-4 w-4" aria-hidden />
-                Khách lẻ
+                {customerHeadline}
               </h3>
-              <button type="button" onClick={() => toast.info("Sẽ hỗ trợ thêm khách hàng sau.")}>+ Thêm</button>
+              <div className="pos-v2-payment-head-actions">
+                {canCreateCustomer ? (
+                  <button type="button" onClick={openCreateCustomerModal}>
+                    + Thêm khách
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomerPhoneLookup("");
+                    setForceGuestCustomer(true);
+                  }}
+                  disabled={forceGuestCustomer}
+                >
+                  Khách lẻ
+                </button>
+              </div>
             </div>
+
+            <label className="pos-v2-customer-lookup-wrap">
+              <span>Số điện thoại khách</span>
+              <input
+                type="text"
+                inputMode="tel"
+                value={customerPhoneLookup}
+                placeholder="Nhập số điện thoại để tìm khách hàng"
+                disabled={checkoutM.isPending || !canViewCustomer}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setCustomerPhoneLookup(next);
+                  setForceGuestCustomer(next.trim().length === 0);
+                }}
+              />
+            </label>
+            <p
+              className={`pos-v2-customer-lookup-hint ${selectedCustomer ? "is-ok" : normalizedCustomerPhone && !forceGuestCustomer ? "is-warn" : ""}`}
+            >
+              {customerLookupHint}
+            </p>
 
             <div className="pos-v2-summary-grid">
               <div>
@@ -995,14 +1325,25 @@ export function PosTerminalPage() {
             </div>
 
             <label className="pos-v2-cash-input-wrap">
-              Khách đưa
-              <input
-                type="text"
-                inputMode="numeric"
-                value={formatCashInput(cashReceived)}
-                disabled={paymentMethod !== "CASH" || checkoutM.isPending}
-                onChange={(e) => setCashReceived(parseCashInput(e.target.value))}
-              />
+              <span>Khách đưa</span>
+              <span className="pos-v2-cash-input-field">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={formatCashInput(cashReceived)}
+                  placeholder="Nhập số tiền khách đưa"
+                  disabled={paymentMethod !== "CASH" || checkoutM.isPending}
+                  onChange={(e) => setCashReceived(parseCashInput(e.target.value))}
+                />
+                <button
+                  type="button"
+                  className="pos-v2-cash-fill-btn"
+                  onClick={() => setCashReceived(Math.ceil(total))}
+                  disabled={paymentMethod !== "CASH" || checkoutM.isPending || total <= 0}
+                >
+                  Đủ tiền
+                </button>
+              </span>
             </label>
 
             <div className="pos-v2-change-row">
@@ -1040,6 +1381,121 @@ export function PosTerminalPage() {
           </div>
         </section>
       </div>
+
+      {showParkedOrdersModal && (
+        <div className="pos-v2-modal-overlay" onClick={() => setShowParkedOrdersModal(false)}>
+          <div className="pos-v2-modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="pos-v2-modal-header">
+              <h2>Lịch sử đơn tạm</h2>
+              <button
+                type="button"
+                className="pos-v2-modal-close"
+                onClick={() => setShowParkedOrdersModal(false)}
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="pos-v2-modal-content">
+              <p className="text-sm font-medium text-slate-600">
+                {selectedStoreName} · {selectedBranchName}
+              </p>
+
+              {parkedOrdersInScope.length === 0 ? (
+                <div className="pos-v2-empty-state">Chưa có đơn tạm nào trong quầy này.</div>
+              ) : (
+                <div className="grid gap-3 overflow-y-auto">
+                  {parkedOrdersInScope.map((order, idx) => {
+                    const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
+                    const parkedTotal = order.lines.reduce((sum, line) => sum + lineTotal(line), 0);
+                    const firstLabel = order.lines[0] ? displayVariantName(order.lines[0]) : "Không có sản phẩm";
+
+                    return (
+                      <article key={order.id} className="rounded-md border border-slate-200 bg-white p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-slate-900">Đơn tạm #{parkedOrdersInScope.length - idx}</p>
+                          <p className="text-xs font-medium text-slate-500">{formatDateTimeVi(order.createdAt)}</p>
+                        </div>
+
+                        <p className="mt-1 text-xs text-slate-500">{firstLabel}</p>
+
+                        <div className="mt-2 grid gap-1 text-xs text-slate-700 sm:grid-cols-4">
+                          <p>Sản phẩm: <strong>{itemCount}</strong></p>
+                          <p>Khách: <strong>{order.forceGuestCustomer ? "Khách lẻ" : (order.customerName ?? "Khách hàng")}</strong></p>
+                          <p>Thanh toán: <strong>{paymentMethodLabel(order.paymentMethod)}</strong></p>
+                          <p>Tạm tính: <strong>{formatVndFromDecimal(parkedTotal)}</strong></p>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap justify-end gap-2">
+                          <Button type="button" variant="outline" size="sm" onClick={() => removeParkedOrderById(order.id)}>
+                            Xóa
+                          </Button>
+                          <Button type="button" size="sm" onClick={() => restoreParkedOrderById(order.id)}>
+                            Mở đơn
+                          </Button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateCustomerModal && (
+        <div className="pos-v2-modal-overlay" onClick={() => setShowCreateCustomerModal(false)}>
+          <div className="pos-v2-modal-dialog pos-v2-modal-dialog-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="pos-v2-modal-header">
+              <h2>Thêm khách hàng</h2>
+              <button
+                type="button"
+                className="pos-v2-modal-close"
+                onClick={() => setShowCreateCustomerModal(false)}
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="pos-v2-modal-content">
+              <label className="pos-v2-customer-lookup-wrap">
+                <span>Tên khách hàng</span>
+                <input
+                  type="text"
+                  value={newCustomerName}
+                  placeholder="Nhập tên khách hàng"
+                  disabled={createCustomerM.isPending}
+                  onChange={(e) => setNewCustomerName(e.target.value)}
+                />
+              </label>
+
+              <label className="pos-v2-customer-lookup-wrap">
+                <span>Số điện thoại</span>
+                <input
+                  type="text"
+                  inputMode="tel"
+                  value={newCustomerPhone}
+                  placeholder="Nhập số điện thoại"
+                  disabled={createCustomerM.isPending}
+                  onChange={(e) => setNewCustomerPhone(e.target.value)}
+                />
+              </label>
+
+              <div className="pos-v2-create-customer-actions">
+                <Button type="button" variant="outline" onClick={() => setShowCreateCustomerModal(false)} disabled={createCustomerM.isPending}>
+                  Hủy
+                </Button>
+                <Button type="button" onClick={() => createCustomerM.mutate()} disabled={createCustomerM.isPending}>
+                  {createCustomerM.isPending ? "Đang lưu..." : "Lưu khách"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCatalogModal && (
         <div className="pos-v2-modal-overlay" onClick={() => setShowCatalogModal(false)}>

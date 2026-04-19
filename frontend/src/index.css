@@ -588,6 +588,12 @@
     overflow: hidden;
   }
 
+  .pos-v2-modal-dialog-sm {
+    max-width: 520px;
+    height: auto;
+    max-height: 85vh;
+  }
+
   .pos-v2-modal-header {
     display: flex;
     align-items: center;
@@ -797,6 +803,7 @@
   .pos-v2-product-name {
     margin: 0;
     display: -webkit-box;
+    line-clamp: 2;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
@@ -824,7 +831,6 @@
     font-size: 0.85rem;
     font-weight: 700;
     color: #0f172a;
-    margin-top: auto;
   }
 
   .pos-v2-payment-panel {
@@ -856,6 +862,60 @@
     color: #2563eb;
     font-size: 0.75rem;
     font-weight: 700;
+  }
+
+  .pos-v2-payment-head-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+
+  .pos-v2-payment-head-actions button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .pos-v2-create-customer-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.55rem;
+  }
+
+  .pos-v2-customer-lookup-wrap {
+    display: grid;
+    gap: 0.2rem;
+    color: #4b5563;
+    font-size: 0.76rem;
+    font-weight: 600;
+  }
+
+  .pos-v2-customer-lookup-wrap input {
+    width: 100%;
+    height: 2.2rem;
+    border: 1px solid #d4dbe8;
+    border-radius: 0.5rem;
+    background: #f8fafc;
+    padding: 0 0.65rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .pos-v2-customer-lookup-hint {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: #64748b;
+  }
+
+  .pos-v2-customer-lookup-hint.is-ok {
+    color: #166534;
+    font-weight: 600;
+  }
+
+  .pos-v2-customer-lookup-hint.is-warn {
+    color: #b45309;
+    font-weight: 600;
   }
 
   .pos-v2-summary-grid {
@@ -930,12 +990,44 @@
     font-weight: 600;
   }
 
+  .pos-v2-cash-input-field {
+    position: relative;
+    display: block;
+  }
+
+  .pos-v2-cash-fill-btn {
+    position: absolute;
+    right: 1px;
+    top: 1px;
+    bottom: 1px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 4.2rem;
+    border: 0;
+    border-left: 1px solid #bfd3fa;
+    border-radius: 0 0.45rem 0.45rem 0;
+    background: #eff6ff;
+    padding: 0 0.55rem;
+    color: #1d4ed8;
+    font-size: 0.76rem;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .pos-v2-cash-fill-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
   .pos-v2-cash-input-wrap input {
+    width: 100%;
     height: 2.35rem;
     border: 1px solid #d4dbe8;
     border-radius: 0.5rem;
     background: #f8fafc;
-    padding: 0 0.65rem;
+    padding: 0 5rem 0 0.65rem;
     font-size: 1.02rem;
     font-weight: 700;
     color: #0f172a;

@@ -62,27 +62,34 @@ export function SalesReturnListPage() {
       }),
   });
 
+  const orderIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const row of listQ.data?.content ?? []) {
+      if (row.orderId > 0) ids.add(row.orderId);
+    }
+    return [...ids];
+  }, [listQ.data?.content]);
+
   const orderQueries = useQueries({
-    queries: (listQ.data?.content ?? []).map((row) => ({
-      queryKey: ["sales-orders", row.orderId],
-      queryFn: () => fetchSalesOrderById(row.orderId),
-      enabled: row.orderId > 0,
+    queries: orderIds.map((orderId) => ({
+      queryKey: ["sales-orders", orderId],
+      queryFn: () => fetchSalesOrderById(orderId),
+      enabled: orderId > 0,
       retry: false,
     })),
   });
 
   const orderCodeById = useMemo(() => {
     const map = new Map<number, string>();
-    const rows = listQ.data?.content ?? [];
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
+    for (let i = 0; i < orderIds.length; i++) {
+      const orderId = orderIds[i];
       const order = orderQueries[i]?.data;
       if (order?.orderCode) {
-        map.set(row.orderId, order.orderCode);
+        map.set(orderId, order.orderCode);
       }
     }
     return map;
-  }, [listQ.data, orderQueries]);
+  }, [orderIds, orderQueries]);
 
   const apply = () => {
     const p = new URLSearchParams();

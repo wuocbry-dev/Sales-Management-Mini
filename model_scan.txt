@@ -1,0 +1,801 @@
+===== AppUser.java =====
+@Entity
+@Table(name = "users")
+public class AppUser {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "user_id")
+private Long id;
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "default_store_id")
+private Store defaultStore;
+@Column(nullable = false, length = 50, unique = true)
+private String username;
+@Column(name = "password_hash", nullable = false, length = 255)
+private String passwordHash;
+@Column(name = "full_name", nullable = false, length = 150)
+private String fullName;
+@Column(length = 20)
+private String phone;
+@Column(length = 100)
+private String email;
+@Column(nullable = false, length = 8)
+private String status;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+@OneToMany
+@JoinColumn(name = "user_id")
+private List<UserRoleAssignment> roleAssignments = new ArrayList<>();
+@OneToMany
+@JoinColumn(name = "user_id")
+private List<UserStore> assignedStores = new ArrayList<>();
+
+===== Branch.java =====
+@Entity
+@Table(name = "branches")
+public class Branch {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "branch_id")
+private Long id;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "branch_code", nullable = false, length = 50)
+private String branchCode;
+@Column(name = "branch_name", nullable = false, length = 255)
+private String branchName;
+@Column(length = 20)
+private String phone;
+@Column(length = 100)
+private String email;
+@Column(length = 255)
+private String address;
+@Column(nullable = false, length = 8)
+private String status;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+
+===== Brand.java =====
+@Entity
+@Table(name = "brands")
+public class Brand {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "brand_id")
+private Long id;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "brand_code", nullable = false, length = 50)
+private String brandCode;
+@Column(name = "brand_name", nullable = false, length = 150)
+private String brandName;
+@Column(length = 255)
+private String description;
+@Column(nullable = false, length = 8)
+private String status;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+
+===== Category.java =====
+@Entity
+@Table(name = "categories")
+public class Category {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "category_id")
+private Long id;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "parent_id")
+private Long parentId;
+@Column(name = "category_code", nullable = false, length = 50)
+private String categoryCode;
+@Column(name = "category_name", nullable = false, length = 150)
+private String categoryName;
+@Column(length = 255)
+private String description;
+@Column(nullable = false, length = 8)
+private String status;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+
+===== Customer.java =====
+@Entity
+@Table(name = "customers")
+public class Customer {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "customer_id")
+private Long id;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "customer_code", nullable = false, length = 50)
+private String customerCode;
+@Column(name = "full_name", nullable = false, length = 150)
+private String fullName;
+@Column(length = 20)
+private String phone;
+@Column(length = 100)
+private String email;
+@Column(length = 6)
+private String gender;
+@Column(name = "date_of_birth")
+private LocalDate dateOfBirth;
+@Column(length = 255)
+private String address;
+@Column(name = "loyalty_points", nullable = false)
+private Integer loyaltyPoints;
+@Column(name = "total_spent", nullable = false, precision = 18, scale = 4)
+private BigDecimal totalSpent;
+@Column(nullable = false, length = 8)
+private String status;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+
+===== DomainConstants.java =====
+private DomainConstants() {}
+
+===== GoodsReceipt.java =====
+@Entity
+@Table(name = "goods_receipts")
+public class GoodsReceipt {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "receipt_id")
+private Long id;
+@Column(name = "receipt_code", nullable = false, length = 50)
+private String receiptCode;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "warehouse_id", nullable = false)
+private Long warehouseId;
+@Column(name = "supplier_id")
+private Long supplierId;
+@Column(name = "receipt_date", nullable = false)
+private LocalDateTime receiptDate;
+@Column(nullable = false, length = 9)
+private String status;
+@Column(nullable = false, precision = 18, scale = 4)
+private BigDecimal subtotal;
+@Column(name = "discount_amount", nullable = false, precision = 18, scale = 4)
+private BigDecimal discountAmount;
+@Column(name = "total_amount", nullable = false, precision = 18, scale = 4)
+private BigDecimal totalAmount;
+@Column(length = 500)
+private String note;
+@Column(name = "created_by", nullable = false)
+private Long createdBy;
+@Column(name = "approved_by")
+private Long approvedBy;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+@OneToMany(
+private List<GoodsReceiptItem> items = new ArrayList<>();
+
+===== GoodsReceiptItem.java =====
+@Entity
+@Table(name = "goods_receipt_items")
+public class GoodsReceiptItem {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "receipt_item_id")
+private Long id;
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "receipt_id", nullable = false)
+private GoodsReceipt receipt;
+@Column(name = "variant_id", nullable = false)
+private Long variantId;
+@Column(nullable = false, precision = 18, scale = 4)
+private BigDecimal quantity;
+@Column(name = "unit_cost", nullable = false, precision = 18, scale = 4)
+private BigDecimal unitCost;
+@Column(name = "discount_amount", nullable = false, precision = 18, scale = 4)
+private BigDecimal discountAmount;
+@Column(name = "line_total", nullable = false, precision = 18, scale = 4)
+private BigDecimal lineTotal;
+
+===== Inventory.java =====
+@Entity
+@Table(name = "inventories")
+public class Inventory {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "inventory_id")
+private Long id;
+@Column(name = "warehouse_id", nullable = false)
+private Long warehouseId;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "variant_id", nullable = false)
+private Long variantId;
+@Column(name = "quantity_on_hand", nullable = false, precision = 18, scale = 4)
+private BigDecimal quantityOnHand;
+@Column(name = "reserved_qty", nullable = false, precision = 18, scale = 4)
+private BigDecimal reservedQty;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+
+===== InventoryTransaction.java =====
+@Entity
+@Table(name = "inventory_transactions")
+public class InventoryTransaction {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "transaction_id")
+private Long id;
+@Column(name = "warehouse_id", nullable = false)
+private Long warehouseId;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "variant_id", nullable = false)
+private Long variantId;
+@Column(name = "transaction_type", nullable = false, length = 16)
+private String transactionType;
+@Column(name = "reference_type", length = 50)
+private String referenceType;
+@Column(name = "reference_id")
+private Long referenceId;
+@Column(name = "qty_change", nullable = false, precision = 18, scale = 4)
+private BigDecimal qtyChange;
+@Column(name = "qty_before", nullable = false, precision = 18, scale = 4)
+private BigDecimal qtyBefore;
+@Column(name = "qty_after", nullable = false, precision = 18, scale = 4)
+private BigDecimal qtyAfter;
+@Column(name = "unit_cost", precision = 18, scale = 4)
+private BigDecimal unitCost;
+@Column(length = 255)
+private String note;
+@Column(name = "created_by", nullable = false)
+private Long createdBy;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+
+===== Payment.java =====
+@Entity
+@Table(name = "payments")
+public class Payment {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "payment_id")
+private Long id;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "order_id")
+private Long orderId;
+@Column(name = "return_id")
+private Long returnId;
+@Column(name = "payment_type", nullable = false, length = 6)
+private String paymentType;
+@Column(name = "payment_method", nullable = false, length = 13)
+private String paymentMethod;
+@Column(nullable = false, precision = 18, scale = 4)
+private BigDecimal amount;
+@Column(name = "reference_no", length = 100)
+private String referenceNo;
+@Column(length = 255)
+private String note;
+@Column(name = "paid_at", nullable = false)
+private LocalDateTime paidAt;
+@Column(name = "created_by", nullable = false)
+private Long createdBy;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+
+===== Permission.java =====
+@Entity
+@Table(name = "permissions")
+public class Permission {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "permission_id")
+private Long id;
+@Column(name = "permission_code", nullable = false, length = 100, unique = true)
+private String permissionCode;
+@Column(name = "permission_name", nullable = false, length = 150)
+private String permissionName;
+@Column(name = "module_name", nullable = false, length = 100)
+private String moduleName;
+@Column(name = "action_name", nullable = false, length = 50)
+private String actionName;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+
+===== Product.java =====
+@Entity
+@Table(name = "products")
+public class Product {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "product_id")
+private Long id;
+@Column(name = "category_id")
+private Long categoryId;
+@Column(name = "brand_id")
+private Long brandId;
+@Column(name = "unit_id")
+private Long unitId;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "product_code", nullable = false, length = 50)
+private String productCode;
+@Column(name = "product_name", nullable = false, length = 255)
+private String productName;
+@Column(name = "product_type", nullable = false, length = 7)
+private String productType;
+@Column(name = "has_variant", nullable = false)
+private Boolean hasVariant;
+@Column(name = "track_inventory", nullable = false)
+private Boolean trackInventory;
+@Column(columnDefinition = "TEXT")
+private String description;
+@Column(nullable = false, length = 8)
+private String status;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+
+===== ProductImage.java =====
+@Entity
+@Table(name = "product_images")
+public class ProductImage {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "image_id")
+private Long id;
+@Column(name = "product_id", nullable = false)
+private Long productId;
+@Column(name = "sort_order")
+private Integer sortOrder;
+@Column(name = "content_type", length = 80)
+private String contentType;
+@Column(name = "file_name", length = 160)
+private String fileName;
+@Column(name = "created_at")
+private LocalDateTime createdAt;
+
+===== ProductVariant.java =====
+@Entity
+@Table(name = "product_variants")
+public class ProductVariant {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "variant_id")
+private Long id;
+@Column(name = "product_id", nullable = false)
+private Long productId;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(nullable = false, length = 100)
+private String sku;
+@Column(length = 100)
+private String barcode;
+@Column(name = "variant_name", length = 255)
+private String variantName;
+@Column(name = "attributes_json", columnDefinition = "json")
+private String attributesJson;
+@Column(name = "cost_price", nullable = false, precision = 18, scale = 4)
+private BigDecimal costPrice;
+@Column(name = "selling_price", nullable = false, precision = 18, scale = 4)
+private BigDecimal sellingPrice;
+@Column(name = "reorder_level", nullable = false, precision = 18, scale = 4)
+private BigDecimal reorderLevel;
+@Column(nullable = false, length = 8)
+private String status;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+
+===== Role.java =====
+@Entity
+@Table(name = "roles")
+public class Role {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "role_id")
+private Long id;
+@Column(name = "role_code", nullable = false, length = 50)
+private String roleCode;
+@Column(name = "role_name", nullable = false, length = 100)
+private String roleName;
+@Column(length = 255)
+private String description;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+
+===== RolePermission.java =====
+@Entity
+@Table(name = "role_permissions")
+public class RolePermission {
+@Column(name = "role_id", nullable = false)
+private Long roleId;
+@Column(name = "permission_id", nullable = false)
+private Long permissionId;
+
+===== RolePermissionOverride.java =====
+@Entity
+@Table(name = "role_permission_overrides")
+public class RolePermissionOverride {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "override_id")
+private Long id;
+@Column(name = "role_id", nullable = false)
+private Long roleId;
+@Column(name = "permission_id", nullable = false)
+private Long permissionId;
+@Column(name = "store_id")
+private Long storeId;
+@Column(name = "branch_id")
+private Long branchId;
+@Column(name = "override_type", nullable = false, length = 10)
+private String overrideType;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+
+===== SalesOrder.java =====
+@Entity
+@Table(name = "sales_orders")
+public class SalesOrder {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "order_id")
+private Long id;
+@Column(name = "order_code", nullable = false, length = 50)
+private String orderCode;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "branch_id")
+private Long branchId;
+@Column(name = "customer_id")
+private Long customerId;
+@Column(name = "cashier_id", nullable = false)
+private Long cashierId;
+@Column(name = "order_date", nullable = false)
+private LocalDateTime orderDate;
+@Column(nullable = false, length = 16)
+private String status;
+@Column(nullable = false, precision = 18, scale = 4)
+private BigDecimal subtotal;
+@Column(name = "discount_amount", nullable = false, precision = 18, scale = 4)
+private BigDecimal discountAmount;
+@Column(name = "total_amount", nullable = false, precision = 18, scale = 4)
+private BigDecimal totalAmount;
+@Column(name = "paid_amount", nullable = false, precision = 18, scale = 4)
+private BigDecimal paidAmount;
+@Column(name = "payment_status", nullable = false, length = 8)
+private String paymentStatus;
+@Column(length = 500)
+private String note;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+@OneToMany(
+private List<SalesOrderItem> items = new ArrayList<>();
+
+===== SalesOrderItem.java =====
+@Entity
+@Table(name = "sales_order_items")
+public class SalesOrderItem {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "order_item_id")
+private Long id;
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "order_id", nullable = false)
+private SalesOrder salesOrder;
+@Column(name = "variant_id", nullable = false)
+private Long variantId;
+@Column(nullable = false, precision = 18, scale = 4)
+private BigDecimal quantity;
+@Column(name = "unit_price", nullable = false, precision = 18, scale = 4)
+private BigDecimal unitPrice;
+@Column(name = "discount_amount", nullable = false, precision = 18, scale = 4)
+private BigDecimal discountAmount;
+@Column(name = "line_total", nullable = false, precision = 18, scale = 4)
+private BigDecimal lineTotal;
+
+===== SalesReturn.java =====
+@Entity
+@Table(name = "sales_returns")
+public class SalesReturn {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "return_id")
+private Long id;
+@Column(name = "return_code", nullable = false, length = 50)
+private String returnCode;
+@Column(name = "order_id", nullable = false)
+private Long orderId;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "customer_id")
+private Long customerId;
+@Column(name = "processed_by", nullable = false)
+private Long processedBy;
+@Column(name = "return_date", nullable = false)
+private LocalDateTime returnDate;
+@Column(nullable = false, length = 9)
+private String status;
+@Column(name = "refund_amount", nullable = false, precision = 18, scale = 4)
+private BigDecimal refundAmount;
+@Column(length = 500)
+private String note;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@OneToMany(
+private List<SalesReturnItem> items = new ArrayList<>();
+
+===== SalesReturnItem.java =====
+@Entity
+@Table(name = "sales_return_items")
+public class SalesReturnItem {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "return_item_id")
+private Long id;
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "return_id", nullable = false)
+private SalesReturn salesReturn;
+@Column(name = "order_item_id")
+private Long orderItemId;
+@Column(name = "variant_id", nullable = false)
+private Long variantId;
+@Column(nullable = false, precision = 18, scale = 4)
+private BigDecimal quantity;
+@Column(name = "unit_price", nullable = false, precision = 18, scale = 4)
+private BigDecimal unitPrice;
+@Column(name = "line_total", nullable = false, precision = 18, scale = 4)
+private BigDecimal lineTotal;
+@Column(length = 255)
+private String reason;
+
+===== Stocktake.java =====
+@Entity
+@Table(name = "stocktakes")
+public class Stocktake {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "stocktake_id")
+private Long id;
+@Column(name = "stocktake_code", nullable = false, length = 50)
+private String stocktakeCode;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "warehouse_id", nullable = false)
+private Long warehouseId;
+@Column(name = "stocktake_date", nullable = false)
+private LocalDateTime stocktakeDate;
+@Column(nullable = false, length = 9)
+private String status;
+@Column(length = 500)
+private String note;
+@Column(name = "created_by", nullable = false)
+private Long createdBy;
+@Column(name = "approved_by")
+private Long approvedBy;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+@OneToMany(
+private List<StocktakeItem> items = new ArrayList<>();
+
+===== StocktakeItem.java =====
+@Entity
+@Table(name = "stocktake_items")
+public class StocktakeItem {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "stocktake_item_id")
+private Long id;
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "stocktake_id", nullable = false)
+private Stocktake stocktake;
+@Column(name = "variant_id", nullable = false)
+private Long variantId;
+@Column(name = "system_qty", nullable = false, precision = 18, scale = 4)
+private BigDecimal systemQty;
+@Column(name = "actual_qty", nullable = false, precision = 18, scale = 4)
+private BigDecimal actualQty;
+@Column(name = "difference_qty", nullable = false, precision = 18, scale = 4)
+private BigDecimal differenceQty;
+@Column(length = 255)
+private String note;
+
+===== StockTransfer.java =====
+@Entity
+@Table(name = "stock_transfers")
+public class StockTransfer {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "transfer_id")
+private Long id;
+@Column(name = "transfer_code", nullable = false, length = 50)
+private String transferCode;
+@Column(name = "from_warehouse_id", nullable = false)
+private Long fromWarehouseId;
+@Column(name = "to_warehouse_id", nullable = false)
+private Long toWarehouseId;
+@Column(name = "from_store_id", nullable = false)
+private Long fromStoreId;
+@Column(name = "to_store_id", nullable = false)
+private Long toStoreId;
+@Column(name = "transfer_date", nullable = false)
+private LocalDateTime transferDate;
+@Column(nullable = false, length = 10)
+private String status;
+@Column(length = 500)
+private String note;
+@Column(name = "created_by", nullable = false)
+private Long createdBy;
+@Column(name = "received_by")
+private Long receivedBy;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+@OneToMany(
+private List<StockTransferItem> items = new ArrayList<>();
+
+===== StockTransferItem.java =====
+@Entity
+@Table(name = "stock_transfer_items")
+public class StockTransferItem {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "transfer_item_id")
+private Long id;
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "transfer_id", nullable = false)
+private StockTransfer stockTransfer;
+@Column(name = "variant_id", nullable = false)
+private Long variantId;
+@Column(nullable = false, precision = 18, scale = 4)
+private BigDecimal quantity;
+
+===== Store.java =====
+@Entity
+@Table(name = "stores")
+public class Store {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "store_id")
+private Long id;
+@Column(name = "store_code", nullable = false, length = 50)
+private String storeCode;
+@Column(name = "store_name", nullable = false, length = 255)
+private String storeName;
+@Column(length = 20)
+private String phone;
+@Column(length = 100)
+private String email;
+@Column(length = 255)
+private String address;
+@Column(nullable = false, length = 8)
+private String status;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+
+===== Supplier.java =====
+@Entity
+@Table(name = "suppliers")
+public class Supplier {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "supplier_id")
+private Long id;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "supplier_code", nullable = false, length = 50)
+private String supplierCode;
+@Column(name = "supplier_name", nullable = false, length = 255)
+private String supplierName;
+@Column(name = "contact_person", length = 150)
+private String contactPerson;
+@Column(length = 20)
+private String phone;
+@Column(length = 100)
+private String email;
+@Column(length = 255)
+private String address;
+@Column(nullable = false, length = 8)
+private String status;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+
+===== Unit.java =====
+@Entity
+@Table(name = "units")
+public class Unit {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "unit_id")
+private Long id;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "unit_code", nullable = false, length = 50)
+private String unitCode;
+@Column(name = "unit_name", nullable = false, length = 100)
+private String unitName;
+@Column(length = 255)
+private String description;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+
+===== UserBranch.java =====
+@Entity
+@Table(name = "user_branches")
+public class UserBranch {
+@Column(name = "user_id", nullable = false)
+private Long userId;
+@Column(name = "branch_id", nullable = false)
+private Long branchId;
+@Column(name = "is_primary", nullable = false)
+private boolean isPrimary;
+
+===== UserRoleAssignment.java =====
+@Entity
+@Table(name = "user_roles")
+public class UserRoleAssignment {
+@Column(name = "user_id", nullable = false)
+private Long userId;
+@Column(name = "role_id", nullable = false)
+private Long roleId;
+
+===== UserStore.java =====
+@Entity
+@Table(name = "user_stores")
+public class UserStore {
+@Column(name = "user_id", nullable = false)
+private Long userId;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "is_primary", nullable = false)
+private boolean isPrimary;
+
+===== Warehouse.java =====
+@Entity
+@Table(name = "warehouses")
+public class Warehouse {
+@Id
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+@Column(name = "warehouse_id")
+private Long id;
+@Column(name = "store_id", nullable = false)
+private Long storeId;
+@Column(name = "branch_id")
+private Long branchId;
+@Column(name = "warehouse_code", nullable = false, length = 50)
+private String warehouseCode;
+@Column(name = "warehouse_name", nullable = false, length = 255)
+private String warehouseName;
+@Column(name = "warehouse_type", nullable = false, length = 16)
+private String warehouseType;
+@Column(nullable = false, length = 8)
+private String status;
+@Column(name = "created_at", nullable = false)
+private LocalDateTime createdAt;
+@Column(name = "updated_at", nullable = false)
+private LocalDateTime updatedAt;
+

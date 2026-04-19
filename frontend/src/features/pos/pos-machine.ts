@@ -44,13 +44,14 @@ export function lineTotal(line: PosCartLine): number {
 export function toDraftPayload(params: {
   storeId: number;
   branchId: number | null;
+  customerId?: number | null;
   lines: PosCartLine[];
   headerDiscountAmount: number;
 }): SalesOrderCreateRequestBody {
   return {
     storeId: params.storeId,
     branchId: params.branchId,
-    customerId: null,
+    customerId: params.customerId ?? null,
     orderDate: new Date().toISOString(),
     headerDiscountAmount: Math.max(0, params.headerDiscountAmount),
     note: "POS checkout",
