@@ -39,7 +39,7 @@ export function PosTerminalPage() {
 
   const manager = isManager(me);
   const isCashier = isFrontlineCashierNav(me);
-  const cashierName = me?.fullName ?? me?.username ?? "Cashier";
+  const cashierName = me?.fullName ?? me?.username ?? "Thu ngân";
 
   const fallbackStoreId = me?.defaultStoreId ?? me?.storeIds?.[0] ?? 0;
   const lockedStoreId = !manager ? fallbackStoreId : 0;
@@ -114,7 +114,7 @@ export function PosTerminalPage() {
       return;
     }
     if (checkoutM.isSuccess) {
-      dispatch({ type: "SUCCESS", message: "Checkout completed." });
+      dispatch({ type: "SUCCESS", message: "Thanh toán thành công." });
       toast.success("Đã thanh toán thành công.");
       setLines([]);
       setHeaderDiscount(0);
@@ -205,13 +205,13 @@ export function PosTerminalPage() {
           }}
           onHold={() => {
             dispatch({ type: "IDLE" });
-            toast.info("Đơn đã được tạm giữ (skeleton). Hook API hold-order sau.");
+            toast.info("Đơn đã được tạm giữ (bản nháp). TODO/VERIFY: nối API tạm giữ đơn.");
           }}
           onCancel={() => {
             setLines([]);
             setHeaderDiscount(0);
             dispatch({ type: "IDLE" });
-            toast.success("Order cleared.");
+            toast.success("Đã xóa toàn bộ giỏ hàng.");
           }}
         />
       }

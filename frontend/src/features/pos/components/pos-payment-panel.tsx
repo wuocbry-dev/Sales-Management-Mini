@@ -19,9 +19,9 @@ type PosPaymentPanelProps = {
 };
 
 const methodOptions: Array<{ id: PaymentMethod; label: string }> = [
-  { id: "cash", label: "Cash" },
-  { id: "card", label: "Card" },
-  { id: "bank", label: "Bank transfer" },
+  { id: "cash", label: "Tiền mặt" },
+  { id: "card", label: "Thẻ" },
+  { id: "bank", label: "Chuyển khoản" },
   { id: "qr", label: "QR" },
 ];
 
@@ -51,29 +51,33 @@ export function PosPaymentPanel({
 
   const statusLabel =
     posStatus === "success"
-      ? "Success"
+      ? "Thành công"
       : posStatus === "error"
-        ? "Error"
+        ? "Lỗi"
         : posStatus === "payment"
-          ? "Processing"
+          ? "Đang xử lý"
           : posStatus === "scanning"
-            ? "Scanning"
-            : "Idle";
+            ? "Đang quét"
+            : "Sẵn sàng";
 
   return (
     <Card className="pos-panel flex h-full min-h-0 flex-col">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Payment actions</CardTitle>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg">Thanh toán</CardTitle>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-3">
-        <div className="flex items-center justify-between rounded-md border border-[hsl(var(--pos-border))] p-2">
-          <Badge variant="secondary">Lines: {lineCount}</Badge>
-          <span className="text-2xl font-bold tabular-nums text-[hsl(var(--pos-primary))]">{formatVndFromDecimal(totalAmount)}</span>
+        <div className="rounded-md border border-[hsl(var(--pos-primary))] bg-[hsl(var(--pos-primary)/0.08)] p-3">
+          <div className="mb-1 flex items-center justify-between">
+            <Badge variant="secondary">Mặt hàng: {lineCount}</Badge>
+            <Badge variant={statusVariant}>{statusLabel}</Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">Khách cần thanh toán</p>
+          <span className="text-3xl font-bold tabular-nums text-[hsl(var(--pos-primary))]">{formatVndFromDecimal(totalAmount)}</span>
         </div>
 
-        <div className="flex items-center justify-between rounded-md border border-[hsl(var(--pos-border))] p-2">
-          <Badge variant={statusVariant}>{statusLabel}</Badge>
-          <span className="text-xs text-muted-foreground">{statusMessage ?? "Ready"}</span>
+        <div className="flex items-center justify-between rounded-md border border-[hsl(var(--pos-border))] px-3 py-2">
+          <span className="text-xs font-semibold text-muted-foreground">Trạng thái giao dịch</span>
+          <span className="text-xs text-muted-foreground">{statusMessage ?? "Sẵn sàng thanh toán"}</span>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
@@ -91,16 +95,16 @@ export function PosPaymentPanel({
           ))}
         </div>
 
-        <Button type="button" className="h-12 w-full text-base font-bold" onClick={onComplete} disabled={lineCount === 0 || inFlight}>
-          {inFlight ? "Processing..." : "Complete checkout"}
+        <Button type="button" className="h-16 w-full text-lg font-bold" onClick={onComplete} disabled={lineCount === 0 || inFlight}>
+          {inFlight ? "Đang xử lý..." : "Xác nhận thanh toán"}
         </Button>
 
         <div className="grid grid-cols-2 gap-2">
           <Button type="button" variant="outline" className="h-11" onClick={onHold} disabled={inFlight}>
-            Hold order
+            Tạm giữ đơn
           </Button>
           <Button type="button" variant="outline" className="h-11 border-destructive text-destructive" onClick={onCancel} disabled={inFlight}>
-            Cancel
+            Xóa giỏ hàng
           </Button>
         </div>
       </CardContent>

@@ -329,10 +329,10 @@ export function LandingPage() {
       <footer className="border-t py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-4 text-center text-sm text-muted-foreground sm:flex-row sm:px-6 sm:text-left">
           <div>
-            <p className="font-semibold text-foreground">Bán hàng Pro</p>
+            <p className="font-semibold text-foreground">SaleMaster VN</p>
             <p className="mt-1">Giải pháp quản lý bán lẻ cho đội ngũ đang phát triển.</p>
           </div>
-          <p>© {new Date().getFullYear()} Bán hàng Pro. Mọi quyền được lưu giữ.</p>
+          <p>© {new Date().getFullYear()} SaleMaster VN. Mọi quyền được lưu giữ.</p>
         </div>
       </footer>
     </div>

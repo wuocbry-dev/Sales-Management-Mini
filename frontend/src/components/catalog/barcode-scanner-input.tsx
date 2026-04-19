@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { fetchPosVariantByBarcode } from "@/api/products-api";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ProductVariantOptionResponse } from "@/types/product";
@@ -211,16 +212,17 @@ export const BarcodeScannerInput = forwardRef<HTMLInputElement, BarcodeScannerIn
     const canStart = !disabled && storeId > 0 && !cameraActive && cameraSupported;
     const canStop = cameraActive;
     const canManualLookup = !disabled && storeId > 0 && manualCode.trim().length >= minBarcodeLength;
+    const cameraStatusLabel = cameraActive ? "Camera đang bật" : "Camera đang tắt";
 
     return (
-      <div className="space-y-2">
-        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+      <div className="space-y-2.5">
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
           <Input
             value={manualCode}
             disabled={disabled || storeId <= 0}
             inputMode="numeric"
-            className="h-10 font-mono"
-            placeholder={storeId > 0 ? "Nhập barcode bằng tay" : "Chọn cửa hàng trước"}
+            className="h-11 font-mono"
+            placeholder={storeId > 0 ? "Nhập mã vạch thủ công" : "Vui lòng chọn cửa hàng trước"}
             onChange={(e) => setManualCode(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
@@ -232,37 +234,50 @@ export const BarcodeScannerInput = forwardRef<HTMLInputElement, BarcodeScannerIn
           />
           <Button
             type="button"
-            variant="outline"
-            className="h-10"
+            variant="default"
+            className="h-11"
             disabled={!canManualLookup || m.isPending}
             onClick={() => triggerLookup(manualCode)}
           >
-            Tìm mã
+            Tìm sản phẩm
           </Button>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="default" className="h-10" onClick={() => void startCamera()} disabled={!canStart}>
-            Mở camera
+          <Button type="button" variant="outline" className="h-10" onClick={() => void startCamera()} disabled={!canStart}>
+            Bật camera
           </Button>
           <Button type="button" variant="outline" className="h-10" onClick={stopCamera} disabled={!canStop}>
             Tắt camera
           </Button>
+          <Badge variant={cameraActive ? "secondary" : "muted"}>{cameraStatusLabel}</Badge>
           <input ref={inputRef} className="sr-only" aria-hidden />
         </div>
 
         <div className="overflow-hidden rounded-md border bg-black/80">
-          <video ref={videoRef} autoPlay muted playsInline className="h-44 w-full object-cover" />
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            className={cameraActive ? "h-32 w-full object-cover md:h-36" : "h-14 w-full object-cover opacity-0"}
+          />
         </div>
+
+        {!cameraActive ? (
+          <div className="grid h-9 place-items-center rounded-md border border-dashed text-xs text-muted-foreground">
+            Camera đang tắt. Ưu tiên quét bằng máy quét mã vạch hoặc nhập thủ công.
+          </div>
+        ) : null}
 
         <p className="text-xs text-muted-foreground">
           {cameraError
             ? cameraError
             : cameraActive
-              ? "Đưa mã vạch vào khung hình để hệ thống tự nhận diện."
+              ? "Đặt mã vạch vào khung quét để hệ thống tự nhận diện."
               : cameraSupported
-                ? "Bấm Mo camera de bat dau quet ma vach."
-                : "Trinh duyet hien tai khong ho tro camera."}
+                ? "Bấm Bật camera để bắt đầu quét mã vạch."
+                : "Trình duyệt hiện tại không hỗ trợ truy cập camera."}
         </p>
       </div>
     );

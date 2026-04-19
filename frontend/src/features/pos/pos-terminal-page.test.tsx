@@ -103,8 +103,8 @@ describe("PosTerminalPage happy flow", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "scan-item" }));
-    await user.click(screen.getByRole("button", { name: "Card" }));
-    await user.click(screen.getByRole("button", { name: "Complete checkout" }));
+    await user.click(screen.getByRole("button", { name: "Thẻ" }));
+    await user.click(screen.getByRole("button", { name: "Xác nhận thanh toán" }));
 
     await waitFor(() => {
       expect(mockCreateDraft).toHaveBeenCalledTimes(1);
@@ -138,7 +138,7 @@ describe("PosTerminalPage happy flow", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Success")).toBeInTheDocument();
+      expect(screen.getByText("Thành công")).toBeInTheDocument();
     });
   });
 });
