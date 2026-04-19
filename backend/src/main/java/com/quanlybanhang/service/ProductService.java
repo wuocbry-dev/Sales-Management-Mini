@@ -407,23 +407,24 @@ public class ProductService {
             .filter(id -> !requestedVariantIds.contains(id))
             .collect(Collectors.toSet());
 
-    for (Long oid : orphanIds) {
-      if (variantRepository.countReferencesByVariantId(oid) > 0) {
-        ProductVariant ov =
-            variantRepository
-                .findById(oid)
-                .orElseThrow(() -> new ResourceNotFoundException("Biến thể không tồn tại: " + oid));
-        throw new BusinessException(
-            "Không xóa được biến thể SKU "
-                + ov.getSku()
-                + ": đã có trên đơn hàng, phiếu kho hoặc tồn kho.");
-      }
+    if (!orphanIds.isEmpty()) {
+      LocalDateTime orphanUpdatedAt = now();
+      List<ProductVariant> orphanVariants =
+          orphanIds.stream()
+              .map(
+                  oid ->
+                      variantRepository
+                          .findById(oid)
+                          .orElseThrow(() -> new ResourceNotFoundException("Biến thể không tồn tại: " + oid)))
+              .toList();
+      orphanVariants.forEach(
+          ov -> {
+            ov.setStatus("INACTIVE");
+            ov.setUpdatedAt(orphanUpdatedAt);
+          });
+      variantRepository.saveAll(orphanVariants);
+      variantRepository.flush();
     }
-
-    for (Long oid : orphanIds) {
-      variantRepository.deleteById(oid);
-    }
-    variantRepository.flush();
 
     for (ProductVariantUpsertRequest v : req.variants()) {
       if (v.id() == null) {
@@ -551,28 +552,24 @@ public class ProductService {
             .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại: " + productId));
     storeAccessService.assertCanAccessStore(p.getStoreId(), principal);
 
+    LocalDateTime t = now();
     List<ProductVariant> variants = variantRepository.findByProductId(productId);
-    for (ProductVariant v : variants) {
-      if (variantRepository.countReferencesByVariantId(v.getId()) > 0) {
-        throw new BusinessException(
-            "Không xóa được sản phẩm "
-                + p.getProductCode()
-                + ": biến thể SKU "
-                + v.getSku()
-                + " đã có trên đơn hàng, phiếu kho hoặc tồn kho.");
-      }
-    }
-
-    productImageRepository.deleteByProductId(productId);
+    boolean activate = "INACTIVE".equalsIgnoreCase(p.getStatus());
+    String nextStatus = activate ? "ACTIVE" : "INACTIVE";
     if (!variants.isEmpty()) {
-      variantRepository.deleteAll(variants);
+      variants.forEach(
+          v -> {
+            v.setStatus(nextStatus);
+            v.setUpdatedAt(t);
+          });
+      variantRepository.saveAll(variants);
       variantRepository.flush();
     }
 
-    productRepository.delete(p);
+    p.setStatus(nextStatus);
+    p.setUpdatedAt(t);
+    productRepository.save(p);
     productRepository.flush();
-
-    deleteProductImageFiles(productId);
   }
 
   private void deleteProductImageFiles(Long productId) {

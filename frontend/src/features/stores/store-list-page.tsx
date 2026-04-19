@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { gateStoreCreate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import { activeInactiveLabel, activeInactiveTextClass } from "@/lib/entity-status-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 import { StoreFormDialog } from "@/features/stores/store-form-dialog";
 
@@ -82,7 +82,7 @@ export function StoreListPage() {
                       <TableCell className="font-mono text-sm">{row.storeCode}</TableCell>
                       <TableCell className="font-medium">{row.storeName}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{activeInactiveLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={activeInactiveTextClass(row.status)}>{activeInactiveLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
                         {formatDateTimeVi(row.updatedAt)}

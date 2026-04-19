@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BranchFormDialog } from "@/features/branches/branch-form-dialog";
 import { gateBranchUpdate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import { activeInactiveLabel, activeInactiveTextClass } from "@/lib/entity-status-labels";
 
 export function BranchDetailPage() {
   const navigate = useNavigate();
@@ -63,7 +63,7 @@ export function BranchDetailPage() {
               <CardTitle className="text-xl">{b.branchName}</CardTitle>
               <CardDescription className="font-mono">{b.branchCode}</CardDescription>
             </div>
-            <Badge variant="secondary">{activeInactiveLabel(b.status)}</Badge>
+            <Badge variant="secondary" className={activeInactiveTextClass(b.status)}>{activeInactiveLabel(b.status)}</Badge>
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">

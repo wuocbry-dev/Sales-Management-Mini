@@ -25,7 +25,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { gateStoreScopedUserAssignBranch, gateStoreScopedUserView } from "@/features/auth/gates";
 import { isSystemManage } from "@/features/auth/access";
 import { useAuthStore } from "@/features/auth/auth-store";
-import { userAccountStatusLabel } from "@/lib/entity-status-labels";
+import { userAccountStatusLabel, userAccountStatusTextClass } from "@/lib/entity-status-labels";
 import { formatApiError } from "@/lib/api-errors";
 import { formatRoleCodesForUi } from "@/lib/role-labels";
 
@@ -215,7 +215,7 @@ export function StoreScopedUsersPage() {
                         {formatRoleCodesForUi(row.roleCodes)}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{userAccountStatusLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={userAccountStatusTextClass(row.status)}>{userAccountStatusLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         {canAssign ? (

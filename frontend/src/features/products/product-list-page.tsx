@@ -18,7 +18,13 @@ import { hasPermission } from "@/features/auth/access";
 import { canSeeProductCreate } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
-import { catalogStatusLabel } from "@/lib/catalog-status-labels";
+import { catalogStatusLabel, catalogStatusTextClass } from "@/lib/catalog-status-labels";
+import {
+  softDeleteToggleConfirmVerb,
+  softDeleteToggleLabel,
+  softDeleteToggleLoadingLabel,
+  softDeleteToggleSuccessVerb,
+} from "@/lib/entity-status-labels";
 import { productTypeLabel } from "@/lib/product-type-labels";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
 
@@ -84,9 +90,9 @@ export function ProductListPage() {
   });
 
   const deleteM = useMutation({
-    mutationFn: async (productId: number) => deleteProduct(productId),
-    onSuccess: async () => {
-      toast.success("Đã xóa sản phẩm.");
+    mutationFn: async (args: { productId: number }) => deleteProduct(args.productId),
+    onSuccess: async (_data, variables) => {
+      toast.success(`Đã ${softDeleteToggleSuccessVerb(variables.status)} sản phẩm.`);
       await queryClient.invalidateQueries({ queryKey: ["products"] });
     },
     onError: (err) => {
@@ -94,7 +100,7 @@ export function ProductListPage() {
     },
   });
 
-  const deletingProductId = deleteM.isPending ? deleteM.variables : null;
+  const deletingProductId = deleteM.isPending ? deleteM.variables?.productId ?? null : null;
 
   const thumbQ = useQuery({
     queryKey: [
@@ -310,7 +316,7 @@ export function ProductListPage() {
                       <TableCell>{productTypeLabel(row.productType)}</TableCell>
                       <TableCell className="text-sm">{getStoreName(row.storeId)}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{catalogStatusLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={catalogStatusTextClass(row.status)}>{catalogStatusLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-1">
@@ -331,20 +337,17 @@ export function ProductListPage() {
                               variant="outline"
                               size="sm"
                               type="button"
-                              className="text-red-600 hover:text-red-700"
+                              className={row.status === "INACTIVE" ? "text-green-600 hover:text-green-700" : "text-red-600 hover:text-red-700"}
                               disabled={deletingProductId === row.id}
                               onClick={() => {
-                                if (
-                                  !window.confirm(
-                                    `Xóa sản phẩm \"${row.productName}\"? Hành động này không thể hoàn tác.`,
-                                  )
-                                ) {
+                                const action = softDeleteToggleConfirmVerb(row.status);
+                                if (!window.confirm(`${action} sản phẩm \"${row.productName}\"? Bạn có thể đổi trạng thái lại bất cứ lúc nào.`)) {
                                   return;
                                 }
-                                deleteM.mutate(row.id);
+                                deleteM.mutate({ productId: row.id, status: row.status });
                               }}
                             >
-                              {deletingProductId === row.id ? "Đang xóa..." : "Xóa"}
+                              {deletingProductId === row.id ? softDeleteToggleLoadingLabel(row.status) : softDeleteToggleLabel(row.status)}
                             </Button>
                           ) : null}
                         </div>

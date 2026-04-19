@@ -13,7 +13,7 @@ import { isSystemManage } from "@/features/auth/access";
 import { gateBranchCreate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import { activeInactiveLabel, activeInactiveTextClass } from "@/lib/entity-status-labels";
 import { Building2 } from "lucide-react";
 import type { BranchResponse } from "@/types/branch";
 
@@ -193,7 +193,7 @@ export function BranchHubPage() {
                         {row.address?.trim() ? row.address : "—"}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{activeInactiveLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={activeInactiveTextClass(row.status)}>{activeInactiveLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" asChild>

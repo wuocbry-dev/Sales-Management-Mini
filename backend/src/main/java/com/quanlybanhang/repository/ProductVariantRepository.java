@@ -28,9 +28,8 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
       "select v.id as id, v.sku as sku, v.variantName as variantName, p.productName as productName, "
           + "v.sellingPrice as sellingPrice "
           + "from ProductVariant v join Product p on p.id = v.productId "
-          + "where v.storeId = :storeId and "
-          + "(lower(v.sku) like lower(concat('%', :q, '%')) "
-          + "or lower(coalesce(v.variantName, '')) like lower(concat('%', :q, '%')) "
+          + "where v.storeId = :storeId and v.status = 'ACTIVE' and p.status = 'ACTIVE' and "
+          + "(lower(concat(coalesce(p.productName, ''), ' ', coalesce(v.variantName, ''), ' ', coalesce(v.sku, ''))) like lower(concat('%', :q, '%')) "
           + "or lower(coalesce(v.barcode, '')) like lower(concat('%', :q, '%'))) "
           + "order by v.sku asc")
   List<ProductVariantOptionProjection> searchOptionsByStore(
@@ -40,7 +39,14 @@ public interface ProductVariantRepository extends JpaRepository<ProductVariant, 
       "select v.id as id, v.sku as sku, v.variantName as variantName, p.productName as productName, "
           + "v.sellingPrice as sellingPrice "
           + "from ProductVariant v join Product p on p.id = v.productId "
-          + "where v.storeId = :storeId and v.barcode = :barcode")
+          + "where v.id in :ids")
+  List<ProductVariantOptionProjection> findOptionsByIdIn(@Param("ids") Collection<Long> ids);
+
+  @Query(
+      "select v.id as id, v.sku as sku, v.variantName as variantName, p.productName as productName, "
+          + "v.sellingPrice as sellingPrice "
+          + "from ProductVariant v join Product p on p.id = v.productId "
+          + "where v.storeId = :storeId and v.status = 'ACTIVE' and p.status = 'ACTIVE' and v.barcode = :barcode")
   Optional<ProductVariantOptionProjection> findOptionByStoreAndBarcode(
       @Param("storeId") Long storeId, @Param("barcode") String barcode);
 

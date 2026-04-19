@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
-import { userAccountStatusLabel } from "@/lib/entity-status-labels";
+import { userAccountStatusLabel, userAccountStatusTextClass } from "@/lib/entity-status-labels";
 import { formatRoleCodesForUi } from "@/lib/role-labels";
 
 const passwordSchema = z
@@ -89,7 +89,7 @@ export function SettingsPage() {
           </div>
           <div>
             <p className="text-xs font-medium text-muted-foreground">Trạng thái</p>
-            <Badge variant="secondary">{userAccountStatusLabel(me.status)}</Badge>
+            <Badge variant="secondary" className={userAccountStatusTextClass(me.status)}>{userAccountStatusLabel(me.status)}</Badge>
           </div>
           <div>
             <p className="text-xs font-medium text-muted-foreground">Cửa hàng mặc định</p>

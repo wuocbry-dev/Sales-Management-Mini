@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import { activeInactiveLabel, activeInactiveTextClass } from "@/lib/entity-status-labels";
 import { warehouseTypeLabel } from "@/lib/warehouse-type-labels";
 import type { WarehouseResponse } from "@/types/warehouse";
 
@@ -88,7 +88,7 @@ export function WarehouseListPage() {
                       <TableCell className="font-mono text-sm">{row.warehouseCode}</TableCell>
                       <TableCell className="font-medium">{row.warehouseName}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{activeInactiveLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={activeInactiveTextClass(row.status)}>{activeInactiveLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" asChild>

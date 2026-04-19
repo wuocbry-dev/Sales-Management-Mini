@@ -6,7 +6,7 @@ import { PageSkeleton } from "@/components/feedback/page-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import { activeInactiveLabel, activeInactiveTextClass } from "@/lib/entity-status-labels";
 import { warehouseTypeLabel } from "@/lib/warehouse-type-labels";
 
 export function WarehouseDetailPage() {
@@ -51,7 +51,7 @@ export function WarehouseDetailPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline">{warehouseTypeLabel(w.warehouseType)}</Badge>
-              <Badge variant="secondary">{activeInactiveLabel(w.status)}</Badge>
+              <Badge variant="secondary" className={activeInactiveTextClass(w.status)}>{activeInactiveLabel(w.status)}</Badge>
             </div>
           </div>
         </CardHeader>

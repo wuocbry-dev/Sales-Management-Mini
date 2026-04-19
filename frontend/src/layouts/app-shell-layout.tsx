@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, Outlet, useMatches } from "react-router-dom";
 import { fetchBranchesForStore } from "@/api/branches-api";
+import { fetchBranchById } from "@/api/branches-api";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
 import { Button } from "@/components/ui/button";
@@ -89,10 +90,19 @@ export function AppShellLayout() {
   const isFrontlineRole = isCashier || isWarehouseStaff;
   const currentBranchId = me.branchIds.length > 0 ? me.branchIds[0] : null;
   const currentStoreId = me.defaultStoreId ?? (me.storeIds.length > 0 ? me.storeIds[0] : null);
-  const branchQ = useQuery({
+  const storeBranchesQ = useQuery({
     queryKey: ["layout", "store-branches", currentStoreId],
-    queryFn: () => fetchBranchesForStore(Number(currentStoreId), { page: 0, size: 500 }),
+    queryFn: () => fetchBranchesForStore(Number(currentStoreId), { page: 0, size: 200 }),
     enabled: isFrontlineRole && currentStoreId != null,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const branchQ = useQuery({
+    queryKey: ["layout", "branch", currentBranchId],
+    queryFn: () => fetchBranchById(Number(currentBranchId)),
+    enabled: isFrontlineRole && currentBranchId != null,
+    staleTime: 60_000,
+    retry: false,
   });
   const isStoreManager = me.roles.includes("STORE_MANAGER");
   const frontlineRoleCode = isCashier ? "CASHIER" : isWarehouseStaff ? "WAREHOUSE_STAFF" : null;
@@ -106,12 +116,13 @@ export function AppShellLayout() {
   const currentBranchName =
     currentBranchId == null
       ? null
-      : (branchQ.data?.content ?? []).find((b) => b.branchId === currentBranchId)?.branchName ??
-        `Chi nhánh #${currentBranchId}`;
+      : storeBranchesQ.data?.content?.find((b) => b.branchId === currentBranchId)?.branchName ??
+        branchQ.data?.branchName ??
+        null;
   const roleSubline = isAdmin
     ? "quản trị viên hệ thống"
     : frontlineRoleCode
-      ? (currentBranchName ?? "Chưa gán chi nhánh")
+      ? (currentBranchName ?? (storeBranchesQ.isPending || branchQ.isPending ? "Đang tải chi nhánh..." : "Chưa gán chi nhánh"))
       : currentStoreLabel;
 
   const sidebar = (

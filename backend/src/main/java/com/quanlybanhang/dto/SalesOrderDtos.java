@@ -43,6 +43,8 @@ public final class SalesOrderDtos {
   public record SalesOrderItemResponse(
       Long id,
       Long variantId,
+      String productName,
+      String variantName,
       BigDecimal quantity,
       BigDecimal unitPrice,
       BigDecimal discountAmount,

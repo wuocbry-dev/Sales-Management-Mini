@@ -86,7 +86,7 @@ export function PosCatalogPanel({ storeId, onPickVariant }: PosCatalogPanelProps
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             className="mb-2 h-11"
-            placeholder="Type keyword (sku/name)"
+            placeholder="Nhập SKU, tên sản phẩm hoặc tên biến thể"
           />
           <div className="grid grid-cols-2 gap-2">
             {quickVariants.length === 0 ? (
@@ -101,7 +101,9 @@ export function PosCatalogPanel({ storeId, onPickVariant }: PosCatalogPanelProps
                   onClick={() => onPickVariant(v)}
                 >
                   <span className="block text-xs font-semibold">{v.sku}</span>
-                  <span className="block text-xs text-muted-foreground">{v.variantName || v.productName}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {(v.productName?.trim() || "—") + " - " + (v.variantName?.trim() || "Mặc định")}
+                  </span>
                 </Button>
               ))
             )}

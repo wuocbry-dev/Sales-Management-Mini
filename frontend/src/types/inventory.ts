@@ -6,6 +6,7 @@ export type InventoryResponse = {
   storeId: number;
   variantId: number;
   variantSku?: string | null;
+  productName?: string | null;
   variantName?: string | null;
   quantityOnHand: string;
   reservedQty: string;
@@ -17,6 +18,7 @@ export type InventoryTransactionResponse = {
   warehouseId: number;
   variantId: number;
   variantSku?: string | null;
+  productName?: string | null;
   variantName?: string | null;
   transactionType: string;
   referenceType: string | null;
@@ -43,6 +45,7 @@ export type InventoryAvailabilityResponse = {
   variantId: number;
   storeId: number;
   variantSku?: string | null;
+  productName?: string | null;
   variantName?: string | null;
   locations: InventoryLocationAvailability[];
 };

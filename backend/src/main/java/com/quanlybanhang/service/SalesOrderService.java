@@ -33,6 +33,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
@@ -416,41 +417,51 @@ public class SalesOrderService {
   }
 
   private SalesOrderResponse toFullResponse(SalesOrder o) {
+    Map<Long, String[]> variantLabels =
+      variantRepository.findOptionsByIdIn(o.getItems().stream().map(SalesOrderItem::getVariantId).distinct().toList())
+        .stream()
+        .collect(
+          java.util.stream.Collectors.toMap(
+            com.quanlybanhang.repository.ProductVariantOptionProjection::getId,
+            p -> new String[] {p.getProductName(), p.getVariantName()}));
     List<SalesOrderItemResponse> items =
         o.getItems().stream()
             .map(
                 i ->
-                    new SalesOrderItemResponse(
-                        i.getId(),
-                        i.getVariantId(),
-                        i.getQuantity(),
-                        i.getUnitPrice(),
-                        i.getDiscountAmount(),
-                        i.getLineTotal()))
-            .toList();
+            {
+              String[] labels = variantLabels.get(i.getVariantId());
+              return new SalesOrderItemResponse(
+                i.getId(),
+                i.getVariantId(),
+                labels != null ? labels[0] : null,
+                labels != null ? labels[1] : null,
+                i.getQuantity(),
+                i.getUnitPrice(),
+                i.getDiscountAmount(),
+                i.getLineTotal());
+            })
+        .toList();
     List<PaymentResponse> pays =
-        paymentRepository.findByOrderIdOrderByIdAsc(o.getId()).stream()
-            .map(this::toPaymentResponse)
-            .toList();
+      paymentRepository.findByOrderIdOrderByIdAsc(o.getId()).stream().map(this::toPaymentResponse).toList();
     return new SalesOrderResponse(
-        o.getId(),
-        o.getOrderCode(),
-        o.getStoreId(),
-        o.getBranchId(),
-        o.getCustomerId(),
-        o.getCashierId(),
-        o.getOrderDate(),
-        o.getStatus(),
-        o.getSubtotal(),
-        o.getDiscountAmount(),
-        o.getTotalAmount(),
-        o.getPaidAmount(),
-        o.getPaymentStatus(),
-        o.getNote(),
-        o.getCreatedAt(),
-        o.getUpdatedAt(),
-        items,
-        pays);
+      o.getId(),
+      o.getOrderCode(),
+      o.getStoreId(),
+      o.getBranchId(),
+      o.getCustomerId(),
+      o.getCashierId(),
+      o.getOrderDate(),
+      o.getStatus(),
+      o.getSubtotal(),
+      o.getDiscountAmount(),
+      o.getTotalAmount(),
+      o.getPaidAmount(),
+      o.getPaymentStatus(),
+      o.getNote(),
+      o.getCreatedAt(),
+      o.getUpdatedAt(),
+      items,
+      pays);
   }
 
   private PaymentResponse toPaymentResponse(Payment p) {

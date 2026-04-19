@@ -20,7 +20,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { userAccountStatusLabel } from "@/lib/entity-status-labels";
+import { userAccountStatusLabel, userAccountStatusTextClass } from "@/lib/entity-status-labels";
 import { formatApiError } from "@/lib/api-errors";
 import { roleUiLabel } from "@/lib/role-labels";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
@@ -226,7 +226,7 @@ export function SystemUserDetailPage() {
         <Button variant="outline" size="sm" type="button" onClick={() => navigate(-1)}>
           ← Quay lại
         </Button>
-        <Badge variant="secondary">{userAccountStatusLabel(d.status)}</Badge>
+        <Badge variant="secondary" className={userAccountStatusTextClass(d.status)}>{userAccountStatusLabel(d.status)}</Badge>
       </div>
 
       <Card>

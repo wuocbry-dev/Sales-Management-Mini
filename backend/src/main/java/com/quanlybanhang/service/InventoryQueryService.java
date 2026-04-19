@@ -8,6 +8,7 @@ import com.quanlybanhang.exception.BusinessException;
 import com.quanlybanhang.model.Branch;
 import com.quanlybanhang.model.Inventory;
 import com.quanlybanhang.model.InventoryTransaction;
+import com.quanlybanhang.model.Product;
 import com.quanlybanhang.model.ProductVariant;
 import com.quanlybanhang.model.Warehouse;
 import com.quanlybanhang.repository.BranchRepository;
@@ -84,7 +85,8 @@ public class InventoryQueryService {
       vids.add(row.getVariantId());
     }
     Map<Long, ProductVariant> vmap = loadVariantsById(vids);
-    return raw.map(t -> toTxnResponse(t, vmap.get(t.getVariantId())));
+    Map<Long, Product> pmap = loadProductsByVariantMap(vmap);
+    return raw.map(t -> toTxnResponse(t, vmap.get(t.getVariantId()), pmap));
   }
 
   /** Tồn variant theo từng kho trong một store (kho tổng + các chi nhánh). */
@@ -122,8 +124,12 @@ public class InventoryQueryService {
     }
     ProductVariant v = variantRepository.findById(variantId).orElse(null);
     String sku = v != null ? v.getSku() : null;
+    String pname = null;
     String vname = v != null ? v.getVariantName() : null;
-    return new InventoryAvailabilityResponse(variantId, storeId, sku, vname, locs);
+    if (v != null && v.getProductId() != null) {
+      pname = productRepository.findById(v.getProductId()).map(Product::getProductName).orElse(null);
+    }
+    return new InventoryAvailabilityResponse(variantId, storeId, sku, pname, vname, locs);
   }
 
   private void assertVariantInStore(Long variantId, Long storeId) {
@@ -154,7 +160,8 @@ public class InventoryQueryService {
       vids.add(row.getVariantId());
     }
     Map<Long, ProductVariant> vmap = loadVariantsById(vids);
-    return raw.map(i -> toInvResponse(i, fallbackStoreId, vmap.get(i.getVariantId())));
+    Map<Long, Product> pmap = loadProductsByVariantMap(vmap);
+    return raw.map(i -> toInvResponse(i, fallbackStoreId, vmap.get(i.getVariantId()), pmap));
   }
 
   private Map<Long, ProductVariant> loadVariantsById(Set<Long> variantIds) {
@@ -168,9 +175,34 @@ public class InventoryQueryService {
     return out;
   }
 
-  private InventoryResponse toInvResponse(Inventory i, Long storeId, ProductVariant v) {
+  private Map<Long, Product> loadProductsByVariantMap(Map<Long, ProductVariant> vmap) {
+    if (vmap.isEmpty()) {
+      return Map.of();
+    }
+    Set<Long> productIds = new HashSet<>();
+    for (ProductVariant v : vmap.values()) {
+      if (v.getProductId() != null) {
+        productIds.add(v.getProductId());
+      }
+    }
+    if (productIds.isEmpty()) {
+      return Map.of();
+    }
+    Map<Long, Product> pmap = new HashMap<>();
+    for (Product p : productRepository.findAllById(productIds)) {
+      pmap.put(p.getId(), p);
+    }
+    return pmap;
+  }
+
+  private InventoryResponse toInvResponse(
+      Inventory i, Long storeId, ProductVariant v, Map<Long, Product> pmap) {
     Long sid = i.getStoreId() != null ? i.getStoreId() : storeId;
     String sku = v != null ? v.getSku() : null;
+    String pname =
+        (v != null && v.getProductId() != null && pmap.get(v.getProductId()) != null)
+            ? pmap.get(v.getProductId()).getProductName()
+            : null;
     String vname = v != null ? v.getVariantName() : null;
     return new InventoryResponse(
         i.getId(),
@@ -178,20 +210,27 @@ public class InventoryQueryService {
         sid,
         i.getVariantId(),
         sku,
+        pname,
         vname,
         i.getQuantityOnHand(),
         i.getReservedQty(),
         i.getUpdatedAt());
   }
 
-  private InventoryTransactionResponse toTxnResponse(InventoryTransaction t, ProductVariant v) {
+  private InventoryTransactionResponse toTxnResponse(
+      InventoryTransaction t, ProductVariant v, Map<Long, Product> pmap) {
     String sku = v != null ? v.getSku() : null;
+    String pname =
+        (v != null && v.getProductId() != null && pmap.get(v.getProductId()) != null)
+            ? pmap.get(v.getProductId()).getProductName()
+            : null;
     String vname = v != null ? v.getVariantName() : null;
     return new InventoryTransactionResponse(
         t.getId(),
         t.getWarehouseId(),
         t.getVariantId(),
         sku,
+        pname,
         vname,
         t.getTransactionType(),
         t.getReferenceType(),

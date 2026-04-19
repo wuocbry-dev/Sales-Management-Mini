@@ -28,17 +28,17 @@ import { inventoryTransactionTypeLabel } from "@/lib/inventory-transaction-type-
 import { warehouseTypeLabel } from "@/lib/warehouse-type-labels";
 const DEFAULT_SIZE = 10;
 
-/** Hiển thị biến thể: `SKU · tên` (fallback id nếu thiếu dữ liệu). */
+/** Hiển thị biến thể: `SKU · tên sản phẩm · tên biến thể` (fallback id nếu thiếu dữ liệu). */
 function formatInventoryVariantLabel(row: {
   variantId: number;
   variantSku?: string | null;
+  productName?: string | null;
   variantName?: string | null;
 }) {
-  const sku = row.variantSku?.trim() ?? "";
-  const name = row.variantName?.trim() ?? "";
-  if (sku && name) return `${sku} · ${name}`;
-  if (sku) return sku;
-  if (name) return name;
+  const parts = [row.variantSku, row.productName, row.variantName]
+    .map((p) => p?.trim() ?? "")
+    .filter((p) => p.length > 0);
+  if (parts.length > 0) return parts.join(" · ");
   return `#${row.variantId}`;
 }
 
@@ -338,7 +338,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>SKU · tên biến thể</TableHead>
+                        <TableHead>SKU · tên sản phẩm · tên biến thể</TableHead>
                         <TableHead className="text-right">Tồn thực tế</TableHead>
                         <TableHead className="text-right">Đang giữ chỗ</TableHead>
                         <TableHead>Cập nhật</TableHead>
@@ -393,7 +393,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Kho</TableHead>
-                        <TableHead>SKU · tên biến thể</TableHead>
+                        <TableHead>SKU · tên sản phẩm · tên biến thể</TableHead>
                         <TableHead className="text-right">Tồn thực tế</TableHead>
                         <TableHead className="text-right">Đang giữ chỗ</TableHead>
                       </TableRow>
@@ -429,7 +429,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Khả dụng theo từng kho</CardTitle>
-            <CardDescription>Chọn cửa hàng và biến thể (SKU / tên) để xem phân bổ số lượng.</CardDescription>
+            <CardDescription>Chọn cửa hàng và Biến thể để xem phân bổ số lượng.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
@@ -466,7 +466,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                 )}
               </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="av-var">Biến thể (SKU / tên)</Label>
+                <Label htmlFor="av-var">Biến thể</Label>
                 <VariantSearchCombobox
                   key={`av-variant-${availStoreId}`}
                   id="av-var"
@@ -474,6 +474,8 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                   storeId={availStoreId}
                   value={availVariantPick}
                   onChange={setAvailVariantPick}
+                  placeholder="Gõ SKU, tên sản phẩm hoặc tên biến thể..."
+                  labelMode="sku-product-variant"
                   disabled={!availStoreId}
                 />
               </div>
@@ -560,7 +562,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Biến thể (tuỳ chọn)</Label>
+                    <Label>Biến thể (SKU / tên sản phẩm / tên biến thể, tuỳ chọn)</Label>
                     <VariantSearchCombobox
                       key={`txn-variant-${storeId}`}
                       name="txnVariantFilter"
@@ -600,7 +602,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                           <TableRow>
                             <TableHead>Thời điểm</TableHead>
                             <TableHead>Loại</TableHead>
-                            <TableHead>SKU · tên biến thể</TableHead>
+                            <TableHead>SKU · tên sản phẩm · tên biến thể</TableHead>
                             <TableHead className="text-right">Thay đổi</TableHead>
                             <TableHead className="text-right">Trước</TableHead>
                             <TableHead className="text-right">Sau</TableHead>

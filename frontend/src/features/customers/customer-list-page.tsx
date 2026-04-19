@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CustomerFormDialog } from "@/features/customers/customer-form-dialog";
 import { canSeeCustomerCreate } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
-import { catalogStatusLabel } from "@/lib/catalog-status-labels";
+import { catalogStatusLabel, catalogStatusTextClass } from "@/lib/catalog-status-labels";
 
 const DEFAULT_SIZE = 10;
 
@@ -80,7 +80,7 @@ export function CustomerListPage() {
                       <TableCell className="font-medium">{row.fullName}</TableCell>
                       <TableCell>{row.phone ?? "—"}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{catalogStatusLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={catalogStatusTextClass(row.status)}>{catalogStatusLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" asChild>

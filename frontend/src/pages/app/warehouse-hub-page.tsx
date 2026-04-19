@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { isSystemManage } from "@/features/auth/access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import { activeInactiveLabel, activeInactiveTextClass } from "@/lib/entity-status-labels";
 import { warehouseTypeLabel } from "@/lib/warehouse-type-labels";
 import { Archive } from "lucide-react";
 import type { BranchResponse } from "@/types/branch";
@@ -212,7 +212,7 @@ export function WarehouseHubPage() {
                         {branchLinkText(row.storeId, row.branchId)}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{activeInactiveLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={activeInactiveTextClass(row.status)}>{activeInactiveLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="tabular-nums text-muted-foreground">{row.warehouseId}</TableCell>
                       <TableCell className="text-right">

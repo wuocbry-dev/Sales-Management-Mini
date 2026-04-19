@@ -12,7 +12,14 @@ import { SupplierFormDialog } from "@/features/suppliers/supplier-form-dialog";
 import { gateSupplierMutate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import {
+  activeInactiveLabel,
+  activeInactiveTextClass,
+  softDeleteToggleConfirmVerb,
+  softDeleteToggleLabel,
+  softDeleteToggleLoadingLabel,
+  softDeleteToggleSuccessVerb,
+} from "@/lib/entity-status-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 
 export function SupplierDetailPage() {
@@ -25,9 +32,9 @@ export function SupplierDetailPage() {
   const [open, setOpen] = useState(false);
 
   const deleteM = useMutation({
-    mutationFn: async () => deleteSupplier(nid),
-    onSuccess: async () => {
-      toast.success("Đã xóa nhà cung cấp.");
+    mutationFn: async (args: { status: string }) => deleteSupplier(nid),
+    onSuccess: async (_data, variables) => {
+      toast.success(`Đã ${softDeleteToggleSuccessVerb(variables.status)} nhà cung cấp.`);
       await queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       navigate("/app/nha-cung-cap", { replace: true });
     },
@@ -73,16 +80,17 @@ export function SupplierDetailPage() {
             variant="outline"
             size="sm"
             type="button"
-            className="text-red-600 hover:text-red-700"
+            className={s.status === "INACTIVE" ? "text-green-600 hover:text-green-700" : "text-red-600 hover:text-red-700"}
             disabled={deleteM.isPending}
             onClick={() => {
-              if (!window.confirm(`Xóa nhà cung cấp \"${s.supplierName}\"?`)) {
+              const action = softDeleteToggleConfirmVerb(s.status);
+              if (!window.confirm(`${action} nhà cung cấp \"${s.supplierName}\"?`)) {
                 return;
               }
-              deleteM.mutate();
+              deleteM.mutate({ status: s.status });
             }}
           >
-            {deleteM.isPending ? "Đang xóa..." : "Xóa"}
+            {deleteM.isPending ? softDeleteToggleLoadingLabel(s.status) : softDeleteToggleLabel(s.status)}
           </Button>
         ) : null}
       </div>
@@ -93,7 +101,7 @@ export function SupplierDetailPage() {
               <CardTitle className="text-xl">{s.supplierName}</CardTitle>
               <CardDescription className="font-mono">{s.supplierCode}</CardDescription>
             </div>
-            <Badge variant="secondary">{activeInactiveLabel(s.status)}</Badge>
+            <Badge variant="secondary" className={activeInactiveTextClass(s.status)}>{activeInactiveLabel(s.status)}</Badge>
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">

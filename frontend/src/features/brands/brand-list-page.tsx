@@ -14,7 +14,14 @@ import { BrandFormDialog } from "@/features/brands/brand-form-dialog";
 import { gateProductCatalogMutate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import {
+  activeInactiveLabel,
+  activeInactiveTextClass,
+  softDeleteToggleConfirmVerb,
+  softDeleteToggleLabel,
+  softDeleteToggleLoadingLabel,
+  softDeleteToggleSuccessVerb,
+} from "@/lib/entity-status-labels";
 import type { BrandResponse } from "@/types/master-data";
 
 const DEFAULT_SIZE = 10;
@@ -31,16 +38,16 @@ export function BrandListPage() {
   const [editing, setEditing] = useState<BrandResponse | null>(null);
 
   const deleteM = useMutation({
-    mutationFn: async (brandId: number) => deleteBrand(brandId),
-    onSuccess: async () => {
-      toast.success("Đã xóa thương hiệu.");
+    mutationFn: async (args: { brandId: number }) => deleteBrand(args.brandId),
+    onSuccess: async (_data, variables) => {
+      toast.success(`Đã ${softDeleteToggleSuccessVerb(variables.status)} thương hiệu.`);
       await queryClient.invalidateQueries({ queryKey: ["brands"] });
     },
     onError: (err) => {
       toast.error(formatApiError(err));
     },
   });
-  const deletingBrandId = deleteM.isPending ? deleteM.variables : null;
+  const deletingBrandId = deleteM.isPending ? deleteM.variables?.brandId ?? null : null;
 
   const q = useQuery({
     queryKey: ["brands", page, size],
@@ -96,7 +103,7 @@ export function BrandListPage() {
                       <TableCell className="font-mono text-sm">{row.brandCode}</TableCell>
                       <TableCell className="font-medium">{row.brandName}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{activeInactiveLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={activeInactiveTextClass(row.status)}>{activeInactiveLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-1">
@@ -113,16 +120,17 @@ export function BrandListPage() {
                               variant="outline"
                               size="sm"
                               type="button"
-                              className="text-red-600 hover:text-red-700"
+                              className={row.status === "INACTIVE" ? "text-green-600 hover:text-green-700" : "text-red-600 hover:text-red-700"}
                               disabled={deletingBrandId === row.id}
                               onClick={() => {
-                                if (!window.confirm(`Xóa thương hiệu \"${row.brandName}\"?`)) {
+                                const action = softDeleteToggleConfirmVerb(row.status);
+                                if (!window.confirm(`${action} thương hiệu \"${row.brandName}\"?`)) {
                                   return;
                                 }
-                                deleteM.mutate(row.id);
+                                deleteM.mutate({ brandId: row.id, status: row.status });
                               }}
                             >
-                              {deletingBrandId === row.id ? "Đang xóa..." : "Xóa"}
+                              {deletingBrandId === row.id ? softDeleteToggleLoadingLabel(row.status) : softDeleteToggleLabel(row.status)}
                             </Button>
                           ) : null}
                         </div>

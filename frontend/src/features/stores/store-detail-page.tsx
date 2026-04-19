@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { gateStoreScopedUsersInStorePage, gateStoreUpdate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { StoreFormDialog } from "@/features/stores/store-form-dialog";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import { activeInactiveLabel, activeInactiveTextClass } from "@/lib/entity-status-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 
 export function StoreDetailPage() {
@@ -85,7 +85,7 @@ export function StoreDetailPage() {
               <CardTitle className="text-xl">{s.storeName}</CardTitle>
               <CardDescription className="font-mono">{s.storeCode}</CardDescription>
             </div>
-            <Badge variant="secondary">{activeInactiveLabel(s.status)}</Badge>
+            <Badge variant="secondary" className={activeInactiveTextClass(s.status)}>{activeInactiveLabel(s.status)}</Badge>
           </div>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">

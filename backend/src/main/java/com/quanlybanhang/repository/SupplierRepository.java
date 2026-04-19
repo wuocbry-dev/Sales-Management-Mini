@@ -14,6 +14,12 @@ public interface SupplierRepository extends JpaRepository<Supplier, Long> {
 
   boolean existsByIdAndStoreId(Long id, Long storeId);
 
+  Page<Supplier> findByStatus(String status, Pageable pageable);
+
+  Page<Supplier> findByStoreIdAndStatus(Long storeId, String status, Pageable pageable);
+
+  Page<Supplier> findByStoreIdInAndStatus(List<Long> storeIds, String status, Pageable pageable);
+
   Page<Supplier> findByStoreId(Long storeId, Pageable pageable);
 
   Page<Supplier> findByStoreIdIn(List<Long> storeIds, Pageable pageable);

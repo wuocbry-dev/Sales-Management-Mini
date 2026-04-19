@@ -38,6 +38,9 @@ export function PosSessionBar({
   onBranchChange,
   onScanned,
 }: PosSessionBarProps) {
+  const branchName =
+    branchId == null ? "Kho tổng" : branches.find((b) => b.branchId === branchId)?.branchName ?? "Chi nhánh";
+
   return (
     <Card className="pos-panel">
       <CardHeader className="pb-2">
@@ -49,7 +52,7 @@ export function PosSessionBar({
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge variant="secondary">Thu ngân: {cashierName}</Badge>
             <Badge variant="outline">Store #{storeId || "-"}</Badge>
-            <Badge variant="outline">Branch #{branchId ?? "-"}</Badge>
+            <Badge variant="outline">Chi nhánh: {branchName}</Badge>
           </div>
         </div>
 

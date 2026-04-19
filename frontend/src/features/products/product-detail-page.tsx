@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { catalogStatusLabel } from "@/lib/catalog-status-labels";
+import { catalogStatusLabel, catalogStatusTextClass } from "@/lib/catalog-status-labels";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
 import { formatQty } from "@/lib/format-qty";
 import { productTypeLabel } from "@/lib/product-type-labels";
@@ -132,7 +132,7 @@ export function ProductDetailPage() {
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <p className="text-xs text-muted-foreground">Trạng thái</p>
-            <Badge variant="secondary" className="mt-1">
+            <Badge variant="secondary" className={`mt-1 ${catalogStatusTextClass(p.status)}`}>
               {catalogStatusLabel(p.status)}
             </Badge>
           </div>
@@ -248,7 +248,7 @@ export function ProductDetailPage() {
                     <TableCell className="text-right tabular-nums">{formatVndFromDecimal(v.sellingPrice)}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatQty(v.reorderLevel)}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{catalogStatusLabel(v.status)}</Badge>
+                      <Badge variant="outline" className={catalogStatusTextClass(v.status)}>{catalogStatusLabel(v.status)}</Badge>
                     </TableCell>
                   </TableRow>
                 ))

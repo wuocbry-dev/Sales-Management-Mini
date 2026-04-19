@@ -19,6 +19,12 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
   Optional<Category> findByIdAndStoreId(Long id, Long storeId);
 
+  Page<Category> findByStatus(String status, Pageable pageable);
+
+  Page<Category> findByStoreIdAndStatus(Long storeId, String status, Pageable pageable);
+
+  Page<Category> findByStoreIdInAndStatus(List<Long> storeIds, String status, Pageable pageable);
+
   Page<Category> findByStoreId(Long storeId, Pageable pageable);
 
   Page<Category> findByStoreIdIn(List<Long> storeIds, Pageable pageable);

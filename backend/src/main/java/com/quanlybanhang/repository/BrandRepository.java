@@ -14,6 +14,12 @@ public interface BrandRepository extends JpaRepository<Brand, Long> {
 
   boolean existsByIdAndStoreId(Long id, Long storeId);
 
+  Page<Brand> findByStatus(String status, Pageable pageable);
+
+  Page<Brand> findByStoreIdAndStatus(Long storeId, String status, Pageable pageable);
+
+  Page<Brand> findByStoreIdInAndStatus(List<Long> storeIds, String status, Pageable pageable);
+
   Page<Brand> findByStoreId(Long storeId, Pageable pageable);
 
   Page<Brand> findByStoreIdIn(List<Long> storeIds, Pageable pageable);

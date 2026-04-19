@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { userAccountStatusLabel } from "@/lib/entity-status-labels";
+import { userAccountStatusLabel, userAccountStatusTextClass } from "@/lib/entity-status-labels";
 import { formatRoleCodesForUi } from "@/lib/role-labels";
 import { gateSystemManage } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
@@ -82,7 +82,7 @@ export function SystemUserListPage() {
                         {formatRoleCodesForUi(row.roleCodes)}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{userAccountStatusLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={userAccountStatusTextClass(row.status)}>{userAccountStatusLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" asChild>

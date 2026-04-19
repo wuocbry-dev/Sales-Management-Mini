@@ -14,7 +14,14 @@ import { CategoryFormDialog } from "@/features/categories/category-form-dialog";
 import { gateProductCatalogMutate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import {
+  activeInactiveLabel,
+  activeInactiveTextClass,
+  softDeleteToggleConfirmVerb,
+  softDeleteToggleLabel,
+  softDeleteToggleLoadingLabel,
+  softDeleteToggleSuccessVerb,
+} from "@/lib/entity-status-labels";
 import type { CategoryResponse } from "@/types/master-data";
 
 const DEFAULT_SIZE = 10;
@@ -31,16 +38,16 @@ export function CategoryListPage() {
   const [editing, setEditing] = useState<CategoryResponse | null>(null);
 
   const deleteM = useMutation({
-    mutationFn: async (categoryId: number) => deleteCategory(categoryId),
-    onSuccess: async () => {
-      toast.success("Đã xóa nhóm hàng.");
+    mutationFn: async (args: { categoryId: number }) => deleteCategory(args.categoryId),
+    onSuccess: async (_data, variables) => {
+      toast.success(`Đã ${softDeleteToggleSuccessVerb(variables.status)} nhóm hàng.`);
       await queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
     onError: (err) => {
       toast.error(formatApiError(err));
     },
   });
-  const deletingCategoryId = deleteM.isPending ? deleteM.variables : null;
+  const deletingCategoryId = deleteM.isPending ? deleteM.variables?.categoryId ?? null : null;
 
   const q = useQuery({
     queryKey: ["categories", page, size],
@@ -100,7 +107,7 @@ export function CategoryListPage() {
                         {row.parentId != null ? "Có" : "Không"}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{activeInactiveLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={activeInactiveTextClass(row.status)}>{activeInactiveLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-1">
@@ -117,16 +124,17 @@ export function CategoryListPage() {
                               variant="outline"
                               size="sm"
                               type="button"
-                              className="text-red-600 hover:text-red-700"
+                              className={row.status === "INACTIVE" ? "text-green-600 hover:text-green-700" : "text-red-600 hover:text-red-700"}
                               disabled={deletingCategoryId === row.id}
                               onClick={() => {
-                                if (!window.confirm(`Xóa nhóm hàng \"${row.categoryName}\"?`)) {
+                                const action = softDeleteToggleConfirmVerb(row.status);
+                                if (!window.confirm(`${action} nhóm hàng \"${row.categoryName}\"?`)) {
                                   return;
                                 }
-                                deleteM.mutate(row.id);
+                                deleteM.mutate({ categoryId: row.id, status: row.status });
                               }}
                             >
-                              {deletingCategoryId === row.id ? "Đang xóa..." : "Xóa"}
+                              {deletingCategoryId === row.id ? softDeleteToggleLoadingLabel(row.status) : softDeleteToggleLabel(row.status)}
                             </Button>
                           ) : null}
                         </div>

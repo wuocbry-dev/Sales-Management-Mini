@@ -30,6 +30,8 @@ export type SalesOrderConfirmRequestBody = {
 export type SalesOrderItemResponse = {
   id: number;
   variantId: number;
+  productName?: string | null;
+  variantName?: string | null;
   quantity: string;
   unitPrice: string;
   discountAmount: string;

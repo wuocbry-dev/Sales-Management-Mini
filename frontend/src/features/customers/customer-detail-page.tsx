@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CustomerFormDialog } from "@/features/customers/customer-form-dialog";
 import { canSeeCustomerUpdate } from "@/features/auth/action-access";
 import { useAuthStore } from "@/features/auth/auth-store";
-import { catalogStatusLabel } from "@/lib/catalog-status-labels";
+import { catalogStatusLabel, catalogStatusTextClass } from "@/lib/catalog-status-labels";
 import { formatVndFromDecimal } from "@/lib/format-vnd";
 import { genderLabel } from "@/lib/gender-labels";
 
@@ -70,7 +70,7 @@ export function CustomerDetailPage() {
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <p className="text-xs text-muted-foreground">Trạng thái</p>
-            <Badge variant="secondary" className="mt-1">
+            <Badge variant="secondary" className={`mt-1 ${catalogStatusTextClass(c.status)}`}>
               {catalogStatusLabel(c.status)}
             </Badge>
           </div>

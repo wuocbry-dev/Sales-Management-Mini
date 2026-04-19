@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { BranchFormDialog } from "@/features/branches/branch-form-dialog";
 import { gateBranchCreate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import { activeInactiveLabel, activeInactiveTextClass } from "@/lib/entity-status-labels";
 
 const DEFAULT_SIZE = 10;
 
@@ -98,7 +98,7 @@ export function BranchListPage() {
                       <TableCell className="font-mono text-sm">{row.branchCode}</TableCell>
                       <TableCell className="font-medium">{row.branchName}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{activeInactiveLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={activeInactiveTextClass(row.status)}>{activeInactiveLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button variant="outline" size="sm" asChild>

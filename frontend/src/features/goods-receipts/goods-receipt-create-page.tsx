@@ -330,7 +330,7 @@ export function GoodsReceiptCreatePage() {
                         name={`lines.${i}.variantId`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Biến thể (SKU / tên)</FormLabel>
+                            <FormLabel>Biến thể</FormLabel>
                             <FormControl>
                               <VariantSearchCombobox
                                 key={`${row.id}-${storeIdWatch}`}

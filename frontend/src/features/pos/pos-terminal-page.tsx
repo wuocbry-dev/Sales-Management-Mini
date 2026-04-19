@@ -475,8 +475,7 @@ export function PosTerminalPage() {
                   value={manualVariantId}
                   onChange={setManualVariantId}
                   onPick={addVariant}
-                  labelMode="product-variant"
-                  placeholder="Tên sản phẩm + tên biến thể"
+                  placeholder="Gõ SKU, tên sản phẩm hoặc tên biến thể..."
                   disabled={storeId <= 0}
                 />
               </div>

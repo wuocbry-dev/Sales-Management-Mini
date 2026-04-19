@@ -140,18 +140,22 @@ public class MasterDataService {
 
   public Page<BrandResponse> listBrands(
       Pageable pageable, Long storeId, JwtAuthenticatedPrincipal principal) {
+    final String active = "ACTIVE";
     List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
     assertStoreFilterAccessible(storeId, scope);
     if (scope == null) {
       if (storeId != null) {
-        return brandRepository.findByStoreId(storeId, pageable).map(this::toBrandResponse);
+        return brandRepository.findByStoreIdAndStatus(storeId, active, pageable)
+            .map(this::toBrandResponse);
       }
-      return brandRepository.findAll(pageable).map(this::toBrandResponse);
+      return brandRepository.findByStatus(active, pageable).map(this::toBrandResponse);
     }
     if (storeId != null) {
-      return brandRepository.findByStoreId(storeId, pageable).map(this::toBrandResponse);
+      return brandRepository.findByStoreIdAndStatus(storeId, active, pageable)
+          .map(this::toBrandResponse);
     }
-    return brandRepository.findByStoreIdIn(scope, pageable).map(this::toBrandResponse);
+    return brandRepository.findByStoreIdInAndStatus(scope, active, pageable)
+        .map(this::toBrandResponse);
   }
 
   public BrandResponse getBrand(Long id, JwtAuthenticatedPrincipal principal) {
@@ -204,13 +208,9 @@ public class MasterDataService {
   public void deleteBrand(Long id, JwtAuthenticatedPrincipal principal) {
     Brand e = brandRepository.findById(id).orElseThrow(() -> notFound("Thương hiệu", id));
     storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
-    if (productRepository.existsByBrandIdAndStoreId(id, e.getStoreId())) {
-      throw new BusinessException(
-          "Không thể xóa thương hiệu "
-              + e.getBrandCode()
-              + ": đã có sản phẩm đang sử dụng thương hiệu này.");
-    }
-    brandRepository.delete(e);
+    e.setStatus("INACTIVE".equalsIgnoreCase(e.getStatus()) ? "ACTIVE" : "INACTIVE");
+    e.setUpdatedAt(now());
+    brandRepository.save(e);
     brandRepository.flush();
   }
 
@@ -230,18 +230,22 @@ public class MasterDataService {
 
   public Page<CategoryResponse> listCategories(
       Pageable pageable, Long storeId, JwtAuthenticatedPrincipal principal) {
+    final String active = "ACTIVE";
     List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
     assertStoreFilterAccessible(storeId, scope);
     if (scope == null) {
       if (storeId != null) {
-        return categoryRepository.findByStoreId(storeId, pageable).map(this::toCategoryResponse);
+        return categoryRepository.findByStoreIdAndStatus(storeId, active, pageable)
+            .map(this::toCategoryResponse);
       }
-      return categoryRepository.findAll(pageable).map(this::toCategoryResponse);
+      return categoryRepository.findByStatus(active, pageable).map(this::toCategoryResponse);
     }
     if (storeId != null) {
-      return categoryRepository.findByStoreId(storeId, pageable).map(this::toCategoryResponse);
+      return categoryRepository.findByStoreIdAndStatus(storeId, active, pageable)
+          .map(this::toCategoryResponse);
     }
-    return categoryRepository.findByStoreIdIn(scope, pageable).map(this::toCategoryResponse);
+    return categoryRepository.findByStoreIdInAndStatus(scope, active, pageable)
+        .map(this::toCategoryResponse);
   }
 
   public CategoryResponse getCategory(Long id, JwtAuthenticatedPrincipal principal) {
@@ -314,19 +318,9 @@ public class MasterDataService {
   public void deleteCategory(Long id, JwtAuthenticatedPrincipal principal) {
     Category e = categoryRepository.findById(id).orElseThrow(() -> notFound("Danh mục", id));
     storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
-    if (categoryRepository.existsByParentIdAndStoreId(id, e.getStoreId())) {
-      throw new BusinessException(
-          "Không thể xóa nhóm hàng "
-              + e.getCategoryCode()
-              + ": vẫn còn nhóm hàng con.");
-    }
-    if (productRepository.existsByCategoryIdAndStoreId(id, e.getStoreId())) {
-      throw new BusinessException(
-          "Không thể xóa nhóm hàng "
-              + e.getCategoryCode()
-              + ": đã có sản phẩm đang sử dụng nhóm hàng này.");
-    }
-    categoryRepository.delete(e);
+    e.setStatus("INACTIVE".equalsIgnoreCase(e.getStatus()) ? "ACTIVE" : "INACTIVE");
+    e.setUpdatedAt(now());
+    categoryRepository.save(e);
     categoryRepository.flush();
   }
 
@@ -422,18 +416,22 @@ public class MasterDataService {
 
   public Page<SupplierResponse> listSuppliers(
       Pageable pageable, Long storeId, JwtAuthenticatedPrincipal principal) {
+    final String active = "ACTIVE";
     List<Long> scope = storeAccessService.dataStoreScopeOrDeny(principal);
     assertStoreFilterAccessible(storeId, scope);
     if (scope == null) {
       if (storeId != null) {
-        return supplierRepository.findByStoreId(storeId, pageable).map(this::toSupplierResponse);
+        return supplierRepository.findByStoreIdAndStatus(storeId, active, pageable)
+            .map(this::toSupplierResponse);
       }
-      return supplierRepository.findAll(pageable).map(this::toSupplierResponse);
+      return supplierRepository.findByStatus(active, pageable).map(this::toSupplierResponse);
     }
     if (storeId != null) {
-      return supplierRepository.findByStoreId(storeId, pageable).map(this::toSupplierResponse);
+      return supplierRepository.findByStoreIdAndStatus(storeId, active, pageable)
+          .map(this::toSupplierResponse);
     }
-    return supplierRepository.findByStoreIdIn(scope, pageable).map(this::toSupplierResponse);
+    return supplierRepository.findByStoreIdInAndStatus(scope, active, pageable)
+        .map(this::toSupplierResponse);
   }
 
   public SupplierResponse getSupplier(Long id, JwtAuthenticatedPrincipal principal) {
@@ -490,13 +488,9 @@ public class MasterDataService {
   public void deleteSupplier(Long id, JwtAuthenticatedPrincipal principal) {
     Supplier e = supplierRepository.findById(id).orElseThrow(() -> notFound("Nhà cung cấp", id));
     storeAccessService.assertCanAccessStore(e.getStoreId(), principal);
-    if (goodsReceiptRepository.existsBySupplierIdAndStoreId(id, e.getStoreId())) {
-      throw new BusinessException(
-          "Không thể xóa nhà cung cấp "
-              + e.getSupplierCode()
-              + ": đã phát sinh phiếu nhập hàng.");
-    }
-    supplierRepository.delete(e);
+    e.setStatus("INACTIVE".equalsIgnoreCase(e.getStatus()) ? "ACTIVE" : "INACTIVE");
+    e.setUpdatedAt(now());
+    supplierRepository.save(e);
     supplierRepository.flush();
   }
 

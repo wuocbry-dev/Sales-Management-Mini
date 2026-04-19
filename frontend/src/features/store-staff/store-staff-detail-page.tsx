@@ -21,7 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { userAccountStatusLabel } from "@/lib/entity-status-labels";
+import { userAccountStatusLabel, userAccountStatusTextClass } from "@/lib/entity-status-labels";
 import { applyApiFieldErrors } from "@/lib/apply-field-errors";
 import { formatApiError } from "@/lib/api-errors";
 import { formatDateTimeVi } from "@/lib/format-datetime";
@@ -175,7 +175,7 @@ export function StoreStaffDetailPage() {
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle className="font-mono text-xl">{row.username}</CardTitle>
-            <Badge variant="secondary">{userAccountStatusLabel(row.status)}</Badge>
+            <Badge variant="secondary" className={userAccountStatusTextClass(row.status)}>{userAccountStatusLabel(row.status)}</Badge>
           </div>
           <CardDescription>Nhân viên cửa hàng — mã nội bộ #{row.userId}</CardDescription>
         </CardHeader>

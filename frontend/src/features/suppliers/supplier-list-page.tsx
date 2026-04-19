@@ -14,7 +14,14 @@ import { SupplierFormDialog } from "@/features/suppliers/supplier-form-dialog";
 import { gateSupplierMutate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import {
+  activeInactiveLabel,
+  activeInactiveTextClass,
+  softDeleteToggleConfirmVerb,
+  softDeleteToggleLabel,
+  softDeleteToggleLoadingLabel,
+  softDeleteToggleSuccessVerb,
+} from "@/lib/entity-status-labels";
 import type { SupplierResponse } from "@/types/master-data";
 
 const DEFAULT_SIZE = 10;
@@ -31,16 +38,16 @@ export function SupplierListPage() {
   const [editing, setEditing] = useState<SupplierResponse | null>(null);
 
   const deleteM = useMutation({
-    mutationFn: async (supplierId: number) => deleteSupplier(supplierId),
-    onSuccess: async () => {
-      toast.success("Đã xóa nhà cung cấp.");
+    mutationFn: async (args: { supplierId: number }) => deleteSupplier(args.supplierId),
+    onSuccess: async (_data, variables) => {
+      toast.success(`Đã ${softDeleteToggleSuccessVerb(variables.status)} nhà cung cấp.`);
       await queryClient.invalidateQueries({ queryKey: ["suppliers"] });
     },
     onError: (err) => {
       toast.error(formatApiError(err));
     },
   });
-  const deletingSupplierId = deleteM.isPending ? deleteM.variables : null;
+  const deletingSupplierId = deleteM.isPending ? deleteM.variables?.supplierId ?? null : null;
 
   const q = useQuery({
     queryKey: ["suppliers", page, size],
@@ -96,7 +103,7 @@ export function SupplierListPage() {
                       <TableCell className="font-mono text-sm">{row.supplierCode}</TableCell>
                       <TableCell className="font-medium">{row.supplierName}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{activeInactiveLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={activeInactiveTextClass(row.status)}>{activeInactiveLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-wrap justify-end gap-1">
@@ -113,16 +120,17 @@ export function SupplierListPage() {
                               variant="outline"
                               size="sm"
                               type="button"
-                              className="text-red-600 hover:text-red-700"
+                              className={row.status === "INACTIVE" ? "text-green-600 hover:text-green-700" : "text-red-600 hover:text-red-700"}
                               disabled={deletingSupplierId === row.id}
                               onClick={() => {
-                                if (!window.confirm(`Xóa nhà cung cấp \"${row.supplierName}\"?`)) {
+                                const action = softDeleteToggleConfirmVerb(row.status);
+                                if (!window.confirm(`${action} nhà cung cấp \"${row.supplierName}\"?`)) {
                                   return;
                                 }
-                                deleteM.mutate(row.id);
+                                deleteM.mutate({ supplierId: row.id, status: row.status });
                               }}
                             >
-                              {deletingSupplierId === row.id ? "Đang xóa..." : "Xóa"}
+                              {deletingSupplierId === row.id ? softDeleteToggleLoadingLabel(row.status) : softDeleteToggleLabel(row.status)}
                             </Button>
                           ) : null}
                         </div>

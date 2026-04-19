@@ -327,7 +327,7 @@ export function SalesReturnCreatePage() {
                                 <option value="">— Chọn dòng đơn —</option>
                                 {items.map((it) => (
                                   <option key={it.id} value={it.id}>
-                                    #{it.id} · biến thể {it.variantId} · SL đặt {it.quantity}
+                                    {(it.productName?.trim() || "Sản phẩm") + " - " + (it.variantName?.trim() || "Mặc định")}
                                   </option>
                                 ))}
                               </select>

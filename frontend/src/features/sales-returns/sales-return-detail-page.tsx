@@ -57,6 +57,20 @@ export function SalesReturnDetailPage() {
     onError: (e) => toast.error(formatApiError(e)),
   });
 
+  const orderItemById = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const it of orderQ.data?.items ?? []) {
+      map.set(it.id, it.variantId);
+    }
+    return map;
+  }, [orderQ.data]);
+
+  const getOrderItemDisplay = (orderItemId: number) => {
+    const variantId = orderItemById.get(orderItemId);
+    if (variantId == null) return `Dòng #${orderItemId}`;
+    return `#${orderItemId} - ${getVariantLabel(variantId)}`;
+  };
+
   if (invalid) {
     return (
       <Card>
@@ -76,20 +90,6 @@ export function SalesReturnDetailPage() {
   if (q.isError) return <ApiErrorState error={q.error} onRetry={() => void q.refetch()} />;
   const r = q.data;
   const isDraft = r.status === "draft";
-
-  const orderItemById = useMemo(() => {
-    const map = new Map<number, number>();
-    for (const it of orderQ.data?.items ?? []) {
-      map.set(it.id, it.variantId);
-    }
-    return map;
-  }, [orderQ.data]);
-
-  const getOrderItemDisplay = (orderItemId: number) => {
-    const variantId = orderItemById.get(orderItemId);
-    if (variantId == null) return `Dòng #${orderItemId}`;
-    return `#${orderItemId} - ${getVariantLabel(variantId)}`;
-  };
 
   return (
     <div className="space-y-6">

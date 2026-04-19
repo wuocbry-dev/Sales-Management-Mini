@@ -14,6 +14,7 @@ public final class InventoryDtos {
       Long storeId,
       Long variantId,
       String variantSku,
+      String productName,
       String variantName,
       BigDecimal quantityOnHand,
       BigDecimal reservedQty,
@@ -24,6 +25,7 @@ public final class InventoryDtos {
       Long warehouseId,
       Long variantId,
       String variantSku,
+      String productName,
       String variantName,
       String transactionType,
       String referenceType,
@@ -48,6 +50,7 @@ public final class InventoryDtos {
       Long variantId,
       Long storeId,
       String variantSku,
+      String productName,
       String variantName,
       List<InventoryLocationAvailability> locations) {}
 }

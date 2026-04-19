@@ -12,7 +12,14 @@ import { CategoryFormDialog } from "@/features/categories/category-form-dialog";
 import { gateProductCatalogMutate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import {
+  activeInactiveLabel,
+  activeInactiveTextClass,
+  softDeleteToggleConfirmVerb,
+  softDeleteToggleLabel,
+  softDeleteToggleLoadingLabel,
+  softDeleteToggleSuccessVerb,
+} from "@/lib/entity-status-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 
 export function CategoryDetailPage() {
@@ -25,9 +32,9 @@ export function CategoryDetailPage() {
   const [open, setOpen] = useState(false);
 
   const deleteM = useMutation({
-    mutationFn: async () => deleteCategory(nid),
-    onSuccess: async () => {
-      toast.success("Đã xóa nhóm hàng.");
+    mutationFn: async (args: { status: string }) => deleteCategory(nid),
+    onSuccess: async (_data, variables) => {
+      toast.success(`Đã ${softDeleteToggleSuccessVerb(variables.status)} nhóm hàng.`);
       await queryClient.invalidateQueries({ queryKey: ["categories"] });
       navigate("/app/nhom-hang", { replace: true });
     },
@@ -73,16 +80,17 @@ export function CategoryDetailPage() {
             variant="outline"
             size="sm"
             type="button"
-            className="text-red-600 hover:text-red-700"
+            className={c.status === "INACTIVE" ? "text-green-600 hover:text-green-700" : "text-red-600 hover:text-red-700"}
             disabled={deleteM.isPending}
             onClick={() => {
-              if (!window.confirm(`Xóa nhóm hàng \"${c.categoryName}\"?`)) {
+              const action = softDeleteToggleConfirmVerb(c.status);
+              if (!window.confirm(`${action} nhóm hàng \"${c.categoryName}\"?`)) {
                 return;
               }
-              deleteM.mutate();
+              deleteM.mutate({ status: c.status });
             }}
           >
-            {deleteM.isPending ? "Đang xóa..." : "Xóa"}
+            {deleteM.isPending ? softDeleteToggleLoadingLabel(c.status) : softDeleteToggleLabel(c.status)}
           </Button>
         ) : null}
       </div>
@@ -93,7 +101,7 @@ export function CategoryDetailPage() {
               <CardTitle className="text-xl">{c.categoryName}</CardTitle>
               <CardDescription className="font-mono">{c.categoryCode}</CardDescription>
             </div>
-            <Badge variant="secondary">{activeInactiveLabel(c.status)}</Badge>
+            <Badge variant="secondary" className={activeInactiveTextClass(c.status)}>{activeInactiveLabel(c.status)}</Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">

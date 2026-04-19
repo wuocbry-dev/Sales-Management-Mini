@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { gateStoreStaffArea } from "@/features/auth/gates";
 import { isSystemManage } from "@/features/auth/access";
 import { useAuthStore } from "@/features/auth/auth-store";
-import { userAccountStatusLabel } from "@/lib/entity-status-labels";
+import { userAccountStatusLabel, userAccountStatusTextClass } from "@/lib/entity-status-labels";
 import { formatApiError } from "@/lib/api-errors";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 import { roleCodeDescriptionVi } from "@/lib/role-labels";
@@ -184,7 +184,7 @@ export function StoreStaffListPage() {
                       <TableCell className="text-sm">{roleCodeDescriptionVi(row.roleCode)}</TableCell>
                       <TableCell>{getStoreName(row.storeId)}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{userAccountStatusLabel(row.status)}</Badge>
+                        <Badge variant="secondary" className={userAccountStatusTextClass(row.status)}>{userAccountStatusLabel(row.status)}</Badge>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{formatDateTimeVi(row.createdAt)}</TableCell>
                       <TableCell className="text-right">

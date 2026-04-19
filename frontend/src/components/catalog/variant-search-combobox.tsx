@@ -14,9 +14,14 @@ function useDebouncedValue<T>(value: T, ms: number): T {
   return debounced;
 }
 
-type LabelMode = "sku-variant" | "product-sku" | "product-variant";
+type LabelMode = "sku-variant" | "product-sku" | "product-variant" | "sku-product-variant";
 
 function optionLabel(row: ProductVariantOptionResponse, mode: LabelMode): string {
+  if (mode === "sku-product-variant") {
+    const product = row.productName?.trim() ? row.productName.trim() : "—";
+    const variant = row.variantName?.trim() ? row.variantName.trim() : "Mặc định";
+    return `${row.sku} - ${product} - ${variant}`;
+  }
   if (mode === "product-sku") {
     return `${row.productName} - ${row.sku}`;
   }
@@ -56,7 +61,7 @@ export const VariantSearchCombobox = forwardRef<HTMLInputElement, VariantSearchC
       disabled,
       id,
       placeholder,
-      labelMode = "sku-variant",
+      labelMode = "sku-product-variant",
     },
     ref,
   ) {
@@ -109,7 +114,7 @@ export const VariantSearchCombobox = forwardRef<HTMLInputElement, VariantSearchC
           name={name}
           autoComplete="off"
           disabled={disabled || storeId <= 0}
-          placeholder={storeId <= 0 ? "Chọn cửa hàng trước" : (placeholder ?? "Gõ SKU hoặc tên biến thể…")}
+          placeholder={storeId <= 0 ? "Chọn cửa hàng trước" : (placeholder ?? "Gõ SKU, tên sản phẩm hoặc tên biến thể…")}
           value={text}
           role="combobox"
           aria-expanded={showList}

@@ -12,7 +12,14 @@ import { BrandFormDialog } from "@/features/brands/brand-form-dialog";
 import { gateProductCatalogMutate } from "@/features/auth/gates";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { formatApiError } from "@/lib/api-errors";
-import { activeInactiveLabel } from "@/lib/entity-status-labels";
+import {
+  activeInactiveLabel,
+  activeInactiveTextClass,
+  softDeleteToggleConfirmVerb,
+  softDeleteToggleLabel,
+  softDeleteToggleLoadingLabel,
+  softDeleteToggleSuccessVerb,
+} from "@/lib/entity-status-labels";
 import { formatDateTimeVi } from "@/lib/format-datetime";
 
 export function BrandDetailPage() {
@@ -25,9 +32,9 @@ export function BrandDetailPage() {
   const [open, setOpen] = useState(false);
 
   const deleteM = useMutation({
-    mutationFn: async () => deleteBrand(nid),
-    onSuccess: async () => {
-      toast.success("Đã xóa thương hiệu.");
+    mutationFn: async (args: { status: string }) => deleteBrand(nid),
+    onSuccess: async (_data, variables) => {
+      toast.success(`Đã ${softDeleteToggleSuccessVerb(variables.status)} thương hiệu.`);
       await queryClient.invalidateQueries({ queryKey: ["brands"] });
       navigate("/app/thuong-hieu", { replace: true });
     },
@@ -73,16 +80,17 @@ export function BrandDetailPage() {
             variant="outline"
             size="sm"
             type="button"
-            className="text-red-600 hover:text-red-700"
+            className={b.status === "INACTIVE" ? "text-green-600 hover:text-green-700" : "text-red-600 hover:text-red-700"}
             disabled={deleteM.isPending}
             onClick={() => {
-              if (!window.confirm(`Xóa thương hiệu \"${b.brandName}\"?`)) {
+              const action = softDeleteToggleConfirmVerb(b.status);
+              if (!window.confirm(`${action} thương hiệu \"${b.brandName}\"?`)) {
                 return;
               }
-              deleteM.mutate();
+              deleteM.mutate({ status: b.status });
             }}
           >
-            {deleteM.isPending ? "Đang xóa..." : "Xóa"}
+            {deleteM.isPending ? softDeleteToggleLoadingLabel(b.status) : softDeleteToggleLabel(b.status)}
           </Button>
         ) : null}
       </div>
@@ -93,7 +101,7 @@ export function BrandDetailPage() {
               <CardTitle className="text-xl">{b.brandName}</CardTitle>
               <CardDescription className="font-mono">{b.brandCode}</CardDescription>
             </div>
-            <Badge variant="secondary">{activeInactiveLabel(b.status)}</Badge>
+            <Badge variant="secondary" className={activeInactiveTextClass(b.status)}>{activeInactiveLabel(b.status)}</Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
