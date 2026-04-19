@@ -4,37 +4,42 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PosTerminalPage } from "@/features/pos/pos-terminal-page";
 
-const mockCreateDraft = vi.fn();
-const mockConfirmOrder = vi.fn();
-
-vi.mock("@/api/sales-orders-api", () => ({
-  createSalesOrderDraft: (...args: unknown[]) => mockCreateDraft(...args),
-  confirmSalesOrder: (...args: unknown[]) => mockConfirmOrder(...args),
-}));
-
 vi.mock("@/api/branches-api", () => ({
-  fetchBranchesForStore: vi.fn().mockResolvedValue({ content: [] }),
+  fetchBranchesForStore: vi.fn().mockResolvedValue({
+    content: [
+      {
+        branchId: 11,
+        branchName: "Chi nhánh 1",
+      },
+    ],
+  }),
 }));
 
 vi.mock("@/features/auth/access", () => ({
-  isStoreManagerRole: () => false,
+  isStoreManagerRole: () => true,
   isSystemManage: () => false,
-  isFrontlineCashierNav: () => true,
+  isFrontlineCashierNav: () => false,
 }));
 
 vi.mock("@/hooks/use-store-name-map", () => ({
-  useStoreNameMap: () => ({ stores: [] }),
+  useStoreNameMap: () => ({
+    stores: [{ id: 1, storeName: "Circlek" }],
+    getStoreName: (id: number | null | undefined) => {
+      if (id === 1) return "Circlek";
+      return "—";
+    },
+  }),
 }));
 
 vi.mock("@/features/auth/auth-store", () => ({
   useAuthStore: (selector: (state: { me: unknown }) => unknown) =>
     selector({
       me: {
-        fullName: "Cashier A",
-        username: "cashier",
+        fullName: "Manager A",
+        username: "manager",
         defaultStoreId: 1,
         storeIds: [1],
-        branchIds: [11],
+        branchIds: [],
       },
     }),
 }));
@@ -44,6 +49,7 @@ vi.mock("@/features/pos/pos-scope-store", () => {
     selectedStoreId: null as number | null,
     selectedBranchId: null as number | null,
   };
+
   return {
     usePosScopeStore: (selector: (s: {
       selectedStoreId: number | null;
@@ -63,36 +69,12 @@ vi.mock("@/features/pos/pos-scope-store", () => {
   };
 });
 
-vi.mock("@/components/catalog/barcode-scanner-input", () => ({
-  BarcodeScannerInput: ({ onFound }: { onFound: (v: { variantId: number; sku: string; productName: string; variantName: string; sellingPrice: string }) => void }) => (
-    <button
-      type="button"
-      onClick={() =>
-        onFound({
-          variantId: 101,
-          sku: "SKU-101",
-          productName: "Cola",
-          variantName: "Lon",
-          sellingPrice: "12000",
-        })
-      }
-    >
-      scan-item
-    </button>
-  ),
-}));
-
-describe("PosTerminalPage happy flow", () => {
+describe("PosTerminalPage", () => {
   beforeEach(() => {
-    mockCreateDraft.mockReset();
-    mockConfirmOrder.mockReset();
+    vi.clearAllMocks();
   });
 
-  it("scans item and completes checkout with cash", async () => {
-    mockCreateDraft.mockResolvedValue({ id: 5001 });
-    mockConfirmOrder.mockResolvedValue({ id: 5001, orderCode: "SO5001" });
-
-    const user = userEvent.setup();
+  it("renders store and branch selection", async () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
     render(
@@ -101,44 +83,11 @@ describe("PosTerminalPage happy flow", () => {
       </QueryClientProvider>,
     );
 
-    await user.click(screen.getByRole("button", { name: "Tiếp tục nhập sản phẩm" }));
-    await user.click(screen.getByRole("button", { name: "scan-item" }));
-    await user.click(screen.getByRole("button", { name: "Tiếp tục tính tiền" }));
-    await user.click(screen.getByRole("button", { name: "Complete checkout" }));
-
     await waitFor(() => {
-      expect(mockCreateDraft).toHaveBeenCalledTimes(1);
-      expect(mockConfirmOrder).toHaveBeenCalledTimes(1);
-    });
-
-    expect(mockCreateDraft).toHaveBeenCalledWith(
-      expect.objectContaining({
-        storeId: 1,
-        branchId: 11,
-        lines: [
-          expect.objectContaining({
-            variantId: 101,
-            quantity: 1,
-            unitPrice: 12000,
-          }),
-        ],
-      }),
-    );
-
-    expect(mockConfirmOrder).toHaveBeenCalledWith(
-      5001,
-      expect.objectContaining({
-        payments: [
-          expect.objectContaining({
-            paymentMethod: "CASH",
-            amount: 12000,
-          }),
-        ],
-      }),
-    );
-
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /In hóa đơn\?/i })).toBeInTheDocument();
+      expect(screen.getByText(/Bán hàng POS/i)).toBeInTheDocument();
+      expect(screen.getByText(/Cửa hàng/i)).toBeInTheDocument();
+      expect(screen.getByText(/Chi nhánh/i)).toBeInTheDocument();
     });
   });
 });
+

@@ -80,6 +80,7 @@ export function AppShellLayout() {
   const matches = useMatches();
   const leaf = matches[matches.length - 1];
   const handle = (leaf?.handle ?? {}) as AppRouteHandle;
+  const isPosRoute = Boolean(leaf?.pathname?.startsWith("/app/pos"));
 
   if (!me) return <AppLoadingShell />;
 
@@ -189,6 +190,14 @@ export function AppShellLayout() {
     </aside>
   );
 
+  if (isPosRoute) {
+    return (
+      <div className="h-dvh w-screen bg-background">
+        <Outlet />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-muted/30">
       {mobileOpen && (
@@ -230,7 +239,9 @@ export function AppShellLayout() {
                 {handle.subtitle ? <p className="text-sm text-muted-foreground">{handle.subtitle}</p> : null}
               </div>
             ) : null}
-            <Outlet />
+            <div>
+              <Outlet />
+            </div>
           </div>
         </main>
       </div>
