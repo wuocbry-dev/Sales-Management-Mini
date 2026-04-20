@@ -19,6 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { isSystemManage } from "@/features/auth/access";
 import { useAuthStore } from "@/features/auth/auth-store";
 import { gateInventoryTransactionView } from "@/features/auth/gates";
 import { formatDateTimeVi } from "@/lib/format-datetime";
@@ -100,7 +101,9 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
     refetch: refetchStores,
   } = useStoreNameMap();
 
+  const isSystemUser = Boolean(me && isSystemManage(me));
   const fallbackStoreIds = me?.storeIds ?? [];
+  const useFallbackStores = storesLoadError && fallbackStoreIds.length > 0 && !isSystemUser;
 
   const warehousesQ = useQuery({
     queryKey: ["inventory", "warehouses", storeId],
@@ -208,7 +211,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
     return <PageSkeleton cards={2} />;
   }
 
-  if (storesLoadError && fallbackStoreIds.length === 0) {
+  if (storesLoadError && !useFallbackStores) {
     return <ApiErrorState error={storesLoadErr} onRetry={() => void refetchStores()} />;
   }
 
@@ -249,7 +252,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
           <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-2">
               <Label htmlFor="inv-store">Cửa hàng</Label>
-              {!storesLoadError ? (
+              {!useFallbackStores ? (
                 <select
                   id="inv-store"
                   className={selectClass}
@@ -271,23 +274,28 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                   ))}
                 </select>
               ) : (
-                <select
-                  id="inv-store-fb"
-                  className={selectClass}
-                  value={storeId || ""}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setStoreId(Number.isFinite(v) ? v : 0);
-                    setWarehouseId(0);
-                  }}
-                >
-                  <option value="">— Chọn cửa hàng —</option>
-                  {fallbackStoreIds.map((id) => (
-                    <option key={id} value={id}>
-                      {getStoreName(id)}
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-2">
+                  <select
+                    id="inv-store-fb"
+                    className={selectClass}
+                    value={storeId || ""}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setStoreId(Number.isFinite(v) ? v : 0);
+                      setWarehouseId(0);
+                    }}
+                  >
+                    <option value="">— Chọn cửa hàng —</option>
+                    {fallbackStoreIds.map((id) => (
+                      <option key={id} value={id}>
+                        {getStoreName(id)}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Đang hiển thị danh sách cửa hàng theo phạm vi tài khoản. <button type="button" className="font-medium underline" onClick={() => void refetchStores()}>Tải lại danh sách đầy đủ</button>
+                  </p>
+                </div>
               )}
             </div>
             {(tab === "by_wh" || tab === "transactions") && (
@@ -435,7 +443,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="av-store">Cửa hàng</Label>
-                {!storesLoadError ? (
+                {!useFallbackStores ? (
                   <select
                     id="av-store"
                     className={selectClass}
