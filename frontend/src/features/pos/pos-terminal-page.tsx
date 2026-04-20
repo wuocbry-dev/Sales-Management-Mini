@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { BrowserCodeReader, BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
 import {
   AlertCircle,
   ArrowLeft,
@@ -22,7 +23,6 @@ import { fetchCategoriesPage } from "@/api/categories-api";
 import { createCustomer, fetchCustomersPage } from "@/api/customers-api";
 import { fetchInventoryAvailability } from "@/api/inventory-api";
 import {
-  fetchPosVariantByBarcode,
   fetchPosVariantSearch,
   fetchProductImageBlobUrl,
   fetchProductsPage,
@@ -52,6 +52,24 @@ import type { SalesOrderResponse } from "@/types/sales-order";
 import { canAccessRoute } from "@/app/route-access";
 
 type PaymentMethod = "CASH" | "CARD" | "EWALLET";
+
+type ScanLookupFeedback = {
+  code: string;
+  status: "success" | "error";
+  message: string;
+};
+
+type ScanLookupResult =
+  | {
+      mode: "single";
+      code: string;
+      variant: ProductVariantOptionResponse;
+    }
+  | {
+      mode: "multiple";
+      code: string;
+      variants: ProductVariantOptionResponse[];
+    };
 
 type CatalogVariant = ProductVariantOptionResponse & {
   categoryId: number | null;
@@ -180,6 +198,17 @@ function formatPercentInput(value: number): string {
   return value.toFixed(2).replace(/\.0+$/, "").replace(/(\.[0-9]*[1-9])0+$/, "$1");
 }
 
+function normalizeLookupCode(raw: string): string {
+  return raw.replace(/\s+/g, "").trim();
+}
+
+function buildNotInStoreScanMessage(code: string): string {
+  if (!code) {
+    return "Mã vạch không nằm trong cửa hàng hiện tại hoặc chưa được khai báo.";
+  }
+  return `Mã vạch ${code} không nằm trong cửa hàng hiện tại hoặc chưa được khai báo.`;
+}
+
 function normalizePhone(value: string | null | undefined): string {
   return (value ?? "").replace(/\D/g, "");
 }
@@ -262,6 +291,12 @@ function selectedBranchLabel(
   return found?.branchName ?? `Chi nhánh ${branchId}`;
 }
 
+function pickPreferredCameraDevice(devices: MediaDeviceInfo[]): MediaDeviceInfo | null {
+  if (devices.length === 0) return null;
+  const back = devices.find((d) => /back|rear|environment|sau/i.test(d.label));
+  return back ?? devices[0];
+}
+
 export function PosTerminalPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -295,6 +330,13 @@ export function PosTerminalPage() {
   const receiptTenderedAmountRef = useRef<number | null>(null);
   const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [showParkedOrdersModal, setShowParkedOrdersModal] = useState(false);
+  const [showCameraScanModal, setShowCameraScanModal] = useState(false);
+  const [showScanCandidatesModal, setShowScanCandidatesModal] = useState(false);
+  const [scanCandidates, setScanCandidates] = useState<ProductVariantOptionResponse[]>([]);
+  const [cameraDevices, setCameraDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState("");
+  const [cameraScanHint, setCameraScanHint] = useState("");
+  const [cameraScanError, setCameraScanError] = useState<string | null>(null);
   const [parkedOrdersVersion, setParkedOrdersVersion] = useState(0);
   const [customerPhoneLookup, setCustomerPhoneLookup] = useState("");
   const [forceGuestCustomer, setForceGuestCustomer] = useState(true);
@@ -302,6 +344,7 @@ export function PosTerminalPage() {
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [headerDiscountAmount, setHeaderDiscountAmount] = useState(0);
+  const [scanFeedback, setScanFeedback] = useState<ScanLookupFeedback | null>(null);
   const checkoutSummaryRef = useRef<{
     subtotal: number;
     discountAmount: number;
@@ -311,11 +354,48 @@ export function PosTerminalPage() {
   } | null>(null);
 
   const scannerInputRef = useRef<HTMLInputElement>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement>(null);
+  const cameraReaderRef = useRef<BrowserMultiFormatReader | null>(null);
+  const cameraControlsRef = useRef<IScannerControls | null>(null);
+  const cameraLastDecodedRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
+  const cameraStartingRef = useRef(false);
+  const cameraActiveDeviceRef = useRef("");
+  const scanLookupMutateRef = useRef<(code: string) => void>(() => {});
   const backTarget = canAccessRoute(me, "/app/don-ban")
     ? "/app/don-ban"
     : canAccessRoute(me, "/app/tong-quan")
       ? "/app/tong-quan"
       : "/app";
+
+  const stopCameraScanner = useCallback(() => {
+    cameraControlsRef.current?.stop();
+    cameraControlsRef.current = null;
+    cameraReaderRef.current = null;
+    cameraActiveDeviceRef.current = "";
+
+    const video = cameraVideoRef.current;
+    if (video) {
+      const stream = video.srcObject;
+      if (stream instanceof MediaStream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      video.pause();
+      video.srcObject = null;
+    }
+  }, []);
+
+  const closeCameraScanModal = useCallback(() => {
+    stopCameraScanner();
+    setShowCameraScanModal(false);
+    setCameraScanHint("");
+    setCameraScanError(null);
+  }, [stopCameraScanner]);
+
+  const closeScanCandidatesModal = useCallback(() => {
+    setShowScanCandidatesModal(false);
+    setScanCandidates([]);
+    scannerInputRef.current?.focus();
+  }, []);
 
   const { getStoreName } = useStoreNameMap();
 
@@ -591,33 +671,78 @@ export function PosTerminalPage() {
   };
 
   const scanLookupM = useMutation({
-    mutationFn: async (rawCode: string) => {
-      const code = rawCode.trim();
+    mutationFn: async (rawCode: string): Promise<ScanLookupResult> => {
+      const code = normalizeLookupCode(rawCode);
       if (!code) {
         throw new Error("Vui lòng nhập mã SKU hoặc barcode.");
       }
 
-      try {
-        return await fetchPosVariantByBarcode({ storeId, barcode: code });
-      } catch {
-        const fallback = await fetchPosVariantSearch({ storeId, q: code });
-        if (fallback.length > 0) {
-          return fallback[0];
-        }
-        throw new Error("Không tìm thấy SKU hoặc barcode phù hợp.");
+      const matches = await fetchPosVariantSearch({ storeId, q: code });
+      if (matches.length === 0) {
+        throw new Error(buildNotInStoreScanMessage(code));
       }
+
+      const loweredCode = code.toLowerCase();
+      const exactSkuMatches = matches.filter((row) => row.sku.trim().toLowerCase() === loweredCode);
+      if (exactSkuMatches.length === 1) {
+        return {
+          mode: "single",
+          code,
+          variant: exactSkuMatches[0],
+        };
+      }
+
+      if (matches.length === 1) {
+        return {
+          mode: "single",
+          code,
+          variant: matches[0],
+        };
+      }
+
+      return {
+        mode: "multiple",
+        code,
+        variants: matches,
+      };
     },
-    onSuccess: (variant) => {
-      addVariant(variant);
-      setScanCode("");
-      scannerInputRef.current?.focus();
+    onMutate: () => {
+      setShowScanCandidatesModal(false);
+      setScanCandidates([]);
     },
-    onError: (err) => {
-      const message = formatApiError(err);
-      toast.error(message || "Không tìm thấy SKU hoặc barcode phù hợp.");
+    onSuccess: (result) => {
+      setScanCode(result.code);
+
+      if (result.mode === "single") {
+        addVariant(result.variant);
+        setScanFeedback({
+          code: result.code,
+          status: "success",
+          message: `Quét thành công - đã nhận mã cho SKU ${result.variant.sku}.`,
+        });
+        scannerInputRef.current?.focus();
+        return;
+      }
+
+      setScanFeedback({
+        code: result.code,
+        status: "success",
+        message: `Tìm thấy ${result.variants.length} sản phẩm liên quan. Vui lòng chọn SKU phù hợp.`,
+      });
+      setScanCandidates(result.variants);
+      setShowScanCandidatesModal(true);
+    },
+    onError: (err, rawCode) => {
+      const normalizedCode = normalizeLookupCode(rawCode);
+      const fallback = formatApiError(err).trim();
+      const message = fallback || buildNotInStoreScanMessage(normalizedCode);
+      setScanCode(normalizedCode);
+      setScanFeedback({ code: normalizedCode, status: "error", message });
+      toast.error(message);
       scannerInputRef.current?.focus();
     },
   });
+  scanLookupMutateRef.current = scanLookupM.mutate;
 
   const checkoutM = useMutation({
     mutationFn: async () => {
@@ -782,6 +907,8 @@ export function PosTerminalPage() {
   const resetForNextSale = () => {
     setLines([]);
     setScanCode("");
+    setShowScanCandidatesModal(false);
+    setScanCandidates([]);
     setCatalogKeyword("");
     setCustomerPhoneLookup("");
     setForceGuestCustomer(true);
@@ -872,6 +999,8 @@ export function PosTerminalPage() {
 
     setLines(picked.lines);
     setScanCode("");
+    setShowScanCandidatesModal(false);
+    setScanCandidates([]);
     setCatalogKeyword("");
     setCustomerPhoneLookup(picked.customerPhoneLookup);
     setForceGuestCustomer(picked.forceGuestCustomer);
@@ -905,13 +1034,144 @@ export function PosTerminalPage() {
       toast.error("Hoàn tất chọn cửa hàng/chi nhánh trước khi tìm SKU.");
       return;
     }
-    const code = scanCode.trim();
+    const code = normalizeLookupCode(scanCode);
     if (!code) {
       toast.error("Vui lòng nhập SKU hoặc barcode để tìm.");
       return;
     }
+    setShowScanCandidatesModal(false);
+    setScanCandidates([]);
+    setScanCode(code);
     scanLookupM.mutate(code);
   };
+
+  useEffect(() => {
+    if (!scanFeedback) {
+      return;
+    }
+
+    const normalizedInputCode = normalizeLookupCode(scanCode);
+    const normalizedFeedbackCode = normalizeLookupCode(scanFeedback.code);
+    if (!normalizedInputCode || normalizedInputCode !== normalizedFeedbackCode) {
+      setScanFeedback(null);
+    }
+  }, [scanCode, scanFeedback]);
+
+  useEffect(() => {
+    if (!showCameraScanModal) {
+      stopCameraScanner();
+      cameraStartingRef.current = false;
+      return;
+    }
+
+    let cancelled = false;
+
+    const startCameraScan = async () => {
+      if (cameraStartingRef.current) {
+        return;
+      }
+      cameraStartingRef.current = true;
+
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        setCameraScanError("Trình duyệt hiện tại không hỗ trợ camera scan trong ngữ cảnh này.");
+        setCameraScanHint("");
+        cameraStartingRef.current = false;
+        return;
+      }
+
+      setCameraScanError(null);
+      setCameraScanHint("Đang khởi tạo camera...");
+
+      try {
+        const devices = await BrowserCodeReader.listVideoInputDevices();
+        if (cancelled) return;
+
+        setCameraDevices(devices);
+
+        const preferredDeviceId = selectedCameraDeviceId || pickPreferredCameraDevice(devices)?.deviceId || "";
+        if (!preferredDeviceId) {
+          setCameraScanHint("");
+          setCameraScanError("Không tìm thấy camera khả dụng trên thiết bị này.");
+          return;
+        }
+
+        if (!selectedCameraDeviceId) {
+          setSelectedCameraDeviceId(preferredDeviceId);
+          // Let the next effect cycle start scanner with stable selected device.
+          return;
+        }
+
+        if (!cameraVideoRef.current) {
+          setCameraScanHint("");
+          setCameraScanError("Không khởi tạo được khung xem camera.");
+          return;
+        }
+
+        if (cameraActiveDeviceRef.current === preferredDeviceId && cameraControlsRef.current) {
+          setCameraScanHint("Đưa mã vạch vào khung hình để tự động quét.");
+          return;
+        }
+
+        stopCameraScanner();
+
+        const reader = new BrowserMultiFormatReader();
+        cameraReaderRef.current = reader;
+
+        const controls = await reader.decodeFromVideoDevice(
+          preferredDeviceId,
+          cameraVideoRef.current,
+          (result) => {
+            if (!result) {
+              return;
+            }
+
+            const code = result.getText()?.trim() ?? "";
+            if (!code) {
+              return;
+            }
+
+            const now = Date.now();
+            if (cameraLastDecodedRef.current.code === code && now - cameraLastDecodedRef.current.at < 800) {
+              return;
+            }
+            cameraLastDecodedRef.current = { code, at: now };
+
+            stopCameraScanner();
+            setShowCameraScanModal(false);
+            setCameraScanHint("");
+            setCameraScanError(null);
+
+            setScanCode(code);
+            scanLookupMutateRef.current(code);
+          },
+        );
+
+        if (cancelled) {
+          controls.stop();
+          return;
+        }
+
+        cameraControlsRef.current = controls;
+        cameraActiveDeviceRef.current = preferredDeviceId;
+        setCameraScanHint("Đưa mã vạch vào khung hình để tự động quét.");
+      } catch (error) {
+        if (cancelled) return;
+        setCameraScanHint("");
+        const detail = error instanceof Error && error.message ? ` (${error.message})` : "";
+        setCameraScanError(`Không mở được camera. Hãy kiểm tra quyền camera và thử lại.${detail}`);
+      } finally {
+        cameraStartingRef.current = false;
+      }
+    };
+
+    void startCameraScan();
+
+    return () => {
+      cancelled = true;
+      stopCameraScanner();
+      cameraStartingRef.current = false;
+    };
+  }, [selectedCameraDeviceId, showCameraScanModal, stopCameraScanner]);
 
   const printTemporaryBill = () => {
     if (lines.length === 0) {
@@ -1108,7 +1368,12 @@ export function PosTerminalPage() {
               disabled={!scopeReady || scanLookupM.isPending}
               className="pos-v2-search-input"
               placeholder={scopeReady ? "Quét mã vạch hoặc nhập mã SKU..." : "Chọn cửa hàng/chi nhánh trước"}
-              onChange={(e) => setScanCode(e.target.value)}
+              onChange={(e) => {
+                setScanCode(e.target.value);
+                setShowScanCandidatesModal(false);
+                setScanCandidates([]);
+              }}
+              onFocus={(e) => e.currentTarget.select()}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -1120,7 +1385,18 @@ export function PosTerminalPage() {
               <Search className="h-4 w-4" aria-hidden />
               Tìm kiếm
             </Button>
-            <button type="button" className="pos-v2-icon-btn" aria-label="Camera scan" disabled>
+            <button
+              type="button"
+              className="pos-v2-icon-btn"
+              aria-label="Camera scan"
+              title="Quét mã bằng camera"
+              disabled={!scopeReady || scanLookupM.isPending}
+              onClick={() => {
+                setCameraScanError(null);
+                setCameraScanHint("");
+                setShowCameraScanModal(true);
+              }}
+            >
               <Camera className="h-4 w-4" aria-hidden />
             </button>
           </div>
@@ -1139,6 +1415,18 @@ export function PosTerminalPage() {
             <span className="pos-v2-pill pos-v2-pill-soft">{displayBranchName}</span>
           </div>
         </div>
+
+        {scanFeedback ? (
+          <div
+            className={
+              scanFeedback.status === "success"
+                ? "mx-1 mt-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"
+                : "mx-1 mt-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700"
+            }
+          >
+            Mã vừa quét: <span className="font-semibold">{scanFeedback.code || "(trống)"}</span> - {scanFeedback.message}
+          </div>
+        ) : null}
       </div>
 
       {scopeMessage ? (
@@ -1632,6 +1920,124 @@ export function PosTerminalPage() {
                     );
                   })
                 )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showScanCandidatesModal && (
+        <div className="pos-v2-modal-overlay" onClick={closeScanCandidatesModal}>
+          <div className="pos-v2-modal-dialog pos-v2-modal-dialog-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="pos-v2-modal-header">
+              <h2>Chọn SKU phù hợp</h2>
+              <button
+                type="button"
+                className="pos-v2-modal-close"
+                onClick={closeScanCandidatesModal}
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="pos-v2-modal-content">
+              <p className="text-sm font-medium text-slate-600">
+                Có {scanCandidates.length} kết quả liên quan đến mã <strong>{scanCode}</strong>.
+              </p>
+
+              <div className="grid max-h-[52vh] gap-2 overflow-y-auto">
+                {scanCandidates.map((variant) => (
+                  <button
+                    key={variant.variantId}
+                    type="button"
+                    className="rounded-md border border-slate-200 bg-white p-3 text-left transition hover:border-blue-300 hover:bg-blue-50"
+                    onClick={() => {
+                      addVariant(variant);
+                      setScanFeedback({
+                        code: normalizeLookupCode(scanCode),
+                        status: "success",
+                        message: `Đã chọn SKU ${variant.sku} từ danh sách kết quả.`,
+                      });
+                      closeScanCandidatesModal();
+                    }}
+                  >
+                    <p className="text-sm font-semibold text-slate-900">{variant.productName}</p>
+                    <p className="text-xs font-medium text-slate-500">SKU: {variant.sku}</p>
+                    {variant.variantName ? (
+                      <p className="text-xs font-medium text-slate-500">{variant.variantName}</p>
+                    ) : null}
+                    <p className="mt-1 text-sm font-bold text-blue-700">{formatVndFromDecimal(variant.sellingPrice)}</p>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex justify-end">
+                <Button type="button" variant="outline" onClick={closeScanCandidatesModal}>
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCameraScanModal && (
+        <div className="pos-v2-modal-overlay" onClick={closeCameraScanModal}>
+          <div className="pos-v2-modal-dialog pos-v2-modal-dialog-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="pos-v2-modal-header">
+              <h2>Quét mã vạch bằng camera</h2>
+              <button
+                type="button"
+                className="pos-v2-modal-close"
+                onClick={closeCameraScanModal}
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="pos-v2-modal-content space-y-3">
+              {cameraDevices.length > 1 ? (
+                <label className="pos-v2-customer-lookup-wrap">
+                  <span>Chọn camera</span>
+                  <select
+                    value={selectedCameraDeviceId}
+                    onChange={(e) => setSelectedCameraDeviceId(e.target.value)}
+                    className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm"
+                  >
+                    {cameraDevices.map((device) => (
+                      <option key={device.deviceId} value={device.deviceId}>
+                        {device.label || `Camera ${device.deviceId.slice(0, 6)}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+
+              <div className="overflow-hidden rounded-md border border-slate-200 bg-black">
+                <video ref={cameraVideoRef} className="h-64 w-full object-cover" autoPlay muted playsInline />
+              </div>
+
+              {cameraScanHint ? <p className="text-xs font-medium text-slate-600">{cameraScanHint}</p> : null}
+              {cameraScanError ? <p className="text-sm font-semibold text-red-600">{cameraScanError}</p> : null}
+
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCameraDevices([]);
+                    setSelectedCameraDeviceId("");
+                    setCameraScanHint("");
+                    setCameraScanError(null);
+                  }}
+                >
+                  Tải lại camera
+                </Button>
+                <Button type="button" onClick={closeCameraScanModal}>
+                  Đóng
+                </Button>
               </div>
             </div>
           </div>
