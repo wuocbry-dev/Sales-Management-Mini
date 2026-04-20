@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import { fetchStockTransfersPage } from "@/api/stock-transfers-api";
 import { ApiErrorState } from "@/components/feedback/api-error-state";
 import { PageSkeleton } from "@/components/feedback/page-skeleton";
@@ -34,9 +34,25 @@ function formatWarehouseDisplay(
   return getWarehouseName(warehouseId);
 }
 
+type StockTransferCreateNavigationState = {
+  from: string;
+  defaults?: {
+    storeId?: number;
+    fromWarehouseId?: number;
+    toWarehouseId?: number;
+  };
+};
+
+function toPositiveInt(value: string): number | null {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.trunc(n);
+}
+
 export function StockTransferListPage() {
   const me = useAuthStore((s) => s.me);
   const canCreate = Boolean(me && gateTransferCreate(me));
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get("trang") ?? "0") || 0);
   const size = Math.min(100, Math.max(1, Number(params.get("kichThuoc") ?? String(DEFAULT_SIZE)) || DEFAULT_SIZE));
@@ -72,6 +88,33 @@ export function StockTransferListPage() {
     includeStorePrefix: true,
   });
 
+  const createNavState = useMemo<StockTransferCreateNavigationState>(() => {
+    const returnTo = `${location.pathname}${location.search}`;
+    const fromWarehouseId = toPositiveInt(dFrom);
+    const toWarehouseId = toPositiveInt(dTo);
+
+    const optionByWarehouseId = new Map(warehouseOptions.map((row) => [row.warehouseId, row]));
+    const fromStoreId = fromWarehouseId ? optionByWarehouseId.get(fromWarehouseId)?.storeId : undefined;
+    const toStoreId = toWarehouseId ? optionByWarehouseId.get(toWarehouseId)?.storeId : undefined;
+
+    let inferredStoreId: number | undefined;
+    if (fromStoreId && toStoreId) {
+      if (fromStoreId === toStoreId) inferredStoreId = fromStoreId;
+    } else {
+      inferredStoreId = fromStoreId ?? toStoreId;
+    }
+
+    const defaults: StockTransferCreateNavigationState["defaults"] = {};
+    if (inferredStoreId) defaults.storeId = inferredStoreId;
+    if (fromWarehouseId) defaults.fromWarehouseId = fromWarehouseId;
+    if (toWarehouseId) defaults.toWarehouseId = toWarehouseId;
+
+    if (!defaults.storeId && !defaults.fromWarehouseId && !defaults.toWarehouseId) {
+      return { from: returnTo };
+    }
+    return { from: returnTo, defaults };
+  }, [dFrom, dTo, location.pathname, location.search, warehouseOptions]);
+
   const apply = () => {
     const p = new URLSearchParams();
     p.set("trang", "0");
@@ -103,7 +146,7 @@ export function StockTransferListPage() {
           </div>
           {canCreate ? (
             <Button type="button" asChild>
-              <Link to="/app/chuyen-kho/moi">Tạo phiếu chuyển</Link>
+              <Link to="/app/chuyen-kho/moi" state={createNavState}>Tạo phiếu chuyển</Link>
             </Button>
           ) : null}
         </CardHeader>

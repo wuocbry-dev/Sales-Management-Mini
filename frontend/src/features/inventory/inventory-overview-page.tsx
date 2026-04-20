@@ -43,6 +43,45 @@ function formatInventoryVariantLabel(row: {
   return `#${row.variantId}`;
 }
 
+function toSafeNumber(value: string | number | null | undefined): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function buildLowStockWarning(row: {
+  quantityOnHand: string | number;
+  reorderLevel?: string | number | null;
+}): { label: string; className: string } {
+  const quantity = toSafeNumber(row.quantityOnHand);
+  const reorderLevel = toSafeNumber(row.reorderLevel);
+
+  if (quantity <= 0) {
+    return {
+      label: "Hết hàng",
+      className: "border-red-200 bg-red-50 text-red-700",
+    };
+  }
+
+  if (reorderLevel > 0 && quantity < reorderLevel) {
+    return {
+      label: `Tồn thấp (< ${formatQty(reorderLevel)})`,
+      className: "border-amber-200 bg-amber-50 text-amber-700",
+    };
+  }
+
+  if (reorderLevel > 0) {
+    return {
+      label: "Ổn định",
+      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    };
+  }
+
+  return {
+    label: "Chưa đặt ngưỡng",
+    className: "border-slate-200 bg-slate-50 text-slate-600",
+  };
+}
+
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
 
@@ -347,8 +386,8 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                     <TableHeader>
                       <TableRow>
                         <TableHead>SKU · tên sản phẩm · tên biến thể</TableHead>
-                        <TableHead className="text-right">Tồn thực tế</TableHead>
-                        <TableHead className="text-right">Đang giữ chỗ</TableHead>
+                        <TableHead className="text-right">SL sản phẩm</TableHead>
+                        <TableHead className="text-right">Cảnh báo tồn kho</TableHead>
                         <TableHead>Cập nhật</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -360,14 +399,21 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        invByWhQ.data.content.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell className="text-sm">{formatInventoryVariantLabel(row)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{formatQty(row.quantityOnHand)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{formatQty(row.reservedQty)}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">{formatDateTimeVi(row.updatedAt)}</TableCell>
-                          </TableRow>
-                        ))
+                        invByWhQ.data.content.map((row) => {
+                          const lowStock = buildLowStockWarning(row);
+                          return (
+                            <TableRow key={row.id}>
+                              <TableCell className="text-sm">{formatInventoryVariantLabel(row)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{formatQty(row.quantityOnHand)}</TableCell>
+                              <TableCell className="text-right">
+                                <Badge variant="outline" className={lowStock.className}>
+                                  {lowStock.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">{formatDateTimeVi(row.updatedAt)}</TableCell>
+                            </TableRow>
+                          );
+                        })
                       )}
                     </TableBody>
                   </Table>
@@ -402,8 +448,8 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                       <TableRow>
                         <TableHead>Kho</TableHead>
                         <TableHead>SKU · tên sản phẩm · tên biến thể</TableHead>
-                        <TableHead className="text-right">Tồn thực tế</TableHead>
-                        <TableHead className="text-right">Đang giữ chỗ</TableHead>
+                        <TableHead className="text-right">SL sản phẩm</TableHead>
+                        <TableHead className="text-right">Cảnh báo tồn kho</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -414,14 +460,21 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        invByStoreQ.data.content.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell className="text-sm text-muted-foreground">{getWarehouseName(row.warehouseId)}</TableCell>
-                            <TableCell className="text-sm">{formatInventoryVariantLabel(row)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{formatQty(row.quantityOnHand)}</TableCell>
-                            <TableCell className="text-right tabular-nums">{formatQty(row.reservedQty)}</TableCell>
-                          </TableRow>
-                        ))
+                        invByStoreQ.data.content.map((row) => {
+                          const lowStock = buildLowStockWarning(row);
+                          return (
+                            <TableRow key={row.id}>
+                              <TableCell className="text-sm text-muted-foreground">{getWarehouseName(row.warehouseId)}</TableCell>
+                              <TableCell className="text-sm">{formatInventoryVariantLabel(row)}</TableCell>
+                              <TableCell className="text-right tabular-nums">{formatQty(row.quantityOnHand)}</TableCell>
+                              <TableCell className="text-right">
+                                <Badge variant="outline" className={lowStock.className}>
+                                  {lowStock.label}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       )}
                     </TableBody>
                   </Table>
@@ -515,7 +568,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                       <TableHead>Tên kho</TableHead>
                       <TableHead>Loại kho</TableHead>
                       <TableHead>Chi nhánh</TableHead>
-                      <TableHead className="text-right">Tồn thực tế</TableHead>
+                      <TableHead className="text-right">SL sản phẩm</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -570,7 +623,7 @@ export function InventoryOverviewPage(props: InventoryOverviewPageProps = {}) {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Biến thể (SKU / tên sản phẩm / tên biến thể, tuỳ chọn)</Label>
+                    <Label>Biến thể</Label>
                     <VariantSearchCombobox
                       key={`txn-variant-${storeId}`}
                       name="txnVariantFilter"

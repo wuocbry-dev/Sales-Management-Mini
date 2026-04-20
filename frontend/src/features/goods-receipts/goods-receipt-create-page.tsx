@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { createGoodsReceiptDraft } from "@/api/goods-receipts-api";
@@ -51,6 +51,26 @@ function needStorePicker(me: MeResponse) {
   return isSystemManage(me) || me.storeIds.length > 1;
 }
 
+type GoodsReceiptCreateLocationState = {
+  from?: unknown;
+  defaults?: {
+    storeId?: unknown;
+  };
+};
+
+function asPositiveNumber(value: unknown): number | undefined {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.trunc(n);
+}
+
+function resolveBackTo(from: unknown, fallback: string): string {
+  if (typeof from !== "string") return fallback;
+  const trimmed = from.trim();
+  if (!trimmed.startsWith("/")) return fallback;
+  return trimmed;
+}
+
 function toBody(v: FormValues, me: MeResponse): GoodsReceiptCreateRequestBody {
   const pickStore = needStorePicker(me);
   const sid = pickStore ? Number(v.storeId) : me.storeIds[0];
@@ -75,16 +95,21 @@ function toBody(v: FormValues, me: MeResponse): GoodsReceiptCreateRequestBody {
 export function GoodsReceiptCreatePage() {
   const me = useAuthStore((s) => s.me);
   const navigate = useNavigate();
+  const location = useLocation();
   const pickStore = Boolean(me && needStorePicker(me));
   const canCreateSupplier = Boolean(me && gateSupplierMutate(me));
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
+
+  const navState = (location.state as GoodsReceiptCreateLocationState | null) ?? null;
+  const backTo = resolveBackTo(navState?.from, "/app/phieu-nhap");
+  const defaultStoreId = asPositiveNumber(navState?.defaults?.storeId);
 
   const { stores, getStoreName } = useStoreNameMap();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      storeId: "",
+      storeId: defaultStoreId ? String(defaultStoreId) : "",
       warehouseId: "",
       supplierId: "",
       receiptDate: "",
@@ -153,7 +178,7 @@ export function GoodsReceiptCreatePage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <Button variant="outline" size="sm" asChild>
-        <Link to="/app/phieu-nhap">← Quay lại</Link>
+        <Link to={backTo}>← Quay lại</Link>
       </Button>
 
       <Card>
@@ -397,7 +422,7 @@ export function GoodsReceiptCreatePage() {
                   {mutation.isPending ? "Đang lưu…" : "Lưu bản nháp"}
                 </Button>
                 <Button type="button" variant="outline" asChild>
-                  <Link to="/app/phieu-nhap">Huỷ</Link>
+                  <Link to={backTo}>Huỷ</Link>
                 </Button>
               </div>
             </form>

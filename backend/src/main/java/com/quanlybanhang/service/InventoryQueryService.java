@@ -216,6 +216,7 @@ public class InventoryQueryService {
         vname,
         i.getQuantityOnHand(),
         i.getReservedQty(),
+      v != null ? v.getReorderLevel() : null,
         i.getUpdatedAt());
   }
 

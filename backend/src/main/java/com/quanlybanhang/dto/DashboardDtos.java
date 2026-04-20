@@ -15,7 +15,15 @@ public final class DashboardDtos {
       long orderCompletedCount,
       String completedRevenueTotal,
       long lowStockCount,
-      long salesReturnCount) {}
+      long salesReturnCount,
+      String periodKey,
+      String periodLabel,
+      String periodRevenueTotal,
+      String periodImportTotal,
+      String periodNetIncomeTotal,
+      String previousPeriodLabel,
+      String previousPeriodRevenueTotal,
+      String periodRevenueChangePercent) {}
 
   public record StoreRevenueRow(
       long storeId, String storeName, String revenueTotal, long orderCount) {}

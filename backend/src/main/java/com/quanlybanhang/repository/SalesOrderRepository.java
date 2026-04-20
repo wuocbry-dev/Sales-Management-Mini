@@ -2,6 +2,7 @@ package com.quanlybanhang.repository;
 
 import com.quanlybanhang.model.SalesOrder;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +29,14 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
   @Query("select coalesce(sum(o.totalAmount), 0) from SalesOrder o where o.status = :status")
   BigDecimal sumTotalAmountByStatus(@Param("status") String status);
 
+  @Query(
+      "select coalesce(sum(o.totalAmount), 0) from SalesOrder o "
+          + "where o.status = :status and o.orderDate >= :fromDate and o.orderDate < :toDate")
+  BigDecimal sumTotalAmountByStatusAndOrderDateRange(
+      @Param("status") String status,
+      @Param("fromDate") LocalDateTime fromDate,
+      @Param("toDate") LocalDateTime toDate);
+
   long countByStatus(String status);
 
   @Query(
@@ -41,6 +50,16 @@ public interface SalesOrderRepository extends JpaRepository<SalesOrder, Long> {
       "select coalesce(sum(o.totalAmount), 0) from SalesOrder o where o.status = :status and o.storeId in :storeIds")
   BigDecimal sumTotalAmountByStatusAndStoreIdIn(
       @Param("status") String status, @Param("storeIds") Collection<Long> storeIds);
+
+  @Query(
+      "select coalesce(sum(o.totalAmount), 0) from SalesOrder o "
+          + "where o.status = :status and o.storeId in :storeIds "
+          + "and o.orderDate >= :fromDate and o.orderDate < :toDate")
+  BigDecimal sumTotalAmountByStatusAndStoreIdInAndOrderDateRange(
+      @Param("status") String status,
+      @Param("storeIds") Collection<Long> storeIds,
+      @Param("fromDate") LocalDateTime fromDate,
+      @Param("toDate") LocalDateTime toDate);
 
   @Query("select count(o) from SalesOrder o where o.status = :status and o.storeId in :storeIds")
   long countByStatusAndStoreIdIn(

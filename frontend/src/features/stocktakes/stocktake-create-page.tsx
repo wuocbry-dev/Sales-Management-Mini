@@ -1,8 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
@@ -45,18 +45,45 @@ function needStorePicker(me: MeResponse) {
   return isSystemManage(me) || me.storeIds.length > 1;
 }
 
+type StocktakeCreateLocationState = {
+  from?: unknown;
+  defaults?: {
+    storeId?: unknown;
+    warehouseId?: unknown;
+  };
+};
+
+function asPositiveNumber(value: unknown): number | undefined {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.trunc(n);
+}
+
+function resolveBackTo(from: unknown, fallback: string): string {
+  if (typeof from !== "string") return fallback;
+  const trimmed = from.trim();
+  if (!trimmed.startsWith("/")) return fallback;
+  return trimmed;
+}
+
 export function StocktakeCreatePage() {
   const me = useAuthStore((s) => s.me);
   const navigate = useNavigate();
+  const location = useLocation();
   const pick = Boolean(me && needStorePicker(me));
+
+  const navState = (location.state as StocktakeCreateLocationState | null) ?? null;
+  const backTo = resolveBackTo(navState?.from, "/app/kiem-kho");
+  const defaultStoreId = asPositiveNumber(navState?.defaults?.storeId);
+  const defaultWarehouseId = asPositiveNumber(navState?.defaults?.warehouseId);
 
   const { stores, getStoreName } = useStoreNameMap();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      storeId: "",
-      warehouseId: 0,
+      storeId: defaultStoreId ? String(defaultStoreId) : "",
+      warehouseId: defaultWarehouseId ?? 0,
       stocktakeDate: "",
       note: "",
       lines: [{ variantId: 0, actualQty: 0, note: "" }],
@@ -70,6 +97,15 @@ export function StocktakeCreatePage() {
     enabled: storeWatch > 0,
   });
   const whs = whQ.data ?? [];
+
+  useEffect(() => {
+    if (whs.length === 0) return;
+    const validWarehouseIds = new Set(whs.map((w) => w.warehouseId));
+    const warehouseId = Number(form.getValues("warehouseId")) || 0;
+    if (warehouseId > 0 && !validWarehouseIds.has(warehouseId)) {
+      form.setValue("warehouseId", 0, { shouldDirty: false, shouldValidate: true });
+    }
+  }, [form, whs]);
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
   const defaultLine = useMemo(() => ({ variantId: 0, actualQty: 0, note: "" }), []);
@@ -109,7 +145,7 @@ export function StocktakeCreatePage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <Button variant="outline" size="sm" asChild>
-        <Link to="/app/kiem-kho">← Quay lại</Link>
+        <Link to={backTo}>← Quay lại</Link>
       </Button>
 
       <Card>
@@ -288,7 +324,7 @@ export function StocktakeCreatePage() {
                   {mutation.isPending ? "Đang lưu…" : "Lưu bản nháp"}
                 </Button>
                 <Button type="button" variant="outline" asChild>
-                  <Link to="/app/kiem-kho">Huỷ</Link>
+                  <Link to={backTo}>Huỷ</Link>
                 </Button>
               </div>
             </form>

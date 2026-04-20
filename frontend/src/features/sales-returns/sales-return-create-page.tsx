@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { createSalesReturnDraft } from "@/api/sales-returns-api";
@@ -56,19 +56,52 @@ function needStorePicker(me: MeResponse) {
   return isSystemManage(me) || me.storeIds.length > 1;
 }
 
+type SalesReturnCreateLocationState = {
+  from?: unknown;
+  defaults?: {
+    storeId?: unknown;
+    orderLookup?: unknown;
+  };
+};
+
+function asPositiveNumber(value: unknown): number | undefined {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.trunc(n);
+}
+
+function asNonEmptyString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function resolveBackTo(from: unknown, fallback: string): string {
+  if (typeof from !== "string") return fallback;
+  const trimmed = from.trim();
+  if (!trimmed.startsWith("/")) return fallback;
+  return trimmed;
+}
+
 export function SalesReturnCreatePage() {
   const me = useAuthStore((s) => s.me);
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
   const pick = Boolean(me && needStorePicker(me));
+
+  const navState = (location.state as SalesReturnCreateLocationState | null) ?? null;
+  const backTo = resolveBackTo(navState?.from, "/app/tra-hang");
+  const defaultStoreId = asPositiveNumber(navState?.defaults?.storeId);
+  const defaultOrderLookup = asNonEmptyString(navState?.defaults?.orderLookup);
 
   const { stores, getStoreName } = useStoreNameMap();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      storeId: "",
-      orderLookup: "",
+      storeId: defaultStoreId ? String(defaultStoreId) : "",
+      orderLookup: defaultOrderLookup ?? "",
       customerId: "",
       returnDate: "",
       note: "",
@@ -157,7 +190,7 @@ export function SalesReturnCreatePage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <Button variant="outline" size="sm" asChild>
-        <Link to="/app/tra-hang">← Quay lại</Link>
+        <Link to={backTo}>← Quay lại</Link>
       </Button>
 
       <Card>
@@ -404,7 +437,7 @@ export function SalesReturnCreatePage() {
                   {mutation.isPending ? "Đang lưu…" : "Lưu bản nháp"}
                 </Button>
                 <Button type="button" variant="outline" asChild>
-                  <Link to="/app/tra-hang">Huỷ</Link>
+                  <Link to={backTo}>Huỷ</Link>
                 </Button>
               </div>
             </form>

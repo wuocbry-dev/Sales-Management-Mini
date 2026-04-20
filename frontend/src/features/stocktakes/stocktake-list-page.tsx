@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { fetchStocktakesPage } from "@/api/stocktakes-api";
 import { fetchStoresPage } from "@/api/stores-api";
@@ -24,6 +24,7 @@ const selectClass =
 export function StocktakeListPage() {
   const me = useAuthStore((s) => s.me);
   const canCreate = Boolean(me && gateStocktakeCreate(me));
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get("trang") ?? "0") || 0);
   const size = Math.min(100, Math.max(1, Number(params.get("kichThuoc") ?? String(DEFAULT_SIZE)) || DEFAULT_SIZE));
@@ -91,7 +92,17 @@ export function StocktakeListPage() {
           </div>
           {canCreate ? (
             <Button type="button" asChild>
-              <Link to="/app/kiem-kho/moi">Tạo phiếu kiểm</Link>
+              <Link
+                to="/app/kiem-kho/moi"
+                state={{
+                  from: `${location.pathname}${location.search}`,
+                  ...(Number(dStore) > 0
+                    ? { defaults: { storeId: Number(dStore) } }
+                    : {}),
+                }}
+              >
+                Tạo phiếu kiểm
+              </Link>
             </Button>
           ) : null}
         </CardHeader>

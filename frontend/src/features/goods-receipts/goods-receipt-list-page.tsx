@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { fetchGoodsReceiptsPage } from "@/api/goods-receipts-api";
 import { fetchStoresPage } from "@/api/stores-api";
@@ -26,6 +26,7 @@ const selectClass =
 export function GoodsReceiptListPage() {
   const me = useAuthStore((s) => s.me);
   const canCreate = Boolean(me && gateGoodsReceiptCreate(me));
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get("trang") ?? "0") || 0);
   const size = Math.min(100, Math.max(1, Number(params.get("kichThuoc") ?? String(DEFAULT_SIZE)) || DEFAULT_SIZE));
@@ -108,7 +109,17 @@ export function GoodsReceiptListPage() {
           </div>
           {canCreate ? (
             <Button type="button" asChild>
-              <Link to="/app/phieu-nhap/moi">Tạo phiếu nhập</Link>
+              <Link
+                to="/app/phieu-nhap/moi"
+                state={{
+                  from: `${location.pathname}${location.search}`,
+                  ...(Number(draftStore) > 0
+                    ? { defaults: { storeId: Number(draftStore) } }
+                    : {}),
+                }}
+              >
+                Tạo phiếu nhập
+              </Link>
             </Button>
           ) : null}
         </CardHeader>

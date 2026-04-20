@@ -10,6 +10,7 @@ export type InventoryResponse = {
   variantName?: string | null;
   quantityOnHand: string;
   reservedQty: string;
+  reorderLevel?: string | number | null;
   updatedAt: string;
 };
 

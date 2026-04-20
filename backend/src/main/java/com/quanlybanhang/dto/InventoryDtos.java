@@ -18,6 +18,7 @@ public final class InventoryDtos {
       String variantName,
       BigDecimal quantityOnHand,
       BigDecimal reservedQty,
+      BigDecimal reorderLevel,
       LocalDateTime updatedAt) {}
 
   public record InventoryTransactionResponse(

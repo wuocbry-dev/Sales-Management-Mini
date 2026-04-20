@@ -6,6 +6,7 @@ import { STORE_NAME_LOOKUP_QUERY_KEY } from "@/hooks/use-store-name-map";
 
 export type WarehouseOption = {
   warehouseId: number;
+  storeId: number;
   label: string;
 };
 
@@ -100,6 +101,7 @@ export function useWarehouseNameMap(options?: Options) {
         if (map.has(w.warehouseId)) continue;
         map.set(w.warehouseId, {
           warehouseId: w.warehouseId,
+          storeId: w.storeId,
           label: formatWarehouseLabel(
             w.warehouseName,
             w.warehouseCode,

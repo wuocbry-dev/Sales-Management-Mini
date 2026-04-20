@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { fetchSalesOrderById } from "@/api/sales-orders-api";
 import { fetchSalesReturnsPage } from "@/api/sales-returns-api";
@@ -26,6 +26,7 @@ const selectClass =
 export function SalesReturnListPage() {
   const me = useAuthStore((s) => s.me);
   const canCreate = Boolean(me && gateReturnCreate(me));
+  const location = useLocation();
   const [params, setParams] = useSearchParams();
   const page = Math.max(0, Number(params.get("trang") ?? "0") || 0);
   const size = Math.min(100, Math.max(1, Number(params.get("kichThuoc") ?? String(DEFAULT_SIZE)) || DEFAULT_SIZE));
@@ -122,7 +123,18 @@ export function SalesReturnListPage() {
           </div>
           {canCreate ? (
             <Button type="button" asChild>
-              <Link to="/app/tra-hang/moi">Tạo phiếu trả</Link>
+              <Link
+                to="/app/tra-hang/moi"
+                state={{
+                  from: `${location.pathname}${location.search}`,
+                  defaults: {
+                    ...(Number(dStore) > 0 ? { storeId: Number(dStore) } : {}),
+                    ...(dOrder.trim() ? { orderLookup: dOrder.trim() } : {}),
+                  },
+                }}
+              >
+                Tạo phiếu trả
+              </Link>
             </Button>
           ) : null}
         </CardHeader>

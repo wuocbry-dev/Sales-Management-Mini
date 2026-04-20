@@ -1,8 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import { useStoreNameMap } from "@/hooks/use-store-name-map";
@@ -45,19 +45,48 @@ function needStorePicker(me: MeResponse) {
   return isSystemManage(me) || me.storeIds.length > 1;
 }
 
+type StockTransferCreateLocationState = {
+  from?: unknown;
+  defaults?: {
+    storeId?: unknown;
+    fromWarehouseId?: unknown;
+    toWarehouseId?: unknown;
+  };
+};
+
+function asPositiveNumber(value: unknown): number | undefined {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.trunc(n);
+}
+
+function resolveBackTo(from: unknown, fallback: string): string {
+  if (typeof from !== "string") return fallback;
+  const trimmed = from.trim();
+  if (!trimmed.startsWith("/")) return fallback;
+  return trimmed;
+}
+
 export function StockTransferCreatePage() {
   const me = useAuthStore((s) => s.me);
   const navigate = useNavigate();
+  const location = useLocation();
   const pick = Boolean(me && needStorePicker(me));
+
+  const navState = (location.state as StockTransferCreateLocationState | null) ?? null;
+  const backTo = resolveBackTo(navState?.from, "/app/chuyen-kho");
+  const defaultStoreId = asPositiveNumber(navState?.defaults?.storeId);
+  const defaultFromWarehouseId = asPositiveNumber(navState?.defaults?.fromWarehouseId);
+  const defaultToWarehouseId = asPositiveNumber(navState?.defaults?.toWarehouseId);
 
   const { stores, getStoreName } = useStoreNameMap();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      storeId: "",
-      fromWarehouseId: 0,
-      toWarehouseId: 0,
+      storeId: defaultStoreId ? String(defaultStoreId) : "",
+      fromWarehouseId: defaultFromWarehouseId ?? 0,
+      toWarehouseId: defaultToWarehouseId ?? 0,
       transferDate: "",
       note: "",
       lines: [{ variantId: 0, quantity: 1 }],
@@ -71,6 +100,21 @@ export function StockTransferCreatePage() {
     enabled: storeWatch > 0,
   });
   const whs = whQ.data ?? [];
+
+  useEffect(() => {
+    if (whs.length === 0) return;
+    const validWarehouseIds = new Set(whs.map((w) => w.warehouseId));
+
+    const fromWarehouseId = Number(form.getValues("fromWarehouseId")) || 0;
+    if (fromWarehouseId > 0 && !validWarehouseIds.has(fromWarehouseId)) {
+      form.setValue("fromWarehouseId", 0, { shouldDirty: false, shouldValidate: true });
+    }
+
+    const toWarehouseId = Number(form.getValues("toWarehouseId")) || 0;
+    if (toWarehouseId > 0 && !validWarehouseIds.has(toWarehouseId)) {
+      form.setValue("toWarehouseId", 0, { shouldDirty: false, shouldValidate: true });
+    }
+  }, [form, whs]);
 
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
   const defaultLine = useMemo(() => ({ variantId: 0, quantity: 1 }), []);
@@ -112,7 +156,7 @@ export function StockTransferCreatePage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <Button variant="outline" size="sm" asChild>
-        <Link to="/app/chuyen-kho">← Quay lại</Link>
+        <Link to={backTo}>← Quay lại</Link>
       </Button>
 
       <Card>
@@ -304,7 +348,7 @@ export function StockTransferCreatePage() {
                   {mutation.isPending ? "Đang lưu…" : "Lưu bản nháp"}
                 </Button>
                 <Button type="button" variant="outline" asChild>
-                  <Link to="/app/chuyen-kho">Huỷ</Link>
+                  <Link to={backTo}>Huỷ</Link>
                 </Button>
               </div>
             </form>
