@@ -39,6 +39,35 @@ frontend/.vite/
 *.log
 logs/
 
+# --- Secrets / credentials files ---
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_ed25519
+*.ovpn
+
+# --- Local runtime data / uploads ---
+uploads/
+backend/data/
+backend/logs/
+
+# --- Postman local environments (often contains tokens) ---
+postman/*.postman_environment.json
+postman/*.postman_globals.json
+
+# --- Local account notes / plain text credentials ---
+Docx/tk*mk*sale*.txt
+**/*credentials*.txt
+**/*password*.txt
+**/*secret*.txt
+
+# --- Docker local overrides ---
+docker-compose.override.yml
+
 # --- Tạm / build cục bộ ---
 *.tmp
 *.temp

@@ -154,17 +154,18 @@ Repo có file mẫu: [.env.docker.example](.env.docker.example)
 Tạo file .env tại thư mục gốc và tham chiếu như sau:
 
 ```env
-MYSQL_HOST=host.docker.internal
+MYSQL_HOST=<your_mysql_host>
 MYSQL_PORT=3306
-MYSQL_DATABASE=sales_management_mini
-MYSQL_USER=root
-MYSQL_PASSWORD=12345
+MYSQL_DATABASE=<your_database_name>
+MYSQL_USER=<your_database_user>
+MYSQL_PASSWORD=<your_strong_password>
 ```
 
 Ghi chú:
 
 1. [docker-compose-local.yml](docker-compose-local.yml) đã có default fallback, nhưng nên tạo .env để chủ động.
-2. [docker-compose.yml](docker-compose.yml) đang default về host/port nội bộ khác (100.78.133.11:1776) nên không dùng cho máy mới nếu chưa xác minh.
+2. [docker-compose.yml](docker-compose.yml) có cấu hình dành cho môi trường nội bộ; máy mới nên dùng [docker-compose-local.yml](docker-compose-local.yml) hoặc override bằng .env riêng.
+3. Không commit file .env thật, chỉ commit file mẫu (.example).
 
 ## 7.2 Cấu hình backend local
 
@@ -179,9 +180,9 @@ Thực hiện:
 Ví dụ nội dung tối thiểu:
 
 ```properties
-spring.datasource.url=jdbc:mysql://127.0.0.1:3306/sales_management_mini?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh&useUnicode=true&characterEncoding=utf8
-spring.datasource.username=root
-spring.datasource.password=12345
+spring.datasource.url=jdbc:mysql://<db-host>:<db-port>/<db-name>?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Ho_Chi_Minh&useUnicode=true&characterEncoding=utf8
+spring.datasource.username=<db-user>
+spring.datasource.password=<db-password>
 ```
 
 ## 7.3 Cấu hình frontend local
@@ -366,18 +367,15 @@ docker compose -f docker-compose-local.yml down
 
 ---
 
-## 14. Tài khoản test (nếu dùng seed hiện tại)
+## 14. Tài khoản test (dev/test)
 
-Nguồn tham chiếu: [Docx/tk và mk sale.txt](Docx/tk%20và%20mk%20sale.txt)
-
-1. admin / 123456
-2. ministop / 123456
-3. circlek / 123456
+Vì lý do bảo mật, README không chứa tài khoản hoặc mật khẩu cụ thể.
 
 Lưu ý:
 
-1. Đây là tài khoản seed cho dev/test nội bộ.
-2. Không dùng trực tiếp cho production.
+1. Tài khoản dev/test nên được cấp qua kênh nội bộ an toàn (secret manager, vault, hoặc trao đổi riêng có kiểm soát).
+2. Không lưu thông tin đăng nhập dạng plain text trong repo.
+3. Không dùng tài khoản dev/test cho production.
 
 ---
 
@@ -413,7 +411,7 @@ Cách xử lý:
 Cách xử lý:
 
 1. Kiểm tra đã import seed chưa.
-2. Test lại tài khoản ở Mục 14.
+2. Kiểm tra lại tài khoản dev/test được cấp theo quy trình nội bộ ở Mục 14.
 3. Kiểm tra Caps Lock và layout bàn phím.
 
 ## 15.4 Lỗi 403 Forbidden
@@ -457,7 +455,6 @@ Sales-Management-Mini/
 │  └─ Dockerfile
 ├─ Docx/
 │  ├─ AUTH_API_TEST.md
-│  ├─ tk và mk sale.txt
 │  └─ sql/
 │     ├─ DataBase_sale.sql
 │     ├─ dulieumau.sql
@@ -478,9 +475,10 @@ Sales-Management-Mini/
 1. Không commit file .env và file backend/application-local.properties (đã nằm trong [.gitignore](.gitignore)).
 2. Không dùng default host nội bộ trong [docker-compose.yml](docker-compose.yml) cho máy mới nếu chưa xác minh mạng.
 3. Không dùng config production cho môi trường local/dev.
-4. Từ code hiện tại, role và permission được bootstrap tự động khi app chạy ([backend/src/main/java/com/quanlybanhang/config/DefaultRolesBootstrap.java](backend/src/main/java/com/quanlybanhang/config/DefaultRolesBootstrap.java), [backend/src/main/java/com/quanlybanhang/config/DefaultPermissionBootstrap.java](backend/src/main/java/com/quanlybanhang/config/DefaultPermissionBootstrap.java)).
-5. Upload path mặc định là uploads/products theo [backend/src/main/resources/application.properties](backend/src/main/resources/application.properties). Cần đảm bảo quyền ghi thư mục khi chạy thực tế.
-6. TODO/VERIFY: nếu chạy Docker lâu dài, cần thiết kế volume cho uploads để tránh mất file khi recreate container.
+4. Không đưa tài khoản, mật khẩu, token, private key vào README hoặc tài liệu public.
+5. Từ code hiện tại, role và permission được bootstrap tự động khi app chạy ([backend/src/main/java/com/quanlybanhang/config/DefaultRolesBootstrap.java](backend/src/main/java/com/quanlybanhang/config/DefaultRolesBootstrap.java), [backend/src/main/java/com/quanlybanhang/config/DefaultPermissionBootstrap.java](backend/src/main/java/com/quanlybanhang/config/DefaultPermissionBootstrap.java)).
+6. Upload path mặc định là uploads/products theo [backend/src/main/resources/application.properties](backend/src/main/resources/application.properties). Cần đảm bảo quyền ghi thư mục khi chạy thực tế.
+7. TODO/VERIFY: nếu chạy Docker lâu dài, cần thiết kế volume cho uploads để tránh mất file khi recreate container.
 
 ---
 
@@ -501,5 +499,3 @@ Sales-Management-Mini/
 4. Postman collection: [postman/QuanLyBanHang.postman_collection.json](postman/QuanLyBanHang.postman_collection.json)
 
 ---
-
-Nếu bạn cần, có thể tách thêm 1 file QUICKSTART_INTERNAL.md (1 trang) chỉ gồm các bước tối thiểu để người mới chạy được dự án trong 10-15 phút.
