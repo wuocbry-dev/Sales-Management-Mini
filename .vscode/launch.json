@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Sales Backend + AI Agent",
+      "request": "launch",
+      "mainClass": "com.quanlybanhang.QuanLyBanHangApplication",
+      "projectName": "quan-ly-ban-hang-backend",
+      "cwd": "${workspaceFolder}/backend",
+      "preLaunchTask": "start ai agent",
+      "postDebugTask": "stop ai agent"
+    }
+  ]
+}

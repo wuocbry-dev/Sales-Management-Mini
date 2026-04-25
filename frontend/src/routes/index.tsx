@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router-dom";
 import { AppShellLayout } from "@/layouts/app-shell-layout";
 import { PublicLayout } from "@/layouts/public-layout";
+import { AiAgentPage } from "@/pages/app/ai-agent-page";
 import { BranchHubPage } from "@/pages/app/branch-hub-page";
 import { ForbiddenPage } from "@/pages/app/forbidden-page";
 import { NotFoundPage } from "@/pages/app/not-found-page";
@@ -237,6 +238,7 @@ const appChildren: RouteObject[] = [
     gateStoreStaffArea,
   ),
   guarded("cai-dat", <SettingsPage />, { title: "Cài đặt", subtitle: "Thông tin tài khoản của bạn." }, gateSettingsArea),
+  guarded("ai-agent", <AiAgentPage />, { title: "AI Agent", fullBleed: true }, gateSettingsArea),
   {
     path: "*",
     element: <NotFoundPage />,

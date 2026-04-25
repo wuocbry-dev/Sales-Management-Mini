@@ -9,6 +9,7 @@ import {
   Handshake,
   LayoutDashboard,
   Package,
+  Bot,
   Receipt,
   RotateCcw,
   Ruler,
@@ -78,6 +79,7 @@ export type NavMenuKey =
   | "nguoi-dung"
   | "phan-quyen"
   | "nhan-vien-cua-hang"
+  | "ai-agent"
   | "cai-dat";
 
 export type AppNavItem = {
@@ -336,6 +338,15 @@ const MENU_DEFS: MenuDef[] = [
     icon: Users,
     access: gateStoreStaffArea,
     sidebarVisible: (me) => !isBranchManagerRole(me),
+  },
+  {
+    key: "ai-agent",
+    section: "footer",
+    order: 5,
+    label: "AI Agent",
+    to: "/app/ai-agent",
+    icon: Bot,
+    access: gateSettingsArea,
   },
   {
     key: "cai-dat",

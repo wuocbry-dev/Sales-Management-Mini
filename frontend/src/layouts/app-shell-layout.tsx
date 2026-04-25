@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { NavLink, Outlet, useMatches } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useMatches } from "react-router-dom";
 import { fetchBranchById } from "@/api/branches-api";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AppBreadcrumbs } from "@/components/layout/app-breadcrumbs";
@@ -78,9 +78,12 @@ export function AppShellLayout() {
   const currentStoreId = me?.defaultStoreId ?? (me?.storeIds?.length ? me.storeIds[0] : null);
   const { getStoreName } = useStoreNameMap({ enabled: Boolean(currentStoreId) });
   const matches = useMatches();
+  const location = useLocation();
   const leaf = matches[matches.length - 1];
   const handle = (leaf?.handle ?? {}) as AppRouteHandle;
   const isPosRoute = Boolean(leaf?.pathname?.startsWith("/app/pos"));
+  const isAiAgentRoute = location.pathname.startsWith("/app/ai-agent");
+  const fullBleed = Boolean(handle.fullBleed || isAiAgentRoute);
 
   if (!me) return <AppLoadingShell />;
 
@@ -194,7 +197,7 @@ export function AppShellLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className={cn("bg-muted/30", fullBleed ? "h-dvh overflow-hidden" : "min-h-screen")}>
       {mobileOpen && (
         <button
           type="button"
@@ -204,7 +207,13 @@ export function AppShellLayout() {
         />
       )}
       {sidebar}
-      <div className={cn("transition-[margin] duration-200", collapsed ? "md:ml-[72px]" : "md:ml-60")}>
+      <div
+        className={cn(
+          "transition-[margin] duration-200",
+          fullBleed && "flex h-dvh flex-col overflow-hidden",
+          collapsed ? "md:ml-[72px]" : "md:ml-60",
+        )}
+      >
         <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <div className="flex h-14 items-center justify-between gap-3 px-4">
             <div className="flex min-w-0 items-center gap-2">
@@ -226,15 +235,15 @@ export function AppShellLayout() {
             <AppBreadcrumbs />
           </div>
         </header>
-        <main className="p-4 md:p-6">
-          <div className="mx-auto max-w-7xl space-y-6">
-            {handle.title ? (
+        <main className={cn(fullBleed ? "min-h-0 flex-1 overflow-hidden p-0" : "p-4 md:p-6")}>
+          <div className={cn(fullBleed ? "h-full min-h-0 w-full overflow-hidden" : "mx-auto max-w-7xl space-y-6")}>
+            {handle.title && !fullBleed ? (
               <div className="space-y-1">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">{handle.title}</h1>
                 {handle.subtitle ? <p className="text-sm text-muted-foreground">{handle.subtitle}</p> : null}
               </div>
             ) : null}
-            <div>
+            <div className={cn(fullBleed && "h-full min-h-0 overflow-hidden")}>
               <Outlet />
             </div>
           </div>

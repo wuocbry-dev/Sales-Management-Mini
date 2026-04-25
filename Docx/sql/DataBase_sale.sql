@@ -25,6 +25,7 @@ DROP TABLE IF EXISTS `stocktake_items`;
 DROP TABLE IF EXISTS `payments`;
 DROP TABLE IF EXISTS `role_permission_overrides`;
 DROP TABLE IF EXISTS `role_permissions`;
+DROP TABLE IF EXISTS `ai_training_documents`;
 DROP TABLE IF EXISTS `user_branches`;
 DROP TABLE IF EXISTS `user_roles`;
 DROP TABLE IF EXISTS `user_stores`;
@@ -1136,6 +1137,41 @@ LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
 INSERT INTO `users` VALUES (1,NULL,'admin','$2a$10$rNknov3a4ULr4dtSBPOco.9ywwjeDYpqNffMBQ1mtFO6NMk3iYrla','admin sale','0999999999','admin@gmail.com','ACTIVE','2026-04-17 18:53:01','2026-04-17 19:01:38'),(2,1,'ministop','$2a$10$Gah7AU8RbgjW3pptf5ZheuyLv46996AqcVm1G5K4E9OguxvuC.z7C','Mini Stop','0123456789','ministop@gmail.com','ACTIVE','2026-04-17 19:20:07','2026-04-17 19:20:07'),(3,2,'circlek','$2a$10$I.Xz1dUxSKQ3b20FDJ.bdOAmOmItCbYItX/qKzIZf5urriWJfBaUy','Circlek','0123456666','circlek@gmail.com','ACTIVE','2026-04-17 19:31:32','2026-04-17 19:31:32');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `ai_training_documents`
+--
+
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ai_training_documents` (
+  `training_document_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `uploaded_by_user_id` bigint unsigned DEFAULT NULL,
+  `source_file_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `file_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `mime_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `file_size` int unsigned NOT NULL,
+  `storage_path` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `file_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `parsed_content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'READY',
+  `chunk_count` int unsigned NOT NULL DEFAULT '1',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`training_document_id`),
+  KEY `idx_ai_training_documents_user` (`uploaded_by_user_id`,`created_at`),
+  KEY `idx_ai_training_documents_source_file` (`source_file_id`),
+  CONSTRAINT `fk_ai_training_documents_user` FOREIGN KEY (`uploaded_by_user_id`) REFERENCES `users` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `ai_training_documents`
+--
+
+LOCK TABLES `ai_training_documents` WRITE;
+/*!40000 ALTER TABLE `ai_training_documents` DISABLE KEYS */;
+/*!40000 ALTER TABLE `ai_training_documents` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --

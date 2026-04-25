@@ -21,6 +21,32 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  ai-agent:
+    build:
+      context: ./AI-Agent/AI_agent_run/backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DEBUG: "false"
+      ENVIRONMENT: local
+      SQLITE_PATH: /app/data/AI_agent_run.db
+      SALES_DB_ENABLED: "true"
+      SALES_DB_HOST: ${MYSQL_HOST:-host.docker.internal}
+      SALES_DB_PORT: ${MYSQL_PORT:-3306}
+      SALES_DB_NAME: ${MYSQL_DATABASE:-sales_management_mini}
+      SALES_DB_USER: ${MYSQL_USER:-root}
+      SALES_DB_PASSWORD: ${MYSQL_PASSWORD:-12345}
+      SALES_BACKEND_BASE_URL: http://backend:8080
+      LLM_PROVIDER: ${LLM_PROVIDER:-google}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gemini-2.0-flash-lite}
+      CORS_ORIGINS: '["http://localhost:8088"]'
+    volumes:
+      - ai_agent_data:/app/data
+      - ai_agent_media:/app/media
+
   frontend:
     build:
       context: ./frontend
@@ -29,3 +55,8 @@ services:
       - "8088:80"
     depends_on:
       - backend
+      - ai-agent
+
+volumes:
+  ai_agent_data:
+  ai_agent_media:
