@@ -238,7 +238,7 @@ const appChildren: RouteObject[] = [
     gateStoreStaffArea,
   ),
   guarded("cai-dat", <SettingsPage />, { title: "Cài đặt", subtitle: "Thông tin tài khoản của bạn." }, gateSettingsArea),
-  guarded("ai-agent", <AiAgentPage />, { title: "AI Agent", fullBleed: true }, gateSettingsArea),
+  guarded("ai-agent", <AiAgentPage />, { title: "SaleMaster AI", fullBleed: true }, gateSettingsArea),
   {
     path: "*",
     element: <NotFoundPage />,

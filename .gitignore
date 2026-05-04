@@ -39,6 +39,8 @@ AI-Agent/**/.env.*
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/.env.local
+frontend/.env.*.local
 *.local
 
 # --- Logs ---

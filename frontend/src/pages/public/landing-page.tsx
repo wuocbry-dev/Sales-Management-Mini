@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SaleMasterAIChatWidget } from "@/components/public/salemasterai-chat-widget";
 import {
   BarChart3,
   Boxes,
@@ -335,6 +336,9 @@ export function LandingPage() {
           <p>© {new Date().getFullYear()} SaleMaster VN. Mọi quyền được lưu giữ.</p>
         </div>
       </footer>
+
+      {/* SaleMaster AI Chat Widget — floating, only on public landing */}
+      <SaleMasterAIChatWidget />
     </div>
   );
 }

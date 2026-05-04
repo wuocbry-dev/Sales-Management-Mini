@@ -6,9 +6,12 @@ import {
   MessageSquare,
   MoreHorizontal,
   Paperclip,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   RefreshCw,
   Send,
+  Sparkles,
   UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -287,6 +290,7 @@ export function AiAgentPage() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const conversationIdRef = useRef<string | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
   const activeAssistantIdRef = useRef<string | null>(null);
@@ -538,9 +542,15 @@ export function AiAgentPage() {
   }
 
   return (
-    <div className="grid h-full min-h-0 overflow-hidden bg-background lg:grid-cols-[300px_minmax(0,1fr)]">
-      <aside className="hidden min-h-0 border-r bg-muted/20 lg:flex lg:flex-col">
-        <div className="flex h-12 shrink-0 items-center justify-between border-b px-3">
+    <div className="flex h-full min-h-0 overflow-hidden bg-background">
+      {/* Sidebar lịch sử — toggle đóng/mở */}
+      <aside
+        className={cn(
+          "flex min-h-0 flex-col border-r bg-muted/20 transition-all duration-300 ease-in-out overflow-hidden",
+          sidebarOpen ? "w-[280px] min-w-[280px]" : "w-0 min-w-0 border-r-0",
+        )}
+      >
+        <div className="flex h-12 w-[280px] shrink-0 items-center justify-between border-b px-3">
           <div className="flex min-w-0 items-center gap-2">
             <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="truncate text-sm font-semibold">Lịch sử</span>
@@ -550,7 +560,7 @@ export function AiAgentPage() {
           </Button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+        <div className="min-h-0 w-[280px] flex-1 overflow-y-auto overscroll-contain p-2">
           {conversations.length === 0 ? (
             <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Chưa có lịch sử</div>
           ) : null}
@@ -559,7 +569,7 @@ export function AiAgentPage() {
               <button
                 key={conversation.id}
                 type="button"
-                onClick={() => loadConversation(conversation.id)}
+                onClick={() => { loadConversation(conversation.id); setSidebarOpen(false); }}
                 className={cn(
                   "group w-full rounded-md border px-3 py-2 text-left transition hover:bg-background",
                   selectedConversationId === conversation.id ? "border-primary bg-background" : "border-transparent",
@@ -576,20 +586,35 @@ export function AiAgentPage() {
         </div>
       </aside>
 
-      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden">
-        <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex h-12 shrink-0 items-center justify-between border-b px-3 gap-2">
+          {/* Nút toggle sidebar + tên app */}
           <div className="flex min-w-0 items-center gap-2">
-            <div className={cn("h-2 w-2 rounded-full", online ? "bg-emerald-500" : "bg-muted-foreground")} />
-            <span className="truncate text-sm font-semibold">{me?.fullName || me?.username || "AI Agent"}</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              title={sidebarOpen ? "Đóng lịch sử" : "Mở lịch sử"}
+              onClick={() => setSidebarOpen((v) => !v)}
+            >
+              {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </Button>
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+              <span className="truncate text-sm font-bold tracking-tight">SaleMaster AI</span>
+            </div>
+            <div className={cn("h-2 w-2 rounded-full shrink-0", online ? "bg-emerald-500" : "bg-muted-foreground")} title={online ? "Đang kết nối" : "Mất kết nối"} />
           </div>
+
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="icon" className="h-9 w-9 lg:hidden" title="Chat mới" onClick={startNewConversation}>
+            <Button type="button" variant="outline" size="icon" className="h-8 w-8" title="Chat mới" onClick={startNewConversation}>
               <Plus className="h-4 w-4" />
             </Button>
             <select
               value={model}
               onChange={(event) => setModel(event.target.value)}
-              className="h-9 max-w-[220px] rounded-md border bg-background px-2 text-sm"
+              className="h-8 max-w-[200px] rounded-md border bg-background px-2 text-xs"
               title="Model"
             >
               {recommendedModels.length > 0 ? (
@@ -627,27 +652,9 @@ export function AiAgentPage() {
                   ))
                 : null}
             </select>
-            <Button type="button" variant="outline" size="icon" className="h-9 w-9" title="Kết nối lại" onClick={connect}>
+            <Button type="button" variant="outline" size="icon" className="h-8 w-8" title="Kết nối lại" onClick={connect}>
               <RefreshCw className="h-4 w-4" />
             </Button>
-          </div>
-        </div>
-
-        <div className="border-b bg-background px-3 py-2 lg:hidden">
-          <div className="flex gap-2 overflow-x-auto">
-            {conversations.map((conversation) => (
-              <button
-                key={conversation.id}
-                type="button"
-                onClick={() => loadConversation(conversation.id)}
-                className={cn(
-                  "max-w-[220px] shrink-0 truncate rounded-md border px-3 py-1.5 text-xs",
-                  selectedConversationId === conversation.id ? "border-primary bg-primary/10" : "border-input",
-                )}
-              >
-                {shortTitle(conversation.title)}
-              </button>
-            ))}
           </div>
         </div>
 
@@ -655,8 +662,10 @@ export function AiAgentPage() {
           <div className="flex w-full flex-col gap-4">
             {loadingConversation ? <div className="text-center text-xs text-muted-foreground">Đang tải...</div> : null}
             {messages.length === 0 ? (
-              <div className="flex h-[360px] items-center justify-center text-muted-foreground">
-                <Bot className="h-8 w-8" />
+              <div className="flex h-[360px] flex-col items-center justify-center gap-3 text-muted-foreground">
+                <Sparkles className="h-10 w-10 text-primary/40" />
+                <span className="text-sm font-medium">SaleMaster AI sẵn sàng hỗ trợ</span>
+                <span className="text-xs">Hỏi về doanh thu, tồn kho, đơn hàng hoặc thị trường...</span>
               </div>
             ) : null}
             {messages.map((message) => (
