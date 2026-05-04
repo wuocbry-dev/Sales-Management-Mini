@@ -29,6 +29,12 @@ replay_pid*
 !.env.example
 !.env.docker.example
 
+# --- AI-Agent: bảo vệ API keys (KHÔNG commit .env thật) ---
+AI-Agent/**/.env
+AI-Agent/**/.env.*
+!AI-Agent/**/.env.example
+!AI-Agent/**/.env.*.example
+
 # --- Node / Vite (frontend) ---
 frontend/node_modules/
 frontend/dist/

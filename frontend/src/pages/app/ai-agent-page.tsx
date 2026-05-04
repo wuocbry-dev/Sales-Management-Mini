@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import {
   Bot,
   Clock3,
@@ -84,6 +84,189 @@ function wsUrl() {
 
 function shortTitle(title?: string | null) {
   return title?.trim() || "Cuộc trò chuyện mới";
+}
+
+function renderInline(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /(`[^`]+`|\*\*[^*]+\*\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index));
+    const token = match[0];
+    if (token.startsWith("`")) {
+      nodes.push(
+        <code key={`${match.index}-code`} className="rounded bg-muted px-1 py-0.5 text-[0.92em] text-foreground">
+          {token.slice(1, -1)}
+        </code>,
+      );
+    } else {
+      nodes.push(
+        <strong key={`${match.index}-strong`} className="font-semibold text-foreground">
+          {token.slice(2, -2)}
+        </strong>,
+      );
+    }
+    lastIndex = match.index + token.length;
+  }
+
+  if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
+  return nodes;
+}
+
+function parseTable(lines: string[]) {
+  if (lines.length < 2) return null;
+  const separator = lines[1].trim();
+  if (!/^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(separator)) return null;
+  const toCells = (line: string) =>
+    line
+      .trim()
+      .replace(/^\|/, "")
+      .replace(/\|$/, "")
+      .split("|")
+      .map((cell) => cell.trim());
+  return { headers: toCells(lines[0]), rows: lines.slice(2).map(toCells) };
+}
+
+function AssistantMessage({ content }: { content: string }) {
+  const lines = content.split(/\r?\n/);
+  const blocks: ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) {
+      i += 1;
+      continue;
+    }
+
+    if (line.trim().startsWith("```")) {
+      const codeLines: string[] = [];
+      i += 1;
+      while (i < lines.length && !lines[i].trim().startsWith("```")) {
+        codeLines.push(lines[i]);
+        i += 1;
+      }
+      i += 1;
+      blocks.push(
+        <pre key={`code-${i}`} className="overflow-x-auto rounded-md border bg-muted/60 p-3 text-xs leading-5 text-foreground">
+          <code>{codeLines.join("\n")}</code>
+        </pre>,
+      );
+      continue;
+    }
+
+    if (line.includes("|") && i + 1 < lines.length && lines[i + 1].includes("|")) {
+      const tableLines: string[] = [];
+      let j = i;
+      while (j < lines.length && lines[j].includes("|") && lines[j].trim()) {
+        tableLines.push(lines[j]);
+        j += 1;
+      }
+      const table = parseTable(tableLines);
+      if (table) {
+        blocks.push(
+          <div key={`table-${i}`} className="overflow-x-auto rounded-md border">
+            <table className="min-w-full border-collapse text-left text-xs">
+              <thead className="bg-muted/70 text-muted-foreground">
+                <tr>
+                  {table.headers.map((header, index) => (
+                    <th key={`${header}-${index}`} className="border-b px-3 py-2 font-medium">
+                      {renderInline(header)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {table.rows.map((row, rowIndex) => (
+                  <tr key={rowIndex} className="odd:bg-background even:bg-muted/20">
+                    {row.map((cell, cellIndex) => (
+                      <td key={`${rowIndex}-${cellIndex}`} className="border-b px-3 py-2 align-top">
+                        {renderInline(cell)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>,
+        );
+        i = j;
+        continue;
+      }
+    }
+
+    if (/^#{1,3}\s+/.test(line)) {
+      const level = line.match(/^#+/)?.[0].length || 1;
+      const text = line.replace(/^#{1,3}\s+/, "");
+      blocks.push(
+        <div key={`heading-${i}`} className={cn("font-semibold text-foreground", level === 1 ? "text-base" : "text-sm")}>
+          {renderInline(text)}
+        </div>,
+      );
+      i += 1;
+      continue;
+    }
+
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*[-*]\s+/, ""));
+        i += 1;
+      }
+      blocks.push(
+        <ul key={`ul-${i}`} className="space-y-1 pl-4">
+          {items.map((item, index) => (
+            <li key={index} className="list-disc pl-1">
+              {renderInline(item)}
+            </li>
+          ))}
+        </ul>,
+      );
+      continue;
+    }
+
+    if (/^\s*\d+\.\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*\d+\.\s+/, ""));
+        i += 1;
+      }
+      blocks.push(
+        <ol key={`ol-${i}`} className="space-y-1 pl-4">
+          {items.map((item, index) => (
+            <li key={index} className="list-decimal pl-1">
+              {renderInline(item)}
+            </li>
+          ))}
+        </ol>,
+      );
+      continue;
+    }
+
+    const paragraph: string[] = [line.trim()];
+    i += 1;
+    while (
+      i < lines.length &&
+      lines[i].trim() &&
+      !/^#{1,3}\s+/.test(lines[i]) &&
+      !/^\s*[-*]\s+/.test(lines[i]) &&
+      !/^\s*\d+\.\s+/.test(lines[i]) &&
+      !lines[i].trim().startsWith("```") &&
+      !(lines[i].includes("|") && i + 1 < lines.length && lines[i + 1].includes("|"))
+    ) {
+      paragraph.push(lines[i].trim());
+      i += 1;
+    }
+    blocks.push(
+      <p key={`p-${i}`} className="leading-6">
+        {renderInline(paragraph.join(" "))}
+      </p>,
+    );
+  }
+
+  return <div className="space-y-3">{blocks}</div>;
 }
 
 export function AiAgentPage() {
@@ -270,8 +453,6 @@ export function AiAgentPage() {
       return;
     }
     if (event.type === "tool_call") {
-      const toolName = typeof data.tool_name === "string" ? data.tool_name : "tool";
-      appendMessage("system", `Đang chạy ${toolName}`);
       return;
     }
     if (event.type === "final_result") {
@@ -494,13 +675,22 @@ export function AiAgentPage() {
                 ) : null}
                 <div
                   className={cn(
-                    "max-w-[min(780px,82%)] whitespace-pre-wrap rounded-md border px-3 py-2 text-sm leading-6 shadow-sm",
+                    "max-w-[min(860px,82%)] rounded-md border px-3 py-2 text-sm leading-6 shadow-sm",
+                    message.role !== "assistant" && "whitespace-pre-wrap",
                     message.role === "user" && "border-primary bg-primary text-primary-foreground",
-                    message.role === "assistant" && "bg-background",
+                    message.role === "assistant" && "bg-background px-4 py-3",
                     message.role === "system" && "border-transparent bg-transparent px-0 py-0 text-xs text-muted-foreground shadow-none",
                   )}
                 >
-                  {message.content || <MoreHorizontal className="h-4 w-4 animate-pulse" />}
+                  {message.content ? (
+                    message.role === "assistant" ? (
+                      <AssistantMessage content={message.content} />
+                    ) : (
+                      message.content
+                    )
+                  ) : (
+                    <MoreHorizontal className="h-4 w-4 animate-pulse" />
+                  )}
                 </div>
                 {message.role === "user" ? (
                   <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
