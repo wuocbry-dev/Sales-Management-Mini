@@ -9,11 +9,15 @@ from app.api.routes.v1 import conversations
 from app.api.routes.v1 import admin_conversations
 from app.api.routes.v1 import agent
 from app.api.routes.v1 import files
+from app.api.routes.v1 import public_chat
 
 v1_router = APIRouter()
 
 # Health check routes (no auth required)
 v1_router.include_router(health.router, tags=["health"])
+
+# Public AI chat (no auth — landing page widget)
+v1_router.include_router(public_chat.router, prefix="/public", tags=["public"])
 
 # Authentication routes
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])

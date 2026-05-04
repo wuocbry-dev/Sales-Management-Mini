@@ -1,7 +1,7 @@
 /**
  * SaleMaster AI — Floating chat widget cho trang chủ công khai.
- * Hoàn toàn độc lập: không dùng auth, không gọi backend nội bộ.
- * Gọi trực tiếp Gemini API qua VITE_GEMINI_API_KEY.
+ * Hoàn toàn độc lập: không dùng auth, không lộ API key.
+ * Gọi qua AI-Agent backend (POST /api/v1/public/public-chat) thay vì Gemini trực tiếp.
  */
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { Bot, ChevronDown, Loader2, Send, Sparkles, X } from "lucide-react";
@@ -16,31 +16,16 @@ type Message = {
   text: string;
 };
 
-// ─── System prompt ────────────────────────────────────────────────────────────
-
-const SYSTEM_PROMPT = `Bạn là SaleMaster AI — trợ lý tư vấn của nền tảng SaleMaster VN.
-Nhiệm vụ duy nhất của bạn: trả lời các câu hỏi về SaleMaster VN, sản phẩm, tính năng, cách dùng, lợi ích và các vấn đề liên quan đến quản lý bán lẻ.
-
-Thông tin về SaleMaster VN:
-- Nền tảng quản lý bán lẻ hiện đại, phù hợp doanh nghiệp đa cửa hàng và chuỗi bán lẻ.
-- Tính năng cốt lõi: quản lý đa cửa hàng & chi nhánh, hàng hóa & tồn kho (nhiều biến thể), bán hàng & đơn hàng (POS), trả hàng, chuyển kho, kiểm kê, báo cáo doanh thu, phân quyền chi tiết theo vai trò.
-- Hỗ trợ các loại hình: bán lẻ thời trang, hàng tiêu dùng, tạp hóa, đại lý & phân phối nhỏ.
-- Có SaleMaster AI tích hợp bên trong: phân tích dữ liệu bán hàng, hỏi đáp về vận hành, nghiên cứu thị trường và so sánh đối thủ.
-- Giao diện chuyên nghiệp, tối ưu cho máy tính và máy tính bảng tại quầy.
-- Bảo mật phân quyền: từ trụ sở → chi nhánh → cửa hàng → kho.
-- Đăng ký dùng thử miễn phí tại trang chủ.
-
-Quy tắc:
-- Luôn trả lời bằng tiếng Việt, ngắn gọn, thân thiện, chuyên nghiệp.
-- Nếu câu hỏi ngoài phạm vi SaleMaster, nhẹ nhàng hướng người dùng về các tính năng hoặc lợi ích của SaleMaster.
-- Không bịa thông tin giá cả hoặc cam kết kỹ thuật cụ thể ngoài những gì đã mô tả.
-- Khuyến khích người dùng đăng ký dùng thử khi phù hợp.`;
-
 // ─── Hằng số ──────────────────────────────────────────────────────────────────
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+/**
+ * URL của AI-Agent backend. Mặc định là localhost:8000 cho dev.
+ * Override bằng VITE_AI_AGENT_URL trong .env nếu cần.
+ */
+const AI_AGENT_BASE_URL =
+  (import.meta.env.VITE_AI_AGENT_URL as string | undefined) ?? "http://localhost:8000";
+
+const PUBLIC_CHAT_URL = `${AI_AGENT_BASE_URL}/api/v1/public/public-chat`;
 
 const QUICK_QUESTIONS = [
   "SaleMaster có những tính năng gì?",
@@ -55,39 +40,36 @@ function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
-async function callGemini(history: Message[], userText: string): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    return "Chức năng chat chưa được cấu hình API key. Vui lòng liên hệ admin.";
+async function callPublicBackend(history: Message[], userText: string): Promise<string> {
+  try {
+    const res = await fetch(PUBLIC_CHAT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: userText,
+        history: history.map((m) => ({ role: m.role, text: m.text })),
+      }),
+    });
+
+    if (res.status === 429) {
+      return "⏳ Bạn đang gửi tin nhắn quá nhanh. Vui lòng đợi vài giây rồi thử lại.";
+    }
+
+    if (res.status === 503) {
+      return "🔄 AI đang bận, vui lòng thử lại sau vài giây.";
+    }
+
+    if (!res.ok) {
+      console.error("Public chat error:", res.status, await res.text().catch(() => ""));
+      return "Xin lỗi, dịch vụ đang tạm gián đoạn. Vui lòng thử lại sau.";
+    }
+
+    const data = (await res.json()) as { reply?: string };
+    return data.reply?.trim() || "Tôi chưa có câu trả lời cho câu hỏi này.";
+  } catch (err) {
+    console.error("Public chat network error:", err);
+    return "Không thể kết nối dịch vụ AI. Vui lòng kiểm tra kết nối mạng.";
   }
-
-  // Build Gemini contents array (alternating user/model)
-  const contents = history.map((m) => ({
-    role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: m.text }],
-  }));
-  contents.push({ role: "user", parts: [{ text: userText }] });
-
-  const body = {
-    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    contents,
-    generationConfig: { temperature: 0.7, maxOutputTokens: 600 },
-  };
-
-  const res = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    const err = await res.text().catch(() => "");
-    console.error("Gemini error:", err);
-    return "Xin lỗi, tôi đang gặp sự cố kỹ thuật. Vui lòng thử lại sau.";
-  }
-
-  const data = await res.json();
-  const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-  return text.trim() || "Tôi chưa có câu trả lời cho câu hỏi này.";
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -135,7 +117,7 @@ export function SaleMasterAIChatWidget() {
     setLoading(true);
 
     try {
-      const reply = await callGemini(messages, trimmed);
+      const reply = await callPublicBackend(messages, trimmed);
       setMessages((prev) => [...prev, { id: uid(), role: "assistant", text: reply }]);
     } catch {
       setMessages((prev) => [
