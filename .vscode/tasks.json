@@ -16,8 +16,8 @@
       "problemMatcher": {
         "owner": "ai-agent",
         "pattern": {
-          "regexp": "^(.*)$",
-          "message": 1
+          "regexp": "^(?!)",
+          "message": 0
         },
         "background": {
           "activeOnStart": true,

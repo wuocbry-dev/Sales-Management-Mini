@@ -1,0 +1,1096 @@
+"""Interactive prompts for project configuration."""
+
+import re
+from typing import Any, cast
+
+import questionary
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+
+from .config import (
+    AIFrameworkType,
+    BackgroundTaskType,
+    BrandColorType,
+    CIType,
+    DatabaseType,
+    FrontendType,
+    LLMProviderType,
+    LogfireFeatures,
+    OAuthProvider,
+    OrmType,
+    PdfParserType,
+    ProjectConfig,
+    RAGFeatures,
+    RateLimitStorageType,
+    RerankerType,
+    ReverseProxyType,
+    VectorStoreType,
+)
+
+console = Console()
+
+
+def show_header() -> None:
+    """Display the generator header."""
+    header = Text()
+    header.append("Full-Stack AI Agent Template", style="bold cyan")
+    header.append("\n")
+    header.append("FastAPI + Next.js with AI Agents & 20+ Integrations", style="dim")
+    console.print(Panel(header, title="[bold green]fastapi-fullstack[/]", border_style="green"))
+    console.print()
+
+
+def _check_cancelled(value: Any) -> Any:
+    """Check if the user cancelled the prompt and raise KeyboardInterrupt if so."""
+    if value is None:
+        raise KeyboardInterrupt
+    return value
+
+
+def _validate_project_name(name: str) -> bool | str:
+    """Validate project name input.
+
+    Returns True if valid, or an error message string if invalid.
+    Allows alphanumeric characters, underscores, spaces, and dashes.
+    First character must be a letter.
+    """
+    if not name:
+        return "Project name cannot be empty"
+    if not name[0].isalpha():
+        return "Project name must start with a letter"
+    if not all(c.isalnum() or c in "_- " for c in name):
+        return "Project name can only contain letters, numbers, underscores, spaces, and dashes"
+    return True
+
+
+def _normalize_project_name(name: str) -> str:
+    """Normalize project name to lowercase with underscores."""
+    return name.lower().replace(" ", "_").replace("-", "_")
+
+
+def _validate_email(email: str) -> bool | str:
+    """Validate email format.
+
+    Returns True if valid, or an error message string if invalid.
+    """
+    if not email:
+        return "Email cannot be empty"
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    if not re.match(pattern, email):
+        return "Please enter a valid email address"
+    return True
+
+
+def prompt_basic_info() -> dict[str, str]:
+    """Prompt for basic project information."""
+    console.print("[bold cyan]Basic Information[/]")
+    console.print()
+
+    raw_project_name = _check_cancelled(
+        questionary.text(
+            "Project name:",
+            default="ai-agent",
+            validate=_validate_project_name,
+        ).ask()
+    )
+    project_name = _normalize_project_name(raw_project_name)
+
+    # Show converted name if it differs from input
+    if project_name != raw_project_name:
+        console.print(f"  [dim]→ Will be saved as:[/] [cyan]{project_name}[/]")
+        console.print()
+
+    project_description = _check_cancelled(
+        questionary.text(
+            "Project description:",
+            default="My FastAPI project",
+        ).ask()
+    )
+
+    author_name = _check_cancelled(
+        questionary.text(
+            "Author name:",
+            default="Your Name",
+        ).ask()
+    )
+
+    author_email = _check_cancelled(
+        questionary.text(
+            "Author email:",
+            default="your@email.com",
+            validate=_validate_email,
+        ).ask()
+    )
+
+    timezone = _check_cancelled(
+        questionary.text(
+            "Timezone (IANA format):",
+            default="UTC",
+        ).ask()
+    )
+
+    return {
+        "project_name": project_name,
+        "project_description": project_description,
+        "author_name": author_name,
+        "author_email": author_email,
+        "timezone": timezone,
+    }
+
+
+def prompt_database() -> DatabaseType:
+    """Prompt for database selection."""
+    console.print()
+    console.print("[bold cyan]Database Configuration[/]")
+    console.print()
+
+    choices = [
+        questionary.Choice("PostgreSQL (async - asyncpg)", value=DatabaseType.POSTGRESQL),
+        questionary.Choice("MongoDB (async - motor)", value=DatabaseType.MONGODB),
+        questionary.Choice("SQLite (sync)", value=DatabaseType.SQLITE),
+    ]
+
+    return cast(
+        DatabaseType,
+        _check_cancelled(
+            questionary.select(
+                "Select database:",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
+def prompt_orm_type() -> OrmType:
+    """Prompt for ORM library selection."""
+    choices = [
+        questionary.Choice(
+            "SQLAlchemy — full control, supports admin panel",
+            value=OrmType.SQLALCHEMY,
+        ),
+        questionary.Choice(
+            "SQLModel — less boilerplate, no admin panel support",
+            value=OrmType.SQLMODEL,
+        ),
+    ]
+
+    return cast(
+        OrmType,
+        _check_cancelled(
+            questionary.select(
+                "ORM Library:",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
+def prompt_oauth() -> OAuthProvider:
+    """Prompt for OAuth provider selection."""
+    console.print()
+    console.print("[bold cyan]OAuth2 Social Login[/]")
+    console.print()
+
+    choices = [
+        questionary.Choice("None (email/password only)", value=OAuthProvider.NONE),
+        questionary.Choice("Google OAuth2", value=OAuthProvider.GOOGLE),
+    ]
+
+    return cast(
+        OAuthProvider,
+        _check_cancelled(
+            questionary.select(
+                "Enable social login?",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
+def prompt_logfire(background_tasks: BackgroundTaskType) -> tuple[bool, LogfireFeatures]:
+    """Prompt for Logfire configuration.
+
+    Args:
+        background_tasks: Selected background task system (affects which options are shown).
+    """
+    console.print()
+    console.print("[bold cyan]Observability (Logfire)[/]")
+    console.print()
+
+    enable_logfire = _check_cancelled(
+        questionary.confirm(
+            "Enable Logfire integration?",
+            default=True,
+        ).ask()
+    )
+
+    if not enable_logfire:
+        return False, LogfireFeatures()
+
+    # Build choices dynamically - only show Celery option when Celery is selected
+    choices = [
+        questionary.Choice("FastAPI instrumentation", value="fastapi", checked=True),
+        questionary.Choice("Database instrumentation", value="database", checked=True),
+        questionary.Choice("Redis instrumentation", value="redis", checked=False),
+        questionary.Choice("HTTPX instrumentation", value="httpx", checked=False),
+    ]
+
+    if background_tasks == BackgroundTaskType.CELERY:
+        choices.insert(
+            3, questionary.Choice("Celery instrumentation", value="celery", checked=False)
+        )
+
+    features = _check_cancelled(
+        questionary.checkbox(
+            "Logfire features:",
+            choices=choices,
+        ).ask()
+    )
+
+    return True, LogfireFeatures(
+        fastapi="fastapi" in features,
+        database="database" in features,
+        redis="redis" in features,
+        celery="celery" in features,
+        httpx="httpx" in features,
+    )
+
+
+def prompt_background_tasks() -> BackgroundTaskType:
+    """Prompt for background task system."""
+    console.print()
+    console.print("[bold cyan]Background Tasks[/]")
+    console.print()
+
+    choices = [
+        questionary.Choice("Celery (classic, battle-tested)", value=BackgroundTaskType.CELERY),
+        questionary.Choice("Taskiq (async-native, modern)", value=BackgroundTaskType.TASKIQ),
+        questionary.Choice("ARQ (lightweight async Redis)", value=BackgroundTaskType.ARQ),
+        questionary.Choice(
+            "None (use FastAPI BackgroundTasks only)", value=BackgroundTaskType.NONE
+        ),
+    ]
+
+    return cast(
+        BackgroundTaskType,
+        _check_cancelled(
+            questionary.select(
+                "Select background task system:",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
+def prompt_integrations(
+    database: DatabaseType,
+    orm_type: OrmType,
+) -> dict[str, bool]:
+    """Prompt for optional integrations.
+
+    Args:
+        database: Selected database type (affects which options are shown).
+        orm_type: Selected ORM type (SQLModel doesn't support admin panel).
+    """
+    console.print()
+    console.print("[bold cyan]Optional Integrations[/]")
+    console.print()
+
+    # Build choices dynamically based on context
+    choices: list[questionary.Choice] = [
+        questionary.Choice(
+            "Redis — required for caching, rate limiting (Redis), task queues",
+            value="redis",
+        ),
+        questionary.Choice(
+            "Caching (fastapi-cache2) — requires Redis",
+            value="caching",
+        ),
+        questionary.Choice(
+            "Rate limiting (slowapi) — optional Redis storage",
+            value="rate_limiting",
+        ),
+        questionary.Choice(
+            "Pagination (fastapi-pagination)",
+            value="pagination",
+            checked=True,
+        ),
+        questionary.Choice(
+            "Sentry — error tracking & monitoring",
+            value="sentry",
+        ),
+        questionary.Choice(
+            "Prometheus — metrics endpoint for monitoring",
+            value="prometheus",
+        ),
+    ]
+
+    # Admin Panel only available with SQLAlchemy (not SQLModel) and SQL database
+    if (
+        database in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE)
+        and orm_type == OrmType.SQLALCHEMY
+    ):
+        choices.append(
+            questionary.Choice(
+                "SQL Admin Panel (SQLAdmin) — web UI for browsing/editing database tables",
+                value="admin_panel",
+            )
+        )
+
+    choices.extend(
+        [
+            questionary.Choice(
+                "File Storage (S3/MinIO) — file upload/download support",
+                value="file_storage",
+            ),
+        ]
+    )
+
+    # Webhooks require database
+    if database != DatabaseType.NONE:
+        choices.append(
+            questionary.Choice(
+                "Webhooks — outbound event notifications",
+                value="webhooks",
+            )
+        )
+
+    choices.extend(
+        [
+            questionary.Choice(
+                "CORS middleware — cross-origin request support",
+                value="cors",
+                checked=True,
+            ),
+        ]
+    )
+
+    features = _check_cancelled(
+        questionary.checkbox(
+            "Select additional features:",
+            choices=choices,
+        ).ask()
+    )
+
+    # Auto-enable Redis for caching (show info message)
+    if "caching" in features and "redis" not in features:
+        console.print("[yellow]ℹ Caching requires Redis — auto-enabled[/]")
+        features.append("redis")
+
+    return {
+        "enable_redis": "redis" in features,
+        "enable_caching": "caching" in features,
+        "enable_rate_limiting": "rate_limiting" in features,
+        "enable_pagination": "pagination" in features,
+        "enable_sentry": "sentry" in features,
+        "enable_prometheus": "prometheus" in features,
+        "enable_admin_panel": "admin_panel" in features,
+        "enable_file_storage": "file_storage" in features,
+        "enable_webhooks": "webhooks" in features,
+        "enable_cors": "cors" in features,
+    }
+
+
+def _validate_positive_integer(value: str) -> bool | str:
+    """Validate that input is a positive integer.
+
+    Returns True if valid, or an error message string if invalid.
+    """
+    if not value:
+        return "Value cannot be empty"
+    if not value.isdigit():
+        return "Must be a positive number"
+    if int(value) <= 0:
+        return "Must be greater than 0"
+    return True
+
+
+def prompt_rate_limit_config(redis_enabled: bool) -> tuple[int, int, RateLimitStorageType]:
+    """Prompt for rate limiting configuration.
+
+    Args:
+        redis_enabled: Whether Redis is enabled (affects storage choices).
+
+    Returns:
+        Tuple of (requests, period, storage).
+    """
+    console.print()
+    console.print("[bold cyan]Rate Limiting Configuration[/]")
+    console.print()
+
+    requests_str = _check_cancelled(
+        questionary.text(
+            "Requests per period:",
+            default="100",
+            validate=_validate_positive_integer,
+        ).ask()
+    )
+
+    period_str = _check_cancelled(
+        questionary.text(
+            "Period in seconds:",
+            default="60",
+            validate=_validate_positive_integer,
+        ).ask()
+    )
+
+    # Auto-select storage: Redis when available, otherwise memory
+    storage = RateLimitStorageType.REDIS if redis_enabled else RateLimitStorageType.MEMORY
+    if storage == RateLimitStorageType.REDIS:
+        console.print("[yellow]ℹ Using Redis for rate limit storage (Redis is enabled)[/]")
+
+    return int(requests_str), int(period_str), storage
+
+
+def prompt_dev_tools() -> dict[str, Any]:
+    """Prompt for development tools."""
+    console.print()
+    console.print("[bold cyan]Development Tools[/]")
+    console.print()
+
+    features = _check_cancelled(
+        questionary.checkbox(
+            "Include dev tools:",
+            choices=[
+                questionary.Choice("pytest + fixtures", value="pytest", checked=True),
+                questionary.Choice("pre-commit hooks", value="precommit", checked=True),
+                questionary.Choice("Docker + docker-compose", value="docker", checked=True),
+                questionary.Choice("Kubernetes manifests", value="kubernetes"),
+            ],
+        ).ask()
+    )
+
+    ci_type = _check_cancelled(
+        questionary.select(
+            "CI/CD system:",
+            choices=[
+                questionary.Choice("GitHub Actions", value=CIType.GITHUB),
+                questionary.Choice("GitLab CI", value=CIType.GITLAB),
+                questionary.Choice("None", value=CIType.NONE),
+            ],
+        ).ask()
+    )
+
+    return {
+        "enable_pytest": "pytest" in features,
+        "enable_precommit": "precommit" in features,
+        "enable_docker": "docker" in features,
+        "enable_kubernetes": "kubernetes" in features,
+        "ci_type": ci_type,
+    }
+
+
+def prompt_reverse_proxy() -> ReverseProxyType:
+    """Prompt for reverse proxy configuration."""
+    console.print()
+    console.print("[bold cyan]Reverse Proxy (Production)[/]")
+    console.print()
+
+    choices = [
+        questionary.Choice(
+            "Traefik (included in docker-compose)", value=ReverseProxyType.TRAEFIK_INCLUDED
+        ),
+        questionary.Choice(
+            "Traefik (external, shared between projects)",
+            value=ReverseProxyType.TRAEFIK_EXTERNAL,
+        ),
+        questionary.Choice(
+            "Nginx (included in docker-compose)", value=ReverseProxyType.NGINX_INCLUDED
+        ),
+        questionary.Choice(
+            "Nginx (external, config template only)", value=ReverseProxyType.NGINX_EXTERNAL
+        ),
+        questionary.Choice(
+            "None (expose ports directly, use own proxy)", value=ReverseProxyType.NONE
+        ),
+    ]
+
+    return cast(
+        ReverseProxyType,
+        _check_cancelled(
+            questionary.select(
+                "Select reverse proxy configuration:",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
+def prompt_frontend() -> FrontendType:
+    """Prompt for frontend framework selection."""
+    console.print()
+    console.print("[bold cyan]Frontend Framework[/]")
+    console.print()
+
+    choices = [
+        questionary.Choice("Next.js 15 (App Router, TypeScript, Bun)", value=FrontendType.NEXTJS),
+        questionary.Choice("None (API only)", value=FrontendType.NONE),
+    ]
+
+    return cast(
+        FrontendType,
+        _check_cancelled(
+            questionary.select(
+                "Select frontend framework:",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
+def prompt_brand_color() -> BrandColorType:
+    """Prompt for brand color selection."""
+    console.print()
+    console.print("[bold cyan]Brand Color[/]")
+    console.print()
+
+    return cast(
+        BrandColorType,
+        _check_cancelled(
+            questionary.select(
+                "Select brand color:",
+                choices=[
+                    questionary.Choice("Blue", value=BrandColorType.BLUE),
+                    questionary.Choice("Green", value=BrandColorType.GREEN),
+                    questionary.Choice("Red", value=BrandColorType.RED),
+                    questionary.Choice("Violet", value=BrandColorType.VIOLET),
+                    questionary.Choice("Orange", value=BrandColorType.ORANGE),
+                ],
+                default=BrandColorType.BLUE,
+            ).ask()
+        ),
+    )
+
+
+def prompt_ai_framework() -> AIFrameworkType:
+    """Prompt for AI framework selection."""
+    console.print()
+    console.print("[bold cyan]AI Agent Framework[/]")
+    console.print()
+
+    choices = [
+        questionary.Choice("PydanticAI (recommended)", value=AIFrameworkType.PYDANTIC_AI),
+        questionary.Choice("LangChain", value=AIFrameworkType.LANGCHAIN),
+        questionary.Choice("LangGraph (ReAct agent)", value=AIFrameworkType.LANGGRAPH),
+        questionary.Choice("CrewAI (multi-agent crews)", value=AIFrameworkType.CREWAI),
+        questionary.Choice(
+            "DeepAgents (agentic coding, LangChain)", value=AIFrameworkType.DEEPAGENTS
+        ),
+        questionary.Choice(
+            "PydanticDeep (deep agentic coding, Docker sandbox)",
+            value=AIFrameworkType.PYDANTIC_DEEP,
+        ),
+    ]
+
+    return cast(
+        AIFrameworkType,
+        _check_cancelled(
+            questionary.select(
+                "Select AI framework:",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
+def prompt_sandbox_backend(ai_framework: AIFrameworkType) -> str:
+    """Prompt for sandbox/environment backend type.
+
+    Shown only when the selected AI framework supports sandbox backends
+    (DeepAgents, PydanticDeep).
+    """
+    console.print()
+    console.print("[bold cyan]Agent Sandbox Environment[/]")
+    console.print()
+
+    choices = [
+        questionary.Choice("State (in-memory, ephemeral — default)", value="state"),
+    ]
+
+    if ai_framework == AIFrameworkType.PYDANTIC_DEEP:
+        choices.append(
+            questionary.Choice("Daytona workspace (cloud dev environment)", value="daytona"),
+        )
+
+    return cast(
+        str,
+        _check_cancelled(
+            questionary.select(
+                "Select agent sandbox environment:",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
+def prompt_llm_provider(ai_framework: AIFrameworkType) -> LLMProviderType:
+    """Prompt for LLM provider selection.
+
+    Args:
+        ai_framework: The selected AI framework. OpenRouter is only
+            available for PydanticAI and PydanticDeep (both use pydantic-ai under the hood).
+    """
+    console.print()
+    console.print("[bold cyan]LLM Provider[/]")
+    console.print()
+
+    choices = [
+        questionary.Choice("OpenAI (gpt-4o-mini)", value=LLMProviderType.OPENAI),
+        questionary.Choice("Anthropic (claude-sonnet-4-5)", value=LLMProviderType.ANTHROPIC),
+        questionary.Choice("Google Gemini (gemini-2.0-flash)", value=LLMProviderType.GOOGLE),
+    ]
+
+    # OpenRouter available for PydanticAI and PydanticDeep (both use pydantic-ai)
+    if ai_framework in (AIFrameworkType.PYDANTIC_AI, AIFrameworkType.PYDANTIC_DEEP):
+        choices.append(
+            questionary.Choice("OpenRouter (multi-provider)", value=LLMProviderType.OPENROUTER)
+        )
+
+    return cast(
+        LLMProviderType,
+        _check_cancelled(
+            questionary.select(
+                "Select LLM provider:",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
+def prompt_langsmith() -> bool:
+    """Prompt for LangSmith observability."""
+    return cast(
+        bool,
+        _check_cancelled(
+            questionary.confirm(
+                "Enable LangSmith observability (tracing, prompt management)?",
+                default=False,
+            ).ask()
+        ),
+    )
+
+
+def prompt_rag_config() -> RAGFeatures:
+    """Prompt for RAG configuration."""
+
+    console.print()
+    console.print("[bold cyan]RAG (Retrieval Augmented Generation)[/]")
+    console.print("Configure document ingestion and retrieval logic.")
+    console.print()
+
+    # Prompt for RAG enable/disable
+    enable_rag = _check_cancelled(
+        questionary.confirm(
+            "Enable RAG (Retrieval Augmented Generation) applications?", default=True
+        ).ask()
+    )
+
+    enable_google_drive_ingestion = False
+    enable_s3_ingestion = False
+    enable_image_description = False
+    reranker_type = RerankerType.NONE
+    pdf_parser = PdfParserType.PYMUPDF
+    vector_store = VectorStoreType.MILVUS
+
+    # In RAG is enabled, ask for features
+    if enable_rag:
+        vector_store_choice = _check_cancelled(
+            questionary.select(
+                "Select vector store backend:",
+                choices=[
+                    questionary.Choice(
+                        "Milvus (production, Docker required)", value=VectorStoreType.MILVUS
+                    ),
+                    questionary.Choice(
+                        "Qdrant (production, Docker required)", value=VectorStoreType.QDRANT
+                    ),
+                    questionary.Choice(
+                        "ChromaDB (embedded, no Docker needed)", value=VectorStoreType.CHROMADB
+                    ),
+                    questionary.Choice(
+                        "pgvector (uses existing PostgreSQL)", value=VectorStoreType.PGVECTOR
+                    ),
+                ],
+                default=VectorStoreType.MILVUS,
+            ).ask()
+        )
+        vector_store = VectorStoreType(vector_store_choice)
+
+        enable_google_drive_ingestion = _check_cancelled(
+            questionary.confirm("Enable Google Drive document ingestion?", default=False).ask()
+        )
+
+        enable_s3_ingestion = _check_cancelled(
+            questionary.confirm("Enable S3/MinIO document ingestion?", default=False).ask()
+        )
+
+        reranker_choice = _check_cancelled(
+            questionary.select(
+                "Select reranking strategy:",
+                choices=[
+                    questionary.Choice("None (no reranking)", value=RerankerType.NONE),
+                    questionary.Choice(
+                        "Cohere Rerank (cloud API, best accuracy)", value=RerankerType.COHERE
+                    ),
+                    questionary.Choice(
+                        "Cross-Encoder (local, no API needed)", value=RerankerType.CROSS_ENCODER
+                    ),
+                ],
+                default=RerankerType.NONE,
+            ).ask()
+        )
+        reranker_type = RerankerType(reranker_choice)
+
+        # PDF Parser selection
+        pdf_parser_choice = _check_cancelled(
+            questionary.select(
+                "Select PDF parser:",
+                choices=[
+                    questionary.Choice(
+                        "All (install all parsers, select at runtime via PDF_PARSER env var)",
+                        value=PdfParserType.ALL,
+                    ),
+                    questionary.Choice(
+                        "PyMuPDF (fast, local, free) - text, tables, images, OCR fallback",
+                        value=PdfParserType.PYMUPDF,
+                    ),
+                    questionary.Choice(
+                        "LiteParse (AI-native, local) - layout-aware text, built-in OCR, requires Node.js",
+                        value=PdfParserType.LITEPARSE,
+                    ),
+                    questionary.Choice(
+                        "LlamaParse (AI-powered, cloud) - handles complex layouts & scanned docs",
+                        value=PdfParserType.LLAMAPARSE,
+                    ),
+                ],
+                default=PdfParserType.ALL,
+            ).ask()
+        )
+        pdf_parser = PdfParserType(pdf_parser_choice)
+
+        # Image description (PyMuPDF only — extracts images from PDF and describes via LLM vision)
+        if pdf_parser in (PdfParserType.PYMUPDF, PdfParserType.ALL):
+            enable_image_description = _check_cancelled(
+                questionary.confirm(
+                    "Enable image description? (PyMuPDF only — extracts images and describes via LLM vision API)",
+                    default=True,
+                ).ask()
+            )
+
+    return RAGFeatures(
+        enable_rag=enable_rag,
+        vector_store=vector_store,
+        enable_google_drive_ingestion=enable_google_drive_ingestion,
+        enable_s3_ingestion=enable_s3_ingestion,
+        enable_image_description=enable_image_description,
+        reranker_type=reranker_type,
+        pdf_parser=pdf_parser,
+    )
+
+
+def prompt_channels() -> tuple[bool, bool]:
+    """Prompt for messaging channel integrations (Telegram, Slack)."""
+    console.print()
+    console.print("[bold cyan]Messaging Channels[/]")
+    console.print()
+
+    use_telegram = cast(
+        bool,
+        _check_cancelled(
+            questionary.confirm(
+                "Enable Telegram bot integration? (multi-bot, polling + webhook, role-based access)",
+                default=False,
+            ).ask()
+        ),
+    )
+
+    use_slack = cast(
+        bool,
+        _check_cancelled(
+            questionary.confirm(
+                "Enable Slack bot integration? (Events API, threads, @mention support)",
+                default=False,
+            ).ask()
+        ),
+    )
+
+    return use_telegram, use_slack
+
+
+def prompt_python_version() -> str:
+    """Prompt for Python version selection."""
+    console.print()
+    console.print("[bold cyan]Python Version[/]")
+    console.print()
+
+    choices = [
+        questionary.Choice("Python 3.12 (recommended)", value="3.12"),
+        questionary.Choice("Python 3.11", value="3.11"),
+        questionary.Choice("Python 3.13", value="3.13"),
+    ]
+
+    return cast(
+        str,
+        _check_cancelled(
+            questionary.select(
+                "Select Python version:",
+                choices=choices,
+                default=choices[0],
+            ).ask()
+        ),
+    )
+
+
+def prompt_ports(has_frontend: bool) -> dict[str, int]:
+    """Prompt for port configuration."""
+    console.print()
+    console.print("[bold cyan]Port Configuration[/]")
+    console.print()
+
+    def validate_port(value: str) -> bool | str:
+        try:
+            port = int(value)
+            if 1024 <= port <= 65535:
+                return True
+            return "Port must be between 1024 and 65535"
+        except ValueError:
+            return "Port must be a number between 1024 and 65535"
+
+    backend_port_str = _check_cancelled(
+        questionary.text(
+            "Backend port:",
+            default="8000",
+            validate=validate_port,
+        ).ask()
+    )
+
+    result = {"backend_port": int(backend_port_str)}
+
+    if has_frontend:
+        frontend_port_str = _check_cancelled(
+            questionary.text(
+                "Frontend port:",
+                default="3000",
+                validate=validate_port,
+            ).ask()
+        )
+        result["frontend_port"] = int(frontend_port_str)
+
+    return result
+
+
+def run_interactive_prompts() -> ProjectConfig:
+    """Run all interactive prompts and return configuration."""
+    show_header()
+
+    # Basic info
+    basic_info = prompt_basic_info()
+
+    # Database
+    database = prompt_database()
+
+    # ORM type (only for PostgreSQL or SQLite)
+    orm_type = OrmType.SQLALCHEMY
+    if database in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE):
+        orm_type = prompt_orm_type()
+
+    # OAuth
+    oauth_provider = prompt_oauth()
+
+    # Session management
+    enable_session_management = _check_cancelled(
+        questionary.confirm(
+            "Enable session management? (track active sessions, logout from devices)",
+            default=True,
+        ).ask()
+    )
+
+    # Background tasks (before Logfire so we can conditionally show Celery instrumentation)
+    background_tasks = prompt_background_tasks()
+
+    # Logfire
+    enable_logfire, logfire_features = prompt_logfire(background_tasks)
+
+    # Integrations (pass context for dynamic option filtering)
+    integrations = prompt_integrations(database=database, orm_type=orm_type)
+
+    # Dev tools
+    dev_tools = prompt_dev_tools()
+
+    # Reverse proxy (only if Docker is enabled)
+    reverse_proxy = ReverseProxyType.NONE
+    if dev_tools.get("enable_docker"):
+        reverse_proxy = prompt_reverse_proxy()
+
+    # Frontend
+    frontend = prompt_frontend()
+
+    # Python version
+    python_version = prompt_python_version()
+
+    # Port configuration
+    ports = prompt_ports(has_frontend=frontend != FrontendType.NONE)
+
+    # Auto-enable Redis for Celery/Taskiq/ARQ (they require Redis as broker)
+    if background_tasks in (
+        BackgroundTaskType.CELERY,
+        BackgroundTaskType.TASKIQ,
+        BackgroundTaskType.ARQ,
+    ):
+        integrations["enable_redis"] = True
+
+    # AI framework, LLM provider
+    enable_langsmith = False
+    rag_features = RAGFeatures()
+
+    ai_framework = prompt_ai_framework()
+
+    # Sandbox backend selection for agentic coding frameworks
+    sandbox_backend = "state"
+    if ai_framework in (AIFrameworkType.DEEPAGENTS, AIFrameworkType.PYDANTIC_DEEP):
+        sandbox_backend = prompt_sandbox_backend(ai_framework)
+
+    llm_provider = prompt_llm_provider(ai_framework)
+
+    # RAG Logic
+    rag_features = prompt_rag_config()
+
+    # LangSmith for LangChain-ecosystem frameworks only
+    # (PydanticDeep uses Logfire for observability, not LangSmith)
+    if ai_framework in (
+        AIFrameworkType.LANGCHAIN,
+        AIFrameworkType.LANGGRAPH,
+        AIFrameworkType.DEEPAGENTS,
+    ):
+        enable_langsmith = prompt_langsmith()
+
+    # Messaging channel integrations
+    use_telegram, use_slack = prompt_channels()
+
+    # Rate limit configuration (when rate limiting is enabled)
+    rate_limit_requests = 100
+    rate_limit_period = 60
+    rate_limit_storage = RateLimitStorageType.MEMORY
+    if integrations.get("enable_rate_limiting"):
+        rate_limit_requests, rate_limit_period, rate_limit_storage = prompt_rate_limit_config(
+            redis_enabled=integrations.get("enable_redis", False)
+        )
+
+    # Brand color (if frontend enabled)
+    brand_color = BrandColorType.BLUE
+    if frontend != FrontendType.NONE:
+        brand_color = prompt_brand_color()
+
+    # Extract ci_type separately for type safety
+    ci_type = cast(CIType, dev_tools.pop("ci_type"))
+
+    # Build config
+    config = ProjectConfig(
+        project_name=basic_info["project_name"],
+        project_description=basic_info["project_description"],
+        author_name=basic_info["author_name"],
+        author_email=basic_info["author_email"],
+        timezone=basic_info["timezone"],
+        database=database,
+        orm_type=orm_type,
+        oauth_provider=oauth_provider,
+        enable_session_management=enable_session_management,
+        enable_logfire=enable_logfire,
+        logfire_features=logfire_features,
+        background_tasks=background_tasks,
+        ai_framework=ai_framework,
+        sandbox_backend=sandbox_backend,
+        llm_provider=llm_provider,
+        rag_features=rag_features,
+        enable_langsmith=enable_langsmith,
+        use_telegram=use_telegram,
+        use_slack=use_slack,
+        rate_limit_requests=rate_limit_requests,
+        rate_limit_period=rate_limit_period,
+        rate_limit_storage=rate_limit_storage,
+        python_version=python_version,
+        ci_type=ci_type,
+        reverse_proxy=reverse_proxy,
+        frontend=frontend,
+        brand_color=brand_color,
+        backend_port=ports["backend_port"],
+        frontend_port=ports.get("frontend_port", 3000),
+        **integrations,
+        **dev_tools,
+    )
+
+    return config
+
+
+def show_summary(config: ProjectConfig) -> None:
+    """Display configuration summary."""
+    console.print()
+    console.print("[bold green]Configuration Summary[/]")
+    console.print()
+
+    console.print(f"  [cyan]Project:[/] {config.project_name}")
+    console.print(f"  [cyan]Database:[/] {config.database.value}")
+    if config.database in (DatabaseType.POSTGRESQL, DatabaseType.SQLITE):
+        console.print(f"  [cyan]ORM:[/] {config.orm_type.value}")
+    auth_str = "JWT + API Key"
+    if config.oauth_provider != OAuthProvider.NONE:
+        auth_str += f" + {config.oauth_provider.value} OAuth"
+    console.print(f"  [cyan]Auth:[/] {auth_str}")
+    console.print(f"  [cyan]Logfire:[/] {'enabled' if config.enable_logfire else 'disabled'}")
+    if config.enable_langsmith:
+        console.print("  [cyan]LangSmith:[/] enabled")
+    console.print(f"  [cyan]Background Tasks:[/] {config.background_tasks.value}")
+    console.print(f"  [cyan]Frontend:[/] {config.frontend.value}")
+
+    enabled_features = []
+    if config.enable_redis:
+        enabled_features.append("Redis")
+    if config.enable_caching:
+        enabled_features.append("Caching")
+    if config.enable_rate_limiting:
+        rate_info = f"Rate Limiting ({config.rate_limit_requests}/{config.rate_limit_period}s, {config.rate_limit_storage.value})"
+        enabled_features.append(rate_info)
+    if config.enable_admin_panel:
+        enabled_features.append("SQL Admin Panel")
+    ai_info = f"AI Agent ({config.ai_framework.value}, {config.llm_provider.value})"
+    if config.ai_framework in (AIFrameworkType.DEEPAGENTS, AIFrameworkType.PYDANTIC_DEEP):
+        ai_info += f", sandbox: {config.sandbox_backend}"
+    if config.rag_features.enable_rag:
+        ai_info += f" + RAG ({config.rag_features.vector_store.value})"
+    enabled_features.append(ai_info)
+    if config.enable_webhooks:
+        enabled_features.append("Webhooks")
+    if config.use_telegram:
+        enabled_features.append("Telegram")
+    if config.use_slack:
+        enabled_features.append("Slack")
+    if config.enable_docker:
+        enabled_features.append("Docker")
+
+    if enabled_features:
+        console.print(f"  [cyan]Features:[/] {', '.join(enabled_features)}")
+
+    console.print()
+
+
+def confirm_generation() -> bool:
+    """Confirm project generation."""
+    return cast(
+        bool,
+        _check_cancelled(
+            questionary.confirm(
+                "Generate project with this configuration?",
+                default=True,
+            ).ask()
+        ),
+    )

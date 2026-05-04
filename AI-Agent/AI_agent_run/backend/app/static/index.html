@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI_agent_run Agent</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f8fb;
+        --panel: #ffffff;
+        --panel-2: #eef3f8;
+        --text: #18202a;
+        --muted: #647184;
+        --line: #d9e1ea;
+        --accent: #0f766e;
+        --accent-2: #155e75;
+        --danger: #b42318;
+        --shadow: 0 10px 30px rgba(18, 31, 48, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: 320px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        padding: 22px;
+        border-right: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.2;
+        letter-spacing: 0;
+      }
+
+      .status {
+        min-width: 72px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 700;
+        color: #475467;
+        background: #f2f4f7;
+      }
+
+      .status.on {
+        color: #05603a;
+        background: #d1fadf;
+      }
+
+      .group {
+        display: grid;
+        gap: 10px;
+      }
+
+      .group h2 {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--text);
+        outline: none;
+      }
+
+      input,
+      select {
+        height: 40px;
+        padding: 0 11px;
+      }
+
+      textarea {
+        min-height: 48px;
+        max-height: 170px;
+        padding: 12px 13px;
+        resize: vertical;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      button {
+        height: 40px;
+        border: 0;
+        border-radius: 8px;
+        padding: 0 14px;
+        cursor: pointer;
+        font-weight: 760;
+      }
+
+      button.primary {
+        color: #fff;
+        background: var(--accent);
+      }
+
+      button.secondary {
+        color: var(--accent-2);
+        background: #e6f4f1;
+      }
+
+      button.ghost {
+        color: var(--muted);
+        background: #f2f4f7;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+
+      .main {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        min-width: 0;
+        min-height: 100vh;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.86);
+      }
+
+      .topbar strong {
+        display: block;
+        font-size: 15px;
+      }
+
+      .topbar span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .messages {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-height: 0;
+        overflow: auto;
+        padding: 24px;
+      }
+
+      .empty {
+        max-width: 720px;
+        margin: auto;
+        text-align: center;
+        color: var(--muted);
+      }
+
+      .empty h2 {
+        margin: 0 0 8px;
+        color: var(--text);
+        font-size: 28px;
+        letter-spacing: 0;
+      }
+
+      .bubble {
+        max-width: min(780px, 92%);
+        padding: 13px 15px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        word-break: break-word;
+        box-shadow: var(--shadow);
+      }
+
+      .bubble.user {
+        align-self: flex-end;
+        color: #fff;
+        border-color: var(--accent);
+        background: var(--accent);
+      }
+
+      .bubble.assistant {
+        align-self: flex-start;
+        background: var(--panel);
+      }
+
+      .bubble.system {
+        align-self: center;
+        max-width: min(680px, 92%);
+        color: var(--muted);
+        background: var(--panel-2);
+        box-shadow: none;
+      }
+
+      .composer {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        padding: 18px 22px 22px;
+        border-top: 1px solid var(--line);
+        background: var(--panel);
+      }
+
+      .message-input {
+        min-height: 48px;
+      }
+
+      .send {
+        width: 94px;
+        height: 48px;
+      }
+
+      .notice {
+        min-height: 20px;
+        color: var(--danger);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      @media (max-width: 820px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .main {
+          min-height: 68vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>AI_agent_run</h1>
+          <div id="status" class="status">Offline</div>
+        </div>
+
+        <section class="group">
+          <h2>Account</h2>
+          <label>
+            Email
+            <input id="email" type="email" autocomplete="email" value="demo@example.com" />
+          </label>
+          <label>
+            Password
+            <input id="password" type="password" autocomplete="current-password" value="password123" />
+          </label>
+          <div class="actions">
+            <button id="loginBtn" class="primary" type="button">Login</button>
+            <button id="registerBtn" class="secondary" type="button">Register</button>
+          </div>
+          <button id="logoutBtn" class="ghost" type="button">Logout</button>
+        </section>
+
+        <section class="group">
+          <h2>Model</h2>
+          <label>
+            Active model
+            <select id="model"></select>
+          </label>
+        </section>
+
+        <div id="notice" class="notice"></div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <strong>AI Agent Chat</strong>
+            <span id="sessionLabel">No active session</span>
+          </div>
+          <button id="clearBtn" class="ghost" type="button">Clear</button>
+        </header>
+
+        <section id="messages" class="messages">
+          <div class="empty">
+            <h2>AI Agent</h2>
+            <p>Dang nhap, sau do bat dau chat voi agent.</p>
+          </div>
+        </section>
+
+        <form id="chatForm" class="composer">
+          <textarea
+            id="messageInput"
+            class="message-input"
+            placeholder="Nhap tin nhan..."
+            rows="1"
+          ></textarea>
+          <button id="sendBtn" class="primary send" type="submit">Send</button>
+        </form>
+      </main>
+    </div>
+
+    <script>
+      const mountPath = window.location.pathname.startsWith("/ai-agent") ? "/ai-agent" : "";
+      const apiBase = `${mountPath}/api/v1`;
+      const tokenKey = "AI_agent_run.accessToken";
+      const refreshKey = "AI_agent_run.refreshToken";
+      const emailKey = "AI_agent_run.email";
+
+      const els = {
+        status: document.getElementById("status"),
+        email: document.getElementById("email"),
+        password: document.getElementById("password"),
+        loginBtn: document.getElementById("loginBtn"),
+        registerBtn: document.getElementById("registerBtn"),
+        logoutBtn: document.getElementById("logoutBtn"),
+        model: document.getElementById("model"),
+        notice: document.getElementById("notice"),
+        sessionLabel: document.getElementById("sessionLabel"),
+        messages: document.getElementById("messages"),
+        clearBtn: document.getElementById("clearBtn"),
+        chatForm: document.getElementById("chatForm"),
+        messageInput: document.getElementById("messageInput"),
+        sendBtn: document.getElementById("sendBtn"),
+      };
+
+      let socket = null;
+      let activeAssistantBubble = null;
+      let conversationId = null;
+
+      function setNotice(text, danger = true) {
+        els.notice.textContent = text || "";
+        els.notice.style.color = danger ? "var(--danger)" : "var(--accent)";
+      }
+
+      function setOnline(online) {
+        els.status.textContent = online ? "Online" : "Offline";
+        els.status.classList.toggle("on", online);
+        els.sendBtn.disabled = !online;
+      }
+
+      function token() {
+        return localStorage.getItem(tokenKey);
+      }
+
+      function clearEmpty() {
+        const empty = els.messages.querySelector(".empty");
+        if (empty) empty.remove();
+      }
+
+      function addBubble(role, text = "") {
+        clearEmpty();
+        const bubble = document.createElement("div");
+        bubble.className = `bubble ${role}`;
+        bubble.textContent = text;
+        els.messages.appendChild(bubble);
+        els.messages.scrollTop = els.messages.scrollHeight;
+        return bubble;
+      }
+
+      async function fetchJson(url, options = {}) {
+        const response = await fetch(url, options);
+        const contentType = response.headers.get("content-type") || "";
+        const body = contentType.includes("application/json") ? await response.json() : await response.text();
+        if (!response.ok) {
+          const message = body.detail || body.message || JSON.stringify(body);
+          throw new Error(message);
+        }
+        return body;
+      }
+
+      async function loadModels() {
+        const data = await fetchJson(`${apiBase}/agent/models`);
+        els.model.innerHTML = "";
+        const models = data.models && data.models.length ? data.models : [data.default];
+        for (const name of models) {
+          const option = document.createElement("option");
+          option.value = name;
+          option.textContent = name;
+          option.selected = name === data.default;
+          els.model.appendChild(option);
+        }
+      }
+
+      async function register() {
+        setNotice("");
+        await fetchJson(`${apiBase}/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: els.email.value.trim(),
+            password: els.password.value,
+            full_name: "Demo User",
+          }),
+        });
+        setNotice("Registered. Logging in...", false);
+        await login();
+      }
+
+      async function login() {
+        setNotice("");
+        const form = new URLSearchParams();
+        form.set("username", els.email.value.trim());
+        form.set("password", els.password.value);
+        const data = await fetchJson(`${apiBase}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: form,
+        });
+        localStorage.setItem(tokenKey, data.access_token);
+        localStorage.setItem(refreshKey, data.refresh_token);
+        localStorage.setItem(emailKey, els.email.value.trim());
+        connect();
+      }
+
+      function logout() {
+        localStorage.removeItem(tokenKey);
+        localStorage.removeItem(refreshKey);
+        if (socket) socket.close();
+        setOnline(false);
+        els.sessionLabel.textContent = "No active session";
+        setNotice("Logged out.", false);
+      }
+
+      function connect() {
+        const accessToken = token();
+        if (!accessToken) {
+          setOnline(false);
+          return;
+        }
+
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          return;
+        }
+
+        const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        const url = `${protocol}://${window.location.host}${apiBase}/ws/agent`;
+        socket = new WebSocket(url, ["chat", `access_token.${accessToken}`]);
+
+        socket.addEventListener("open", () => {
+          setOnline(true);
+          els.sessionLabel.textContent = localStorage.getItem(emailKey) || els.email.value.trim();
+          setNotice("Connected.", false);
+        });
+
+        socket.addEventListener("close", (event) => {
+          setOnline(false);
+          if (event.code === 4001) {
+            setNotice("Session expired. Login again.");
+          }
+        });
+
+        socket.addEventListener("error", () => {
+          setOnline(false);
+          setNotice("WebSocket connection error.");
+        });
+
+        socket.addEventListener("message", (event) => {
+          const payload = JSON.parse(event.data);
+          handleAgentEvent(payload.type, payload.data || {});
+        });
+      }
+
+      function handleAgentEvent(type, data) {
+        if (type === "conversation_created") {
+          conversationId = data.conversation_id;
+          return;
+        }
+        if (type === "model_request_start") {
+          activeAssistantBubble = addBubble("assistant", "");
+          return;
+        }
+        if (type === "text_delta") {
+          if (!activeAssistantBubble) activeAssistantBubble = addBubble("assistant", "");
+          activeAssistantBubble.textContent += data.content || "";
+          els.messages.scrollTop = els.messages.scrollHeight;
+          return;
+        }
+        if (type === "final_result") {
+          if (!activeAssistantBubble) activeAssistantBubble = addBubble("assistant", data.output || "");
+          if (!activeAssistantBubble.textContent.trim()) {
+            activeAssistantBubble.textContent = data.output || "";
+          }
+          return;
+        }
+        if (type === "tool_call") {
+          addBubble("system", `Tool: ${data.tool_name}`);
+          return;
+        }
+        if (type === "error") {
+          addBubble("system", data.message || "Agent error");
+          return;
+        }
+        if (type === "complete") {
+          activeAssistantBubble = null;
+          els.sendBtn.disabled = false;
+        }
+      }
+
+      function sendMessage(text) {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+          setNotice("Login first.");
+          return;
+        }
+        activeAssistantBubble = null;
+        addBubble("user", text);
+        els.sendBtn.disabled = true;
+        socket.send(
+          JSON.stringify({
+            message: text,
+            conversation_id: conversationId,
+            model: els.model.value,
+          }),
+        );
+      }
+
+      els.registerBtn.addEventListener("click", () => register().catch((err) => setNotice(err.message)));
+      els.loginBtn.addEventListener("click", () => login().catch((err) => setNotice(err.message)));
+      els.logoutBtn.addEventListener("click", logout);
+      els.clearBtn.addEventListener("click", () => {
+        conversationId = null;
+        activeAssistantBubble = null;
+        els.messages.innerHTML = '<div class="empty"><h2>AI Agent</h2><p>Dang nhap, sau do bat dau chat voi agent.</p></div>';
+      });
+      els.chatForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const text = els.messageInput.value.trim();
+        if (!text) return;
+        els.messageInput.value = "";
+        sendMessage(text);
+      });
+      els.messageInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          els.chatForm.requestSubmit();
+        }
+      });
+
+      const savedEmail = localStorage.getItem(emailKey);
+      if (savedEmail) els.email.value = savedEmail;
+
+      loadModels().catch((err) => setNotice(err.message));
+      connect();
+      setOnline(false);
+    </script>
+  </body>
+</html>
